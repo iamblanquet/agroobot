@@ -27,47 +27,49 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
 
   return (
     <header className="bg-[#064e3b] border-b border-emerald-800/60 sticky top-0 z-50 shadow-md">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
-        <div className="flex items-center justify-between gap-2">
-          {/* Logo & Info */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center font-black text-emerald-300 text-sm tracking-wider shadow-inner">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          {/* Logo & Brand Info */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center font-black text-emerald-300 text-xs sm:text-sm tracking-wider shadow-inner flex-shrink-0">
               TESA
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-white tracking-tight leading-none">Operación de Campo</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight leading-none truncate">
+                  Operación de Campo
+                </h1>
                 {isTelegram && (
-                  <span className="flex items-center gap-1 text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/30 px-1.5 py-0.5 rounded font-medium">
-                    <Send className="w-2.5 h-2.5" /> Telegram MiniApp
+                  <span className="flex items-center gap-1 text-[9px] sm:text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/30 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                    <Send className="w-2.5 h-2.5" /> MiniApp
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-emerald-200/80 font-normal leading-tight mt-0.5 hidden sm:block">
+              <p className="text-[10px] sm:text-[11px] text-emerald-200/80 font-normal leading-tight mt-0.5 truncate hidden xs:block">
                 {user?.nombre || 'Usuario Conectado'}
               </p>
             </div>
           </div>
 
-          {/* Badge Offline / Sincronización */}
-          <div className="flex items-center gap-2">
+          {/* Right Action Tools */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <OfflineBadge onSyncComplete={onSyncComplete} />
 
             {/* Rol Actual */}
-            <div className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border font-semibold ${currentRoleInfo.color} shadow-sm`}>
+            <div className={`flex items-center gap-1 text-[11px] sm:text-xs px-2 sm:px-2.5 py-1 rounded-md border font-semibold ${currentRoleInfo.color} shadow-sm`}>
               <RoleIcon className="w-3.5 h-3.5" />
-              <span className="capitalize hidden md:inline">{currentRoleInfo.label}</span>
+              <span className="capitalize hidden sm:inline">{currentRoleInfo.label}</span>
             </div>
 
-            {/* Switch rápido de rol para testing de arquitectura */}
+            {/* Switch rápido de rol */}
             <div className="relative group">
               <button
                 type="button"
-                className="p-1.5 rounded-lg bg-emerald-950/70 text-emerald-300 border border-emerald-700/50 hover:bg-emerald-900 transition text-xs flex items-center gap-1"
+                className="p-1 sm:px-2 sm:py-1 rounded-lg bg-emerald-950/70 text-emerald-300 border border-emerald-700/50 hover:bg-emerald-900 transition text-xs flex items-center gap-1"
                 title="Cambiar rol rápido de prueba"
               >
                 <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[11px]">Cambiar Rol</span>
+                <span className="hidden md:inline text-[11px]">Rol</span>
               </button>
               <div className="absolute right-0 mt-1 w-44 bg-slate-900 border border-slate-700 rounded-lg shadow-xl py-1 hidden group-hover:block z-50">
                 <div className="px-3 py-1 text-[10px] text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-800">
@@ -108,7 +110,7 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
             <button
               type="button"
               onClick={logout}
-              className="p-1.5 rounded-lg bg-rose-950/60 text-rose-300 border border-rose-800/40 hover:bg-rose-900/80 transition"
+              className="p-1 sm:p-1.5 rounded-lg bg-rose-950/60 text-rose-300 border border-rose-800/40 hover:bg-rose-900/80 transition"
               title="Cerrar sesión"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -118,7 +120,7 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
 
         {/* Barra de pestañas para roles con múltiples vistas */}
         {availableViews.length > 1 && (
-          <nav className="flex items-center gap-1 mt-2.5 border-t border-emerald-800/40 pt-2 overflow-x-auto">
+          <nav className="flex items-center gap-1 mt-2 border-t border-emerald-800/40 pt-1.5 overflow-x-auto no-scrollbar py-0.5">
             {availableViews.map((v) => {
               const VIcon = v.icon;
               const isActive = currentView === v.id;
@@ -126,7 +128,7 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
                 <button
                   key={v.id}
                   onClick={() => onViewChange(v.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
                     isActive
                       ? 'bg-emerald-500 text-slate-950 shadow-sm'
                       : 'bg-emerald-950/50 text-emerald-200 hover:bg-emerald-900/60 border border-emerald-700/30'

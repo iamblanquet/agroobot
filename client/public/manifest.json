@@ -1,0 +1,17 @@
+{
+  "name": "TESA - Operación de Campo",
+  "short_name": "TESA Campo",
+  "description": "Sistema de Operación de Campo y Tablero de Control Agrícola",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#064e3b",
+  "theme_color": "#064e3b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { HardHat, Activity, BarChart3, Shield, Send, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { HardHat, Activity, BarChart3, Shield, Send, Lock, User, AlertCircle, WifiOff, CheckCircle2 } from 'lucide-react';
 
 export default function LoginView() {
-  const { login, quickLogin, loginWithTelegram, isTelegram, tgUser } = useAuth();
+  const { login, loginOffline, quickLogin, loginWithTelegram, isTelegram, tgUser, isOnline, offlineSimulated, toggleOfflineSimulation } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -28,10 +28,14 @@ export default function LoginView() {
     try {
       await quickLogin(role);
     } catch (err) {
-      setError(err.message || 'Error en acceso rápido.');
+      setError(err.message || 'Error en acceso.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOfflineDirect = () => {
+    loginOffline(username || 'campo_user');
   };
 
   const handleTelegramAuth = async () => {
@@ -61,8 +65,25 @@ export default function LoginView() {
           <p className="text-xs text-slate-400 mt-1">Patrón TESA: Telegram Entry • Standalone API • Offline Storage</p>
         </div>
 
+        {/* Offline Status Alert */}
+        {!isOnline && (
+          <div className="mb-5 p-3.5 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-md">
+            <div className="flex items-center gap-2">
+              <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span><strong>Sin Conexión:</strong> Modo Fuera de Línea activo.</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleOfflineDirect}
+              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[11px] transition shadow"
+            >
+              Entrar Offline
+            </button>
+          </div>
+        )}
+
         {/* Telegram WebApp Auto Login */}
-        {isTelegram && (
+        {isTelegram && isOnline && (
           <div className="mb-6 p-4 rounded-xl bg-sky-950/60 border border-sky-600/40 text-center">
             <div className="flex items-center justify-center gap-2 text-sky-400 text-sm font-semibold mb-1">
               <Send className="w-4 h-4" /> Telegram WebApp Detectado
@@ -116,7 +137,7 @@ export default function LoginView() {
               <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
                 type="password"
-                required
+                required={isOnline}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -130,15 +151,25 @@ export default function LoginView() {
             disabled={isLoading}
             className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-sm transition shadow-lg shadow-emerald-950/60"
           >
-            {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            {isLoading ? 'Iniciando sesión...' : !isOnline ? 'Ingresar en Modo Fuera de Línea' : 'Iniciar Sesión'}
           </button>
         </form>
 
-        {/* Accesos Rápidos de Prueba (1-Clic) */}
+        {/* Accesos Rápidos (1-Clic) */}
         <div className="mt-6 pt-6 border-t border-slate-800">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-3">
-            ⚡ Acceso Rápido de Prueba (Demo 1-Clic)
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              ⚡ Acceso Rápido {!isOnline && '(Offline)'}
+            </p>
+            <button
+              type="button"
+              onClick={toggleOfflineSimulation}
+              className="text-[10px] text-amber-400 hover:underline flex items-center gap-1"
+            >
+              <WifiOff className="w-3 h-3" /> {offlineSimulated ? 'Modo Online' : 'Simular Offline'}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -200,9 +231,6 @@ export default function LoginView() {
               </div>
             </button>
           </div>
-          <p className="text-[10px] text-slate-500 text-center mt-3">
-            Contraseña común predefinida: <code className="text-slate-400">demo123</code>
-          </p>
         </div>
       </div>
     </div>

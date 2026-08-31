@@ -13,7 +13,7 @@
     "client": "npm --prefix client run dev",
     "client:build": "npm --prefix client run build",
     "dev": "node server/index.js",
-    "render-build": "npm install && npm --prefix client install && npm --prefix client run build",
+    "render-build": "npm install --include=dev && cd client && npm install --include=dev && npm run build",
     "render-start": "node server/index.js"
   },
   "keywords": [

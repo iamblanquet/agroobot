@@ -75,7 +75,7 @@ async function notifyReporte(reportData) {
 
   let cuadrillaTxt = '';
   if (cuadrilla.length > 0) {
-    cuadrillaTxt = `\n👥 *Cuadrilla:* ` + cuadrilla.map(c => `${c.rol_id}: ${c.headcount}`).join(' · ');
+    cuadrillaTxt = `\n👥 *Cuadrilla:* ` + cuadrilla.map(c => `${c.role_text || c.rol_id}: ${c.headcount}`).join(' · ');
   }
 
   let maqTxt = '';
@@ -112,6 +112,92 @@ async function notifyIncidencia(issueData) {
                `✅ _Para cerrar:_ \`/cerrar ${folio} [causa_raiz]\``;
 
   return sendTopicMessage('incidencias', text);
+}
+
+/**
+ * Generar reporte detallado de Proyectos y Tareas en curso (Opción General)
+ */
+async function generateProyectosTareasText() {
+  const proyectos = await db.all(`
+    SELECT p.*, u.nombre AS gerente_nombre
+    FROM proyecto p
+    LEFT JOIN usuario u ON p.gerente_id = u.id
+    ORDER BY p.id ASC
+  `);
+
+  if (!proyectos || proyectos.length === 0) {
+    return '📁 *No hay proyectos registrados actualmente en el sistema.*';
+  }
+
+  let text = `🌾 *ESTATUS DE PROYECTOS Y TAREAS EN CURSO · AGROK*\n\n`;
+
+  let totalMetaGlobal = 0;
+  let totalHabilitadoGlobal = 0;
+  let totalTareasEnProgreso = 0;
+
+  for (const proj of proyectos) {
+    totalMetaGlobal += proj.superficie_meta_ha || 0;
+
+    // Obtener hitos de este proyecto
+    const hitos = await db.all(`
+      SELECT * FROM hito WHERE proyecto_id = ? ORDER BY orden ASC
+    `, [proj.id]);
+
+    let projAcumulado = 0;
+    let hitosText = '';
+
+    for (const h of hitos) {
+      // Obtener tareas de este hito
+      const tareas = await db.all(`
+        SELECT t.*, p.nombre AS predio_nombre
+        FROM tarea t
+        LEFT JOIN predio p ON t.predio_id = p.id
+        WHERE t.hito_id = ?
+        ORDER BY t.id ASC
+      `, [h.id]);
+
+      let hitoAcumulado = tareas.reduce((sum, t) => sum + (t.cantidad_acumulada || 0), 0);
+      projAcumulado += hitoAcumulado;
+
+      const tareasEnProgreso = tareas.filter(t => t.estado === 'en_progreso' || t.estado === 'pendiente');
+      totalTareasEnProgreso += tareasEnProgreso.length;
+
+      if (tareas.length > 0) {
+        hitosText += `   🔹 *Hito: ${h.nombre}* (${h.superficie_meta_ha || 0} ha)\n`;
+        tareas.forEach(t => {
+          const statusBadge = t.estado === 'completada' ? '✅ COMPLETADA' : t.estado === 'en_progreso' ? '🔄 EN CURSO' : '⏳ PENDIENTE';
+          const pctTarea = t.cantidad_meta > 0 ? Math.min(100, Math.round((t.cantidad_acumulada / t.cantidad_meta) * 100)) : 0;
+          hitosText += `      • *${t.nombre}*: ${t.cantidad_acumulada} / ${t.cantidad_meta} ${t.unidad} (${pctTarea}%) ➔ [${statusBadge}]\n`;
+          if (t.predio_nombre || t.responsable) {
+            hitosText += `        ↳ _Predio: ${t.predio_nombre || 'General'} | Resp: ${t.responsable || 'No asignado'}_\n`;
+          }
+        });
+      }
+    }
+
+    totalHabilitadoGlobal += projAcumulado;
+    const projPct = proj.superficie_meta_ha > 0 ? Math.min(100, Math.round((projAcumulado / proj.superficie_meta_ha) * 100)) : 0;
+
+    text += `📁 *${proj.nombre} (${proj.ciclo})*\n`;
+    text += `   📍 *Fase:* ${proj.fase_catalogo || 'Operativa'} | *Gerente:* ${proj.gerente_nombre || 'Sin asignar'}\n`;
+    text += `   📊 *Avance:* *${projAcumulado.toFixed(1)} ha* de *${proj.superficie_meta_ha} ha* (${projPct}%)\n`;
+    if (hitosText) {
+      text += hitosText;
+    } else {
+      text += `   _Sin tareas detalladas registradas para este proyecto._\n`;
+    }
+    text += `\n`;
+  }
+
+  const pctGlobal = totalMetaGlobal > 0 ? Math.min(100, Math.round((totalHabilitadoGlobal / totalMetaGlobal) * 100)) : 0;
+
+  text += `📈 *RESUMEN CONSOLIDADO:*\n`;
+  text += `• *Proyectos Activos:* ${proyectos.length}\n`;
+  text += `• *Superficie Ejecutada:* *${totalHabilitadoGlobal.toFixed(1)} ha* / *${totalMetaGlobal} ha* (${pctGlobal}%)\n`;
+  text += `• *Tareas Activas en Curso:* ${totalTareasEnProgreso}\n\n`;
+  text += `💡 _Para registrar avances o crear nuevas tareas, pulsa *🚀 ABRIR MINI APP*._`;
+
+  return text;
 }
 
 /**
@@ -241,8 +327,9 @@ function initTelegramBot(app) {
       reply_markup: {
         keyboard: [
           appButton,
-          [{ text: '📊 Tablero Hoy' }, { text: '⚠️ Incidencias' }],
-          [{ text: '🚜 Horómetro' }, { text: '🌧️ Sin Actividad' }]
+          [{ text: '📁 Proyectos & Tareas' }, { text: '📊 Tablero Hoy' }],
+          [{ text: '⚠️ Incidencias' }, { text: '🚜 Horómetro' }],
+          [{ text: '🌧️ Sin Actividad' }]
         ],
         resize_keyboard: true,
         persistent: true
@@ -281,20 +368,22 @@ function initTelegramBot(app) {
 
       const welcomeMsg = `👋 *¡Bienvenido al Asistente de Operación AGROK, ${firstName}!*
 
-🌾 *Control de Jornadas, Maquinaria e Incidencias en Supergrupo*
+🌾 *Control de Jornadas, Proyectos, Maquinaria e Incidencias*
 Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
+• 🌐 *#General* ➔ Consulta de proyectos y tareas en curso.
 • 📋 *#Reportes* ➔ Nuevos reportes y paros operativos.
 • ⚠️ *#Incidencias* ➔ Folios de fallas y seguimiento.
 • 📊 *#Tablero* ➔ Resumen diario del ciclo agrícola.
 
 🔘 *Opciones Rápidas:*
+• *📁 Proyectos & Tareas* ➔ Ver tareas activas y avance de proyectos.
 • *🚀 ABRIR MINI APP* ➔ Formulario interactivo completo (con o sin señal).
 • *📊 Tablero Hoy* ➔ Consultar métricas del día.
 • *⚠️ Incidencias* ➔ Ver folios activos en campo.
 • *🚜 Horómetro* ➔ Consultar horómetros de maquinaria.
 • *🌧️ Sin Actividad* ➔ Reportar paro por lluvia de inmediato.
 
-💡 _Tip:_ Escribe \`/id\` dentro de cualquier tema del supergrupo para obtener su ID numérico.`;
+💡 _Tip:_ Escribe \`/general\` o \`/proyectos\` para ver el reporte de proyectos y tareas en curso.`;
 
       const welcomeInline = {
         reply_markup: {
@@ -312,7 +401,8 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
       botInstance.sendMessage(chatId, welcomeMsg, {
         parse_mode: 'Markdown',
         message_thread_id: msg.message_thread_id,
-        ...welcomeInline
+        ...welcomeInline,
+        ...mainKeyboard
       }).catch(err => console.error('Error welcomeMsg:', err.message));
     });
 
@@ -383,6 +473,22 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
       const chatId = msg.chat.id;
       const threadId = msg.message_thread_id;
       const text = msg.text.trim();
+
+      // Opción General: 📁 Proyectos & Tareas en curso (o comandos /general, /proyectos, /tareas)
+      if (
+        text === '📁 Proyectos & Tareas' ||
+        text.toLowerCase() === '/general' ||
+        text.toLowerCase() === '/proyectos' ||
+        text.toLowerCase() === '/tareas' ||
+        text.toLowerCase() === 'general'
+      ) {
+        const proyectosTxt = await generateProyectosTareasText();
+        return botInstance.sendMessage(chatId, proyectosTxt, {
+          parse_mode: 'Markdown',
+          message_thread_id: threadId,
+          ...mainKeyboard
+        });
+      }
 
       // Botón 1: 📊 Tablero Hoy o /hoy
       if (text === '📊 Tablero Hoy' || text.toLowerCase() === '/tablero' || text.toLowerCase() === '/hoy') {
@@ -634,5 +740,6 @@ module.exports = {
   sendTopicMessage,
   notifyReporte,
   notifyIncidencia,
-  generateTableroText
+  generateTableroText,
+  generateProyectosTareasText
 };

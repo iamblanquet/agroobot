@@ -846,7 +846,7 @@ export default function SupervisorView() {
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-amber-950 text-amber-400 border border-amber-600/40">
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200">
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
@@ -854,7 +854,7 @@ export default function SupervisorView() {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Frentes en operación sin registro en la fecha actual</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600/50">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200">
                   {obras_sin_reporte_hoy.length} pendientes
                 </span>
               </div>
@@ -868,7 +868,7 @@ export default function SupervisorView() {
                         <p className="text-[11px] text-slate-600 dark:text-slate-600 dark:text-slate-400">{o.proyecto_nombre} • Fase: {o.fase_actual}</p>
                       </div>
                       <div className="text-right">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-200">
                           {o.dias_atraso} {o.dias_atraso === 1 ? 'día' : 'días'} de retraso
                         </span>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 mt-0.5">Último: {o.ultimo_reporte_fecha}</p>
@@ -888,7 +888,7 @@ export default function SupervisorView() {
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-blue-950 text-blue-400 border border-blue-600/40">
+                  <div className="p-2 rounded-xl bg-emerald-50 dark:bg-blue-950 text-emerald-700 dark:text-blue-400 border border-emerald-200">
                     <TrendingUp className="w-4 h-4" />
                   </div>
                   <div>
@@ -944,7 +944,7 @@ export default function SupervisorView() {
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-rose-950 text-rose-400 border border-rose-600/40">
+                  <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200">
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div>
@@ -952,7 +952,7 @@ export default function SupervisorView() {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Folios activos con resolución y validación de causa raíz</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-600/50">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-200">
                   {incidencias_abiertas.length} activas
                 </span>
               </div>
@@ -978,7 +978,7 @@ export default function SupervisorView() {
                           setCausaRaizInput('');
                           setCloseError(null);
                         }}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-800 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-sm flex items-center gap-1"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Cerrar</span>
@@ -998,7 +998,7 @@ export default function SupervisorView() {
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-amber-950 text-amber-400 border border-amber-600/40">
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200">
                     <PackageX className="w-4 h-4" />
                   </div>
                   <div>
@@ -1006,7 +1006,7 @@ export default function SupervisorView() {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Insumos donde requerido - en_sitio &gt; 0 con ETA</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600/50">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200">
                   {bloqueado_por_material.length} con déficit
                 </span>
               </div>
@@ -1048,7 +1048,7 @@ export default function SupervisorView() {
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-600/40">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200">
                   <Tractor className="w-4 h-4" />
                 </div>
                 <div>
@@ -1117,7 +1117,7 @@ export default function SupervisorView() {
                       <button
                         type="button"
                         onClick={() => handleMachineService(maq.id, maq.codigo)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-700 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5"
+                        className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5"
                       >
                         <Wrench className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Registrar Servicio 300h</span>

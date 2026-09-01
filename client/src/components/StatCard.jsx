@@ -2,33 +2,41 @@ import React from 'react';
 
 export default function StatCard({ title, value, unit = '', subtitle, icon: Icon, color = 'emerald', alert = false, badge = null }) {
   const colorStyles = {
-    emerald: 'border-emerald-200 dark:border-emerald-500/20 bg-white dark:bg-slate-900/80 text-emerald-700 dark:text-emerald-400 shadow-sm dark:shadow-none',
-    blue: 'border-blue-200 dark:border-blue-500/20 bg-white dark:bg-slate-900/80 text-blue-700 dark:text-blue-400 shadow-sm dark:shadow-none',
-    amber: 'border-amber-200 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 shadow-sm dark:shadow-none',
-    rose: 'border-rose-200 dark:border-rose-500/30 bg-rose-50/70 dark:bg-rose-950/20 text-rose-800 dark:text-rose-400 shadow-sm dark:shadow-none',
-    purple: 'border-purple-200 dark:border-purple-500/20 bg-white dark:bg-slate-900/80 text-purple-700 dark:text-purple-400 shadow-sm dark:shadow-none'
+    emerald: 'border-emerald-200 dark:border-emerald-500/20 bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-sm',
+    blue: 'border-emerald-200 dark:border-blue-500/20 bg-white dark:bg-slate-900 text-slate-800 dark:text-blue-400 shadow-sm',
+    amber: 'border-amber-200 dark:border-amber-500/30 bg-white dark:bg-slate-900 text-amber-900 dark:text-amber-400 shadow-sm',
+    rose: 'border-rose-200 dark:border-rose-500/30 bg-white dark:bg-slate-900 text-rose-900 dark:text-rose-400 shadow-sm',
+    purple: 'border-emerald-200 dark:border-purple-500/20 bg-white dark:bg-slate-900 text-slate-800 dark:text-purple-400 shadow-sm'
+  };
+
+  const iconStyles = {
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200',
+    blue: 'bg-emerald-50 dark:bg-blue-950/60 text-emerald-700 dark:text-blue-400 border-emerald-200',
+    amber: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200',
+    rose: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200',
+    purple: 'bg-emerald-50 dark:bg-purple-950/60 text-emerald-700 dark:text-purple-400 border-emerald-200'
   };
 
   return (
-    <div className={`p-4 rounded-2xl border backdrop-blur-sm transition-all relative overflow-hidden ${colorStyles[color] || colorStyles.emerald} ${alert ? 'ring-2 ring-rose-500/80 shadow-lg shadow-rose-500/10' : ''}`}>
+    <div className={`p-4 sm:p-5 rounded-2xl border transition-all relative overflow-hidden ${colorStyles[color] || colorStyles.emerald} ${alert ? 'ring-2 ring-rose-500 shadow-md' : ''}`}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{title}</p>
+          <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">{title}</p>
           <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{value}</span>
-            {unit && <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{unit}</span>}
+            <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{value}</span>
+            {unit && <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">{unit}</span>}
           </div>
-          {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">{subtitle}</p>}
         </div>
         {Icon && (
-          <div className={`p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 ${alert ? 'text-rose-600 dark:text-rose-400 animate-bounce' : 'text-slate-700 dark:text-slate-300'}`}>
+          <div className={`p-2.5 rounded-xl border ${iconStyles[color] || iconStyles.emerald} ${alert ? 'animate-bounce' : ''}`}>
             <Icon className="w-5 h-5" />
           </div>
         )}
       </div>
       {badge && (
         <div className="mt-3">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-slate-800 text-emerald-800 dark:text-slate-300 border border-emerald-200 dark:border-slate-700">
             {badge}
           </span>
         </div>

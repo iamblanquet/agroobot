@@ -73,6 +73,18 @@ router.post('/', authenticateJWT, async (req, res) => {
       [insertRes.lastID]
     );
 
+    // Notificar automáticamente al tema #Incidencias de Telegram
+    try {
+      const { notifyIncidencia } = require('../bot/bot');
+      notifyIncidencia({
+        folio: newIssue.folio,
+        tipo: newIssue.tipo,
+        obraNombre: newIssue.obra_nombre,
+        descripcion: causa_raiz,
+        estado: newIssue.estado
+      });
+    } catch (e) {}
+
     return res.status(201).json({ success: true, issue: newIssue });
   } catch (err) {
     console.error('Error en POST /api/issues:', err);

@@ -163,6 +163,25 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         }
       }
 
+      // Notificar al tema #Reportes de Telegram si el supergrupo está configurado
+      try {
+        const { notifyReporte } = require('../bot/bot');
+        const obraObj = obra_id ? await db.get('SELECT nombre FROM obra WHERE id = ?', [obra_id]) : null;
+        const projObj = proyecto_id ? await db.get('SELECT nombre FROM proyecto WHERE id = ?', [proyecto_id]) : null;
+        notifyReporte({
+          obraNombre: obraObj?.nombre,
+          proyectoNombre: projObj?.nombre,
+          fechaOperativa: opDate,
+          autorNombre: author,
+          esSinActividad: !!es_sin_actividad,
+          motivoSinActividad: motivo_sin_actividad,
+          lineas,
+          cuadrilla,
+          maquinaria,
+          clientUuid: client_uuid
+        });
+      } catch (e) {}
+
       syncedCount++;
       results.push({ client_uuid, id: reporteId, status: 'synced' });
     }

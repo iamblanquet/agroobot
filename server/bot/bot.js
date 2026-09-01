@@ -174,7 +174,13 @@ async function generateTableroText() {
 
 function initTelegramBot(app) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const miniAppUrl = process.env.TELEGRAM_MINI_APP_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
+  
+  // Priorizar URL pública de Render (HTTPS) sobre localhost para evitar errores en móviles
+  let miniAppUrl = process.env.RENDER_EXTERNAL_URL || process.env.TELEGRAM_MINI_APP_URL || 'http://localhost:3000';
+  if (miniAppUrl && miniAppUrl.includes('localhost') && process.env.RENDER_EXTERNAL_URL) {
+    miniAppUrl = process.env.RENDER_EXTERNAL_URL;
+  }
+
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL;
   const isProduction = process.env.NODE_ENV === 'production' && webhookUrl;
 
@@ -296,10 +302,23 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
 
 💡 _Tip para Administradores:_ Escribe \`/id\` dentro de cualquier tema del supergrupo para obtener su ID numérico.`;
 
+      const welcomeInline = {
+        reply_markup: {
+          inline_keyboard: hasHttps
+            ? [
+                [{ text: '🚀 ABRIR MINI APP', web_app: { url: miniAppUrl } }],
+                [{ text: '🌐 Abrir en Navegador', url: miniAppUrl }]
+              ]
+            : [
+                [{ text: '🌐 Abrir en Navegador Web', url: miniAppUrl }]
+              ]
+        }
+      };
+
       botInstance.sendMessage(chatId, welcomeMsg, {
         parse_mode: 'Markdown',
         message_thread_id: msg.message_thread_id,
-        ...mainKeyboard
+        ...welcomeInline
       }).catch(err => console.error('Error welcomeMsg:', err.message));
     });
 

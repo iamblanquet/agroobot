@@ -425,7 +425,7 @@ export default function SupervisorView() {
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTab === 'tablero'
                 ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -438,7 +438,7 @@ export default function SupervisorView() {
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTab === 'proyectos'
                 ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -522,7 +522,7 @@ export default function SupervisorView() {
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-3">
-                            <span>Gerente: <strong className="text-slate-900 dark:text-slate-200">{p.gerente_nombre || 'No asignado'}</strong></span>
+                            <span>Gerente: <strong className="text-slate-900 dark:text-slate-100">{p.gerente_nombre || 'No asignado'}</strong></span>
                             <span>•</span>
                             <span>Inicio: {p.fecha_inicio || 'Sin fecha'}</span>
                             {p.fecha_fin && <span>Fin: {p.fecha_fin}</span>}
@@ -589,7 +589,7 @@ export default function SupervisorView() {
                       <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800/60 flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
                         {p.obras.map(o => (
-                          <span key={o.id} className="px-2 py-0.5 rounded text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-200">
+                          <span key={o.id} className="px-2 py-0.5 rounded text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100">
                             {o.nombre} ({o.fase_actual})
                           </span>
                         ))}
@@ -688,7 +688,7 @@ export default function SupervisorView() {
                                   {hitoTareas.length > 0 ? (
                                     <div className="overflow-x-auto">
                                       <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-                                        <thead className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                                        <thead className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                                           <tr>
                                             <th className="py-2 px-3">Tarea / Actividad</th>
                                             <th className="py-2 px-3">Predio</th>
@@ -712,19 +712,19 @@ export default function SupervisorView() {
                                               <tr key={t.id} className="hover:bg-slate-900/60">
                                                 <td className="py-2.5 px-3">
                                                   <span className="font-semibold text-white">{t.nombre}</span>
-                                                  <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-mono">[{t.actividad_id}]</span>
+                                                  <span className="block text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 font-mono">[{t.actividad_id}]</span>
                                                 </td>
                                                 <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
                                                   {t.predio_nombre || 'General'}
                                                 </td>
                                                 <td className="py-2.5 px-3">
                                                   <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                                                    <User className="w-3 h-3 text-slate-500 dark:text-slate-400" /> {t.responsable || 'Sin asignar'}
+                                                    <User className="w-3 h-3 text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400" /> {t.responsable || 'Sin asignar'}
                                                   </span>
                                                 </td>
                                                 <td className="py-2.5 px-3 text-right font-mono">
                                                   <span className="text-emerald-400 font-bold">{t.cantidad_acumulada}</span>
-                                                  <span className="text-slate-500 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
+                                                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
                                                 </td>
                                                 <td className="py-2.5 px-3 text-center">
                                                   <button
@@ -763,7 +763,7 @@ export default function SupervisorView() {
                                       </table>
                                     </div>
                                   ) : (
-                                    <div className="py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                                    <div className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">
                                       No hay tareas configuradas en este hito.{' '}
                                       <button
                                         type="button"
@@ -780,7 +780,7 @@ export default function SupervisorView() {
                           );
                         })
                       ) : (
-                        <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                        <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">
                           Este proyecto aún no tiene hitos definidos.{' '}
                           <button
                             type="button"
@@ -850,8 +850,8 @@ export default function SupervisorView() {
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">1. Obras Sin Reporte Hoy</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Frentes en operación sin registro en la fecha actual</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">1. Obras Sin Reporte Hoy</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Frentes en operación sin registro en la fecha actual</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600/50">
@@ -871,7 +871,7 @@ export default function SupervisorView() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
                           {o.dias_atraso} {o.dias_atraso === 1 ? 'día' : 'días'} de retraso
                         </span>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Último: {o.ultimo_reporte_fecha}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 mt-0.5">Último: {o.ultimo_reporte_fecha}</p>
                       </div>
                     </div>
                   ))
@@ -892,8 +892,8 @@ export default function SupervisorView() {
                     <TrendingUp className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">2. Avance Contra Meta & Validación Dron</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Comparativa Hectáreas Campo vs Medición Dron vs Meta</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">2. Avance Contra Meta & Validación Dron</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Comparativa Hectáreas Campo vs Medición Dron vs Meta</p>
                   </div>
                 </div>
               </div>
@@ -932,7 +932,7 @@ export default function SupervisorView() {
                           </div>
                         </>
                       ) : (
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic pt-1">Sin vuelo de validación dron reciente</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 italic pt-1">Sin vuelo de validación dron reciente</p>
                       )}
                     </div>
                   </div>
@@ -948,8 +948,8 @@ export default function SupervisorView() {
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">3. Incidencias Abiertas</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Folios activos con resolución y validación de causa raíz</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">3. Incidencias Abiertas</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Folios activos con resolución y validación de causa raíz</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-600/50">
@@ -1002,8 +1002,8 @@ export default function SupervisorView() {
                     <PackageX className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">4. Bloqueado por Material</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Insumos donde requerido - en_sitio &gt; 0 con ETA</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">4. Bloqueado por Material</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Insumos donde requerido - en_sitio &gt; 0 con ETA</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600/50">
@@ -1017,7 +1017,7 @@ export default function SupervisorView() {
                     <div key={mat.id} className="py-2.5 flex items-center justify-between gap-2">
                       <div>
                         <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{mat.nombre}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">
                           {mat.obra_nombre} • En Sitio: {mat.en_sitio}/{mat.requerido} {mat.unidad}
                         </p>
                       </div>
@@ -1026,7 +1026,7 @@ export default function SupervisorView() {
                           Faltan {mat.deficit} {mat.unidad}
                         </span>
                         <div className="flex items-center gap-1 justify-end mt-0.5">
-                          <Calendar className="w-3 h-3 text-slate-500 dark:text-slate-400" />
+                          <Calendar className="w-3 h-3 text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400" />
                           <span className={`text-[10px] font-semibold ${mat.eta_vencido ? 'text-rose-400 font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
                             ETA: {mat.eta || 'Sin fecha'} {mat.eta_vencido ? '⚠️ ATRASADO' : ''}
                           </span>
@@ -1052,7 +1052,7 @@ export default function SupervisorView() {
                   <Tractor className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Monitor de Maquinaria y Alertas Preventivas</h3>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">Monitor de Maquinaria y Alertas Preventivas</h3>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     Regla preventiva: Alerta activa cuando horas desde último servicio ≥ 280 hrs (≤ 20 hrs para las 300 hrs)
                   </p>
@@ -1068,14 +1068,14 @@ export default function SupervisorView() {
                     key={maq.id}
                     className={`p-4 rounded-xl border transition-all ${
                       isAlert
-                        ? 'bg-rose-950/30 border-rose-500/50 shadow-lg shadow-rose-950/40'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                        ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-600/50 shadow-sm'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm'
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-white">{maq.codigo}</span>
+                          <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">{maq.codigo}</span>
                           {isAlert ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-900 text-rose-200 border border-rose-600 animate-pulse">
                               🚨 SERVICIO REQUERIDO
@@ -1093,22 +1093,22 @@ export default function SupervisorView() {
                     <div className="mt-3 space-y-1.5 text-xs">
                       <div className="flex justify-between text-slate-700 dark:text-slate-300">
                         <span>Horómetro Actual:</span>
-                        <span className="font-bold text-white">{maq.horometro_actual} hrs</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{maq.horometro_actual} hrs</span>
                       </div>
                       <div className="flex justify-between text-slate-600 dark:text-slate-400">
                         <span>Último Servicio:</span>
-                        <span>{maq.ultimo_servicio_hr} hrs</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-700 dark:text-slate-300">{maq.ultimo_servicio_hr} hrs</span>
                       </div>
                       <div className="flex justify-between text-slate-700 dark:text-slate-300 font-medium">
                         <span>Uso Desde Servicio:</span>
-                        <span className={isAlert ? 'text-rose-400 font-bold' : 'text-slate-900 dark:text-slate-200'}>
+                        <span className={isAlert ? 'text-rose-400 font-bold' : 'text-slate-900 dark:text-slate-100'}>
                           {maq.horas_desde_servicio} hrs / 300 hrs
                         </span>
                       </div>
                     </div>
 
                     {isAlert && (
-                      <div className="mt-3 p-2 rounded-lg bg-rose-950/60 border border-rose-700/50 text-[11px] text-rose-200">
+                      <div className="mt-3 p-2.5 rounded-xl bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-700/60 text-xs font-bold text-rose-900 dark:text-rose-200">
                         ⚠️ Faltan solo <strong>{maq.horas_restantes} hrs</strong> para alcanzar el límite de 300 hrs. Programar mantenimiento.
                       </div>
                     )}
@@ -1140,7 +1140,7 @@ export default function SupervisorView() {
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <FolderPlus className="w-5 h-5 text-emerald-400" />
                 {editingProject ? 'Editar Proyecto Agrícola' : 'Nuevo Proyecto Agrícola'}
               </h3>
@@ -1156,7 +1156,7 @@ export default function SupervisorView() {
                   value={projectForm.nombre}
                   onChange={(e) => setProjectForm(prev => ({ ...prev, nombre: e.target.value }))}
                   placeholder="ej. Proyecto Maíz de Temporal 2026"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -1169,7 +1169,7 @@ export default function SupervisorView() {
                     value={projectForm.tipo}
                     onChange={(e) => setProjectForm(prev => ({ ...prev, tipo: e.target.value }))}
                     placeholder="ej. Granos, Frutales, Hortalizas"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1180,7 +1180,7 @@ export default function SupervisorView() {
                     value={projectForm.ciclo}
                     onChange={(e) => setProjectForm(prev => ({ ...prev, ciclo: e.target.value }))}
                     placeholder="ej. PV 2026, OI 2026-2027"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1195,7 +1195,7 @@ export default function SupervisorView() {
                     required
                     value={projectForm.superficie_meta_ha}
                     onChange={(e) => setProjectForm(prev => ({ ...prev, superficie_meta_ha: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1205,7 +1205,7 @@ export default function SupervisorView() {
                     value={projectForm.fase_catalogo}
                     onChange={(e) => setProjectForm(prev => ({ ...prev, fase_catalogo: e.target.value }))}
                     placeholder="ej. Habilitación y Siembra"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1217,7 +1217,7 @@ export default function SupervisorView() {
                     type="date"
                     value={projectForm.fecha_inicio}
                     onChange={(e) => setProjectForm(prev => ({ ...prev, fecha_inicio: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1226,7 +1226,7 @@ export default function SupervisorView() {
                     type="date"
                     value={projectForm.fecha_fin}
                     onChange={(e) => setProjectForm(prev => ({ ...prev, fecha_fin: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1256,7 +1256,7 @@ export default function SupervisorView() {
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Flag className="w-5 h-5 text-blue-400" />
                 {editingHito ? 'Editar Hito' : `Nuevo Hito: ${selectedProjectForHito?.nombre}`}
               </h3>
@@ -1272,7 +1272,7 @@ export default function SupervisorView() {
                   value={hitoForm.nombre}
                   onChange={(e) => setHitoForm(prev => ({ ...prev, nombre: e.target.value }))}
                   placeholder="ej. Hito 1: Desmonte y Subsoleo Profundo"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -1283,7 +1283,7 @@ export default function SupervisorView() {
                   value={hitoForm.descripcion}
                   onChange={(e) => setHitoForm(prev => ({ ...prev, descripcion: e.target.value }))}
                   placeholder="Detalles de la fase técnica..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs resize-none"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none resize-none"
                 />
               </div>
 
@@ -1295,7 +1295,7 @@ export default function SupervisorView() {
                     min="1"
                     value={hitoForm.orden}
                     onChange={(e) => setHitoForm(prev => ({ ...prev, orden: parseInt(e.target.value, 10) || 1 }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1306,7 +1306,7 @@ export default function SupervisorView() {
                     min="0"
                     value={hitoForm.superficie_meta_ha}
                     onChange={(e) => setHitoForm(prev => ({ ...prev, superficie_meta_ha: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1314,7 +1314,7 @@ export default function SupervisorView() {
                   <select
                     value={hitoForm.estado}
                     onChange={(e) => setHitoForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="pendiente">Pendiente</option>
                     <option value="en_proceso">En Proceso</option>
@@ -1330,7 +1330,7 @@ export default function SupervisorView() {
                   type="date"
                   value={hitoForm.fecha_meta}
                   onChange={(e) => setHitoForm(prev => ({ ...prev, fecha_meta: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -1359,7 +1359,7 @@ export default function SupervisorView() {
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-emerald-400" />
                 {editingTask ? 'Editar Tarea' : `Nueva Tarea en Hito: ${selectedHitoForTask?.nombre}`}
               </h3>
@@ -1375,7 +1375,7 @@ export default function SupervisorView() {
                   value={taskForm.nombre}
                   onChange={(e) => setTaskForm(prev => ({ ...prev, nombre: e.target.value }))}
                   placeholder="ej. Rastreo Cruzado Doble Paso"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -1387,7 +1387,7 @@ export default function SupervisorView() {
                     value={taskForm.actividad_id}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, actividad_id: e.target.value }))}
                     placeholder="ej. rastreo, subsoleo, riego"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none font-mono"
                   />
                 </div>
                 <div>
@@ -1395,7 +1395,7 @@ export default function SupervisorView() {
                   <select
                     value={taskForm.predio_id}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, predio_id: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="">Sin predio asignado</option>
                     {prediosList.map(pr => (
@@ -1415,7 +1415,7 @@ export default function SupervisorView() {
                     required
                     value={taskForm.cantidad_meta}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, cantidad_meta: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1424,7 +1424,7 @@ export default function SupervisorView() {
                     type="text"
                     value={taskForm.unidad}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, unidad: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1432,7 +1432,7 @@ export default function SupervisorView() {
                   <select
                     value={taskForm.estado}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="pendiente">Pendiente</option>
                     <option value="en_progreso">En Progreso</option>
@@ -1463,7 +1463,7 @@ export default function SupervisorView() {
                   value={taskForm.responsable}
                   onChange={(e) => setTaskForm(prev => ({ ...prev, responsable: e.target.value }))}
                   placeholder="ej. Juan Pérez / Operador"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -1492,7 +1492,7 @@ export default function SupervisorView() {
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Building className="w-5 h-5 text-purple-400" />
                 Nuevo Frente de Obra: {selectedProjectForObra?.nombre}
               </h3>
@@ -1508,7 +1508,7 @@ export default function SupervisorView() {
                   value={obraForm.nombre}
                   onChange={(e) => setObraForm(prev => ({ ...prev, nombre: e.target.value }))}
                   placeholder="ej. Frente Norte - Desmonte y Nivelación"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -1519,7 +1519,7 @@ export default function SupervisorView() {
                   value={obraForm.fase_actual}
                   onChange={(e) => setObraForm(prev => ({ ...prev, fase_actual: e.target.value }))}
                   placeholder="ej. Subsoleo, Camellonado, Riego"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -1529,7 +1529,7 @@ export default function SupervisorView() {
                   <select
                     value={obraForm.estado}
                     onChange={(e) => setObraForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="operacion">Operación</option>
                     <option value="prospeccion">Prospección</option>
@@ -1545,7 +1545,7 @@ export default function SupervisorView() {
                   <select
                     value={obraForm.predio_id}
                     onChange={(e) => setObraForm(prev => ({ ...prev, predio_id: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="">Sin predio</option>
                     {prediosList.map(pr => (
@@ -1581,7 +1581,7 @@ export default function SupervisorView() {
           <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Cierre Técnico de Incidencia
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
@@ -1611,7 +1611,7 @@ export default function SupervisorView() {
             <form onSubmit={handleCloseIssueSubmit} className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-slate-900 dark:text-slate-200 uppercase tracking-wider">
+                  <label className="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
                     Causa Raíz & Acción Correctiva (Obligatorio)
                   </label>
                   <span className={`text-[11px] font-mono ${causaRaizInput.trim().length >= 10 ? 'text-emerald-400' : 'text-amber-400'}`}>

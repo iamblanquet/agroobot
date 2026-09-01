@@ -86,6 +86,7 @@ const DDL_SCHEMA = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    pin TEXT,
     nombre TEXT NOT NULL,
     rol TEXT NOT NULL CHECK(rol IN ('campo', 'supervisor', 'direccion', 'it')),
     tg_user_id TEXT,
@@ -287,6 +288,9 @@ const DDL_SCHEMA = `
 async function initDatabase() {
   try {
     await db.exec(DDL_SCHEMA);
+    try {
+      await db.run("ALTER TABLE usuario ADD COLUMN pin TEXT");
+    } catch (e) {}
     console.log('✅ Esquema DDL de SQLite inicializado correctamente (15 tablas relacionales).');
   } catch (err) {
     console.error('❌ Error al inicializar esquema DDL:', err);

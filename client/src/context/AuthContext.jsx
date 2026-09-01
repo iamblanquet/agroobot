@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // 2. Restaurar sesión persistente almacenada
+    // 2. Restaurar sesión persistente (Recordar operador)
     const savedToken = localStorage.getItem('tesa_token');
     const savedUser = localStorage.getItem('tesa_user');
 
@@ -51,9 +51,19 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // 3. Listener para deslogueo por 401
+    // 3. Sincronizar catálogo de operadores para validación PIN offline
+    if (navigator.onLine && !offlineSimulated) {
+      api.get('/auth/operators')
+        .then(data => {
+          if (data?.operators) {
+            localStorage.setItem('tesa_cached_operators', JSON.stringify(data.operators));
+          }
+        })
+        .catch(() => {});
+    }
+
+    // 4. Listener para deslogueo por 401
     const handleUnauthorized = () => {
-      // Solo desloguear si estamos online para no interrumpir el trabajo de campo offline
       if (navigator.onLine && !offlineSimulated) {
         setUser(null);
         setToken(null);
@@ -70,6 +80,48 @@ export function AuthProvider({ children }) {
     };
   }, [offlineSimulated]);
 
+  /**
+   * Login rápido con PIN de 4 dígitos (Recomendado para campo)
+   */
+  const loginWithPin = async (pin) => {
+    try {
+      const data = await api.post('/auth/pin-login', { pin });
+      if (data.token && data.user) {
+        localStorage.setItem('tesa_token', data.token);
+        localStorage.setItem('tesa_user', JSON.stringify(data.user));
+        localStorage.setItem('tesa_last_user', JSON.stringify(data.user));
+        setToken(data.token);
+        setUser(data.user);
+        return data.user;
+      }
+    } catch (err) {
+      // Si estamos offline o el servidor no responde, validar contra caché local
+      const isNetworkError = !navigator.onLine || offlineSimulated || err.message?.includes('Network') || err.message?.includes('Failed to fetch');
+      if (isNetworkError) {
+        const cachedOpsStr = localStorage.getItem('tesa_cached_operators');
+        if (cachedOpsStr) {
+          try {
+            const ops = JSON.parse(cachedOpsStr);
+            const matched = ops.find(o => String(o.pin) === String(pin));
+            if (matched) {
+              return loginOffline(matched.username);
+            }
+          } catch (e) {}
+        }
+
+        // Mapeo rápido de demo PINs offline
+        if (pin === '1234') return loginOffline('campo_user');
+        if (pin === '2345') return loginOffline('sup_user');
+        if (pin === '3456') return loginOffline('dir_user');
+        if (pin === '9999') return loginOffline('admin_user');
+      }
+      throw err;
+    }
+  };
+
+  /**
+   * Login administrativo tradicional por usuario y password
+   */
   const login = async (username, password) => {
     try {
       const data = await api.post('/auth/login', { username, password });
@@ -82,7 +134,6 @@ export function AuthProvider({ children }) {
         return data.user;
       }
     } catch (err) {
-      // Si estamos offline o el servidor no responde, intentamos login con caché offline
       const isNetworkError = !navigator.onLine || offlineSimulated || err.message?.includes('Network') || err.message?.includes('Failed to fetch');
       if (isNetworkError) {
         return loginOffline(username);
@@ -101,19 +152,16 @@ export function AuthProvider({ children }) {
         if (!requestedUsername || parsed.username === requestedUsername || requestedUsername === 'campo_user') {
           offlineUser = parsed;
         }
-      } catch (e) {
-        console.warn('Error leyendo usuario en caché:', e);
-      }
+      } catch (e) {}
     }
 
     if (!offlineUser) {
-      // Usuario por defecto para operación de emergencia en campo sin señal
+      const role = requestedUsername === 'sup_user' ? 'supervisor' : requestedUsername === 'dir_user' ? 'direccion' : requestedUsername === 'admin_user' ? 'it' : 'campo';
       offlineUser = {
-        id: 999,
+        id: role === 'campo' ? 1 : role === 'supervisor' ? 2 : role === 'direccion' ? 3 : 4,
         username: requestedUsername || 'operador_campo',
-        nombre: 'Operador de Campo (Modo Fuera de Línea)',
-        rol: 'campo',
-        tg_user_id: null,
+        nombre: role === 'campo' ? 'Juan Pérez - Residente de Campo' : 'Usuario Operativo (Offline)',
+        rol: role,
         is_offline_session: true
       };
     }
@@ -126,56 +174,15 @@ export function AuthProvider({ children }) {
     return offlineUser;
   };
 
-  const loginWithTelegram = async () => {
-    const tg = window.Telegram?.WebApp;
-    if (!tg || !tg.initData) {
-      throw new Error('Telegram WebApp no detectado en esta sesión de navegador.');
-    }
-
-    try {
-      const data = await api.post('/auth/telegram', { initData: tg.initData });
-      if (data.token && data.user) {
-        localStorage.setItem('tesa_token', data.token);
-        localStorage.setItem('tesa_user', JSON.stringify(data.user));
-        localStorage.setItem('tesa_last_user', JSON.stringify(data.user));
-        setToken(data.token);
-        setUser(data.user);
-        return data.user;
-      }
-    } catch (err) {
-      if (!navigator.onLine || offlineSimulated) {
-        return loginOffline(tgUser?.username || 'telegram_user');
-      }
-      throw err;
-    }
-  };
-
   const quickLogin = async (role) => {
     const userMap = {
-      campo: { username: 'campo_user', pass: 'demo123', nombre: 'Operador de Campo', rol: 'campo' },
-      supervisor: { username: 'sup_user', pass: 'demo123', nombre: 'Supervisor de Obra', rol: 'supervisor' },
-      direccion: { username: 'dir_user', pass: 'demo123', nombre: 'Director de Operaciones', rol: 'direccion' },
-      it: { username: 'admin_user', pass: 'demo123', nombre: 'Administrador IT', rol: 'it' }
+      campo: { pin: '1234', username: 'campo_user', pass: 'demo123' },
+      supervisor: { pin: '2345', username: 'sup_user', pass: 'demo123' },
+      direccion: { pin: '3456', username: 'dir_user', pass: 'demo123' },
+      it: { pin: '9999', username: 'admin_user', pass: 'demo123' }
     };
     const target = userMap[role] || userMap.campo;
-
-    if (!navigator.onLine || offlineSimulated) {
-      const offlineUser = {
-        id: role === 'campo' ? 1 : role === 'supervisor' ? 2 : role === 'direccion' ? 3 : 4,
-        username: target.username,
-        nombre: target.nombre,
-        rol: target.rol,
-        is_offline_session: true
-      };
-      const offlineToken = `offline-${role}-${Date.now()}`;
-      localStorage.setItem('tesa_token', offlineToken);
-      localStorage.setItem('tesa_user', JSON.stringify(offlineUser));
-      setToken(offlineToken);
-      setUser(offlineUser);
-      return offlineUser;
-    }
-
-    return login(target.username, target.pass);
+    return loginWithPin(target.pin);
   };
 
   const logout = () => {
@@ -201,9 +208,9 @@ export function AuthProvider({ children }) {
         isOnline: isOnline && !offlineSimulated,
         offlineSimulated,
         toggleOfflineSimulation,
+        loginWithPin,
         login,
         loginOffline,
-        loginWithTelegram,
         quickLogin,
         logout
       }}

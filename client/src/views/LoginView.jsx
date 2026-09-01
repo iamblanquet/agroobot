@@ -1,15 +1,56 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { HardHat, Activity, BarChart3, Shield, Send, Lock, User, AlertCircle, WifiOff, CheckCircle2 } from 'lucide-react';
+import { HardHat, Activity, BarChart3, Shield, Lock, User, AlertCircle, WifiOff, KeyRound, Delete } from 'lucide-react';
 
 export default function LoginView() {
-  const { login, loginOffline, quickLogin, loginWithTelegram, isTelegram, tgUser, isOnline, offlineSimulated, toggleOfflineSimulation } = useAuth();
+  const { loginWithPin, login, loginOffline, quickLogin, isOnline, offlineSimulated, toggleOfflineSimulation } = useAuth();
+  
+  // Modo de ingreso: 'pin' (predeterminado y rápido para campo) | 'password' (para administradores)
+  const [authMode, setAuthMode] = useState('pin'); 
+  const [pin, setPin] = useState('');
+  
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  // Manejo del teclado numérico PIN táctil
+  const handlePinDigit = async (digit) => {
+    if (isLoading) return;
+    if (pin.length < 4) {
+      const newPin = pin + digit;
+      setPin(newPin);
+      setError(null);
+
+      // Si se completan los 4 dígitos, autenticar automáticamente
+      if (newPin.length === 4) {
+        setIsLoading(true);
+        try {
+          await loginWithPin(newPin);
+        } catch (err) {
+          setError(err.message || 'PIN incorrecto.');
+          setPin('');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+  };
+
+  const handlePinDelete = () => {
+    if (pin.length > 0) {
+      setPin(pin.slice(0, -1));
+      setError(null);
+    }
+  };
+
+  const handlePinClear = () => {
+    setPin('');
+    setError(null);
+  };
+
+  // Submit tradicional por usuario y password
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -28,161 +69,215 @@ export default function LoginView() {
     try {
       await quickLogin(role);
     } catch (err) {
-      setError(err.message || 'Error en acceso.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOfflineDirect = () => {
-    loginOffline(username || 'campo_user');
-  };
-
-  const handleTelegramAuth = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      await loginWithTelegram();
-    } catch (err) {
-      setError(err.message || 'Fallo de autenticación con Telegram.');
+      setError(err.message || 'Error en acceso rápido.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden">
-      {/* Glow background decoration */}
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 py-6 relative overflow-hidden">
+      {/* Glow background */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 backdrop-blur-xl relative z-10">
+      <div className="w-full max-w-sm bg-slate-900/95 border border-slate-800 rounded-3xl shadow-2xl p-6 backdrop-blur-xl relative z-10 space-y-5">
+        
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-950 border border-emerald-500/30 text-emerald-400 font-black text-2xl mb-3 shadow-inner">
-            TESA
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-950 border border-emerald-500/40 text-emerald-400 font-black text-xl mb-2 shadow-inner">
+            🌾
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Operación de Campo & Tablero</h2>
-          <p className="text-xs text-slate-400 mt-1">Patrón TESA: Telegram Entry • Standalone API • Offline Storage</p>
+          <h2 className="text-lg font-bold text-white tracking-tight">Operación AGROK</h2>
+          <p className="text-[11px] text-slate-400">Acceso Rápido por PIN con Sesión Recordada</p>
         </div>
 
-        {/* Offline Status Alert */}
+        {/* Offline Banner */}
         {!isOnline && (
-          <div className="mb-5 p-3.5 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-md">
-            <div className="flex items-center gap-2">
+          <div className="p-2.5 rounded-xl bg-amber-950/70 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between gap-2 shadow">
+            <div className="flex items-center gap-1.5">
               <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span><strong>Sin Conexión:</strong> Modo Fuera de Línea activo.</span>
+              <span><strong>Modo Fuera de Línea:</strong> PIN validado en memoria local.</span>
             </div>
-            <button
-              type="button"
-              onClick={handleOfflineDirect}
-              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[11px] transition shadow"
-            >
-              Entrar Offline
-            </button>
-          </div>
-        )}
-
-        {/* Telegram WebApp Auto Login */}
-        {isTelegram && isOnline && (
-          <div className="mb-6 p-4 rounded-xl bg-sky-950/60 border border-sky-600/40 text-center">
-            <div className="flex items-center justify-center gap-2 text-sky-400 text-sm font-semibold mb-1">
-              <Send className="w-4 h-4" /> Telegram WebApp Detectado
-            </div>
-            <p className="text-xs text-sky-200/80 mb-3">
-              {tgUser ? `Conectado como ${tgUser.first_name} (ID: ${tgUser.id})` : 'Sesión activa de Telegram'}
-            </p>
-            <button
-              type="button"
-              onClick={handleTelegramAuth}
-              disabled={isLoading}
-              className="w-full py-2.5 px-4 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition shadow-md shadow-sky-950/50 flex items-center justify-center gap-2"
-            >
-              <Send className="w-4 h-4" /> Ingresar con Firma Telegram (HMAC-SHA256)
-            </button>
           </div>
         )}
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-rose-950/80 border border-rose-600/50 text-rose-200 text-xs flex items-center gap-2">
+          <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-600/50 text-rose-200 text-xs flex items-center gap-2 animate-shake">
             <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Formulario Tradicional */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Usuario
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="ej. campo_user, sup_user..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 transition"
-              />
+        {/* ========================================================================= */}
+        {/* MODO 1: TECLADO PIN DE 4 DÍGITOS (RECOMENDADO PARA CAMPO)                 */}
+        {/* ========================================================================= */}
+        {authMode === 'pin' && (
+          <div className="space-y-4">
+            {/* Indicador de 4 dígitos */}
+            <div className="flex flex-col items-center justify-center py-2 space-y-2">
+              <div className="flex gap-4">
+                {[0, 1, 2, 3].map((idx) => {
+                  const isFilled = pin.length > idx;
+                  return (
+                    <div
+                      key={idx}
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+                        isFilled
+                          ? 'bg-emerald-400 border-emerald-400 scale-125 shadow-lg shadow-emerald-500/50'
+                          : 'border-slate-600 bg-slate-950'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {isLoading ? 'Validando PIN...' : 'Digita tu PIN de 4 números'}
+              </p>
+            </div>
+
+            {/* Teclado Numérico Táctil */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handlePinDigit(String(num))}
+                  disabled={isLoading}
+                  className="h-13 py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 active:bg-emerald-900 border border-slate-800 text-white font-bold text-lg transition shadow-sm flex items-center justify-center"
+                >
+                  {num}
+                </button>
+              ))}
+              
+              <button
+                type="button"
+                onClick={handlePinClear}
+                disabled={isLoading || pin.length === 0}
+                className="h-13 py-3 rounded-2xl bg-slate-950/60 hover:bg-slate-800 border border-slate-800/80 text-slate-400 text-xs font-semibold transition"
+              >
+                Limpiar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePinDigit('0')}
+                disabled={isLoading}
+                className="h-13 py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 active:bg-emerald-900 border border-slate-800 text-white font-bold text-lg transition shadow-sm flex items-center justify-center"
+              >
+                0
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePinDelete}
+                disabled={isLoading || pin.length === 0}
+                className="h-13 py-3 rounded-2xl bg-slate-950/60 hover:bg-slate-800 border border-slate-800/80 text-rose-400 text-sm font-semibold transition flex items-center justify-center"
+              >
+                <Delete className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Alternar a contraseña */}
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('password'); setError(null); }}
+                className="text-xs text-slate-400 hover:text-emerald-400 underline transition"
+              >
+                Ingreso con Usuario y Contraseña
+              </button>
             </div>
           </div>
+        )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Contraseña
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="password"
-                required={isOnline}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 transition"
-              />
+        {/* ========================================================================= */}
+        {/* MODO 2: FORMULARIO ADMINISTRATIVO TRADICIONAL                             */}
+        {/* ========================================================================= */}
+        {authMode === 'password' && (
+          <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                Usuario
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="ej. campo_user, sup_user..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-sm transition shadow-lg shadow-emerald-950/60"
-          >
-            {isLoading ? 'Iniciando sesión...' : !isOnline ? 'Ingresar en Modo Fuera de Línea' : 'Iniciar Sesión'}
-          </button>
-        </form>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                Contraseña
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required={isOnline}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+            </div>
 
-        {/* Accesos Rápidos (1-Clic) */}
-        <div className="mt-6 pt-6 border-t border-slate-800">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              ⚡ Acceso Rápido {!isOnline && '(Offline)'}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-950/60"
+            >
+              {isLoading ? 'Verificando...' : 'Iniciar Sesión'}
+            </button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('pin'); setError(null); }}
+                className="text-xs text-emerald-400 hover:underline flex items-center justify-center gap-1 mx-auto"
+              >
+                <KeyRound className="w-3.5 h-3.5" /> Volver al PIN Rápido
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ========================================================================= */}
+        {/* ACCESOS RÁPIDOS DIRECTOS                                                  */}
+        {/* ========================================================================= */}
+        <div className="pt-3 border-t border-slate-800">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              ⚡ Botones de Demo (1 Toque)
             </p>
             <button
               type="button"
               onClick={toggleOfflineSimulation}
-              className="text-[10px] text-amber-400 hover:underline flex items-center gap-1"
+              className="text-[10px] text-amber-400 hover:underline"
             >
-              <WifiOff className="w-3 h-3" /> {offlineSimulated ? 'Modo Online' : 'Simular Offline'}
+              {offlineSimulated ? '🟢 Online' : '🟠 Probar Offline'}
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
               onClick={() => handleQuick('campo')}
               disabled={isLoading}
-              className="p-2.5 rounded-lg bg-slate-950 hover:bg-emerald-950/60 border border-slate-800 hover:border-emerald-500/40 text-left transition flex items-center gap-2 group"
+              className="p-2 rounded-xl bg-slate-950 hover:bg-emerald-950/70 border border-slate-800 text-left transition flex items-center gap-1.5"
             >
-              <div className="p-1.5 rounded bg-emerald-950 text-emerald-400 group-hover:scale-110 transition">
-                <HardHat className="w-4 h-4" />
-              </div>
+              <HardHat className="w-3.5 h-3.5 text-emerald-400" />
               <div>
-                <p className="text-xs font-semibold text-slate-200">1. Campo</p>
-                <p className="text-[10px] text-slate-500">campo_user</p>
+                <p className="text-[11px] font-bold text-slate-200">1. Campo</p>
+                <p className="text-[9px] text-slate-500">PIN: 1234</p>
               </div>
             </button>
 
@@ -190,14 +285,12 @@ export default function LoginView() {
               type="button"
               onClick={() => handleQuick('supervisor')}
               disabled={isLoading}
-              className="p-2.5 rounded-lg bg-slate-950 hover:bg-blue-950/60 border border-slate-800 hover:border-blue-500/40 text-left transition flex items-center gap-2 group"
+              className="p-2 rounded-xl bg-slate-950 hover:bg-blue-950/70 border border-slate-800 text-left transition flex items-center gap-1.5"
             >
-              <div className="p-1.5 rounded bg-blue-950 text-blue-400 group-hover:scale-110 transition">
-                <Activity className="w-4 h-4" />
-              </div>
+              <Activity className="w-3.5 h-3.5 text-blue-400" />
               <div>
-                <p className="text-xs font-semibold text-slate-200">2. Supervisor</p>
-                <p className="text-[10px] text-slate-500">sup_user</p>
+                <p className="text-[11px] font-bold text-slate-200">2. Supervisor</p>
+                <p className="text-[9px] text-slate-500">PIN: 2345</p>
               </div>
             </button>
 
@@ -205,14 +298,12 @@ export default function LoginView() {
               type="button"
               onClick={() => handleQuick('direccion')}
               disabled={isLoading}
-              className="p-2.5 rounded-lg bg-slate-950 hover:bg-purple-950/60 border border-slate-800 hover:border-purple-500/40 text-left transition flex items-center gap-2 group"
+              className="p-2 rounded-xl bg-slate-950 hover:bg-purple-950/70 border border-slate-800 text-left transition flex items-center gap-1.5"
             >
-              <div className="p-1.5 rounded bg-purple-950 text-purple-400 group-hover:scale-110 transition">
-                <BarChart3 className="w-4 h-4" />
-              </div>
+              <BarChart3 className="w-3.5 h-3.5 text-purple-400" />
               <div>
-                <p className="text-xs font-semibold text-slate-200">3. Dirección</p>
-                <p className="text-[10px] text-slate-500">dir_user</p>
+                <p className="text-[11px] font-bold text-slate-200">3. Dirección</p>
+                <p className="text-[9px] text-slate-500">PIN: 3456</p>
               </div>
             </button>
 
@@ -220,18 +311,17 @@ export default function LoginView() {
               type="button"
               onClick={() => handleQuick('it')}
               disabled={isLoading}
-              className="p-2.5 rounded-lg bg-slate-950 hover:bg-amber-950/60 border border-slate-800 hover:border-amber-500/40 text-left transition flex items-center gap-2 group"
+              className="p-2 rounded-xl bg-slate-950 hover:bg-amber-950/70 border border-slate-800 text-left transition flex items-center gap-1.5"
             >
-              <div className="p-1.5 rounded bg-amber-950 text-amber-400 group-hover:scale-110 transition">
-                <Shield className="w-4 h-4" />
-              </div>
+              <Shield className="w-3.5 h-3.5 text-amber-400" />
               <div>
-                <p className="text-xs font-semibold text-slate-200">4. Admin IT</p>
-                <p className="text-[10px] text-slate-500">admin_user</p>
+                <p className="text-[11px] font-bold text-slate-200">4. Admin IT</p>
+                <p className="text-[9px] text-slate-500">PIN: 9999</p>
               </div>
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );

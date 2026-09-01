@@ -23,6 +23,13 @@ async function testHttpEndpoints() {
       console.log('   Usuario:', loginRes.user.nombre, '| Rol:', loginRes.user.rol);
       const token = loginRes.token;
 
+      // 2b. Login por PIN de 4 dígitos
+      console.log('\n2b. Probando POST /api/auth/pin-login con PIN 1234 (campo_user)...');
+      const pinRes = await requestJson('http://localhost:3099/api/auth/pin-login', 'POST', {
+        pin: '1234'
+      });
+      console.log('   PIN validado:', pinRes.success ? 'SÍ' : 'NO', '| Operador:', pinRes.user.nombre);
+
       // 3. Stats Supervisor
       console.log('\n3. Probando GET /api/stats/supervisor (4 Widgets Canónicos)...');
       const statsSup = await requestJson('http://localhost:3099/api/stats/supervisor', 'GET', null, token);

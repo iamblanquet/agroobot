@@ -6,8 +6,68 @@ const { db } = require('../db/database');
 const { JWT_SECRET, authenticateJWT, verifyTelegramWebAppData } = require('../middleware/auth');
 
 /**
+ * POST /api/auth/pin-login
+ * Acceso rápido por PIN de 4 dígitos para operadores de campo y supervisores
+ */
+router.post('/pin-login', async (req, res) => {
+  try {
+    const { pin } = req.body;
+
+    if (!pin || typeof pin !== 'string' || pin.trim().length < 4) {
+      return res.status(400).json({ error: 'Debe ingresar un PIN de 4 dígitos.' });
+    }
+
+    const cleanPin = pin.trim();
+
+    const user = await db.get(
+      'SELECT id, username, nombre, rol, pin, activo FROM usuario WHERE pin = ? AND activo = 1',
+      [cleanPin]
+    );
+
+    if (!user) {
+      return res.status(401).json({ error: 'PIN no encontrado o incorrecto.' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
+      JWT_SECRET,
+      { expiresIn: '30d' } // Sesión persistente de 30 días para trabajo continuo
+    );
+
+    return res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        nombre: user.nombre,
+        rol: user.rol
+      }
+    });
+  } catch (err) {
+    console.error('Error en /auth/pin-login:', err);
+    return res.status(500).json({ error: 'Error interno al validar PIN.' });
+  }
+});
+
+/**
+ * GET /api/auth/operators
+ * Lista de perfiles de operador para caché y sincronización offline en IndexedDB
+ */
+router.get('/operators', async (req, res) => {
+  try {
+    const operators = await db.all(
+      'SELECT id, nombre, username, rol, pin FROM usuario WHERE activo = 1 ORDER BY nombre ASC'
+    );
+    return res.json({ success: true, operators });
+  } catch (err) {
+    return res.status(500).json({ error: 'Error al listar operadores.' });
+  }
+});
+
+/**
  * POST /api/auth/login
- * Autenticación tradicional por usuario y password
+ * Autenticación tradicional por usuario y password (para supervisores y admins)
  */
 router.post('/login', async (req, res) => {
   try {
@@ -34,7 +94,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     return res.json({
@@ -67,7 +127,6 @@ router.post('/telegram', async (req, res) => {
     }
 
     if (!botToken) {
-      // En modo desarrollo sin botToken configurado, podemos permitir fallback si viene user
       const urlParams = new URLSearchParams(initData);
       const userParam = urlParams.get('user');
       if (userParam && process.env.NODE_ENV === 'development') {
@@ -80,7 +139,7 @@ router.post('/telegram', async (req, res) => {
           const token = jwt.sign(
             { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
             JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '30d' }
           );
           return res.json({ token, user });
         }
@@ -108,7 +167,7 @@ router.post('/telegram', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     return res.json({

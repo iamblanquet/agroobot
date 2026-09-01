@@ -32,24 +32,24 @@ async function seed() {
 
   console.log('🧹 Tablas limpiadas.');
 
-  // 1. Usuarios canónicos
+  // 1. Usuarios canónicos con PIN de acceso rápido
   const usuarios = [
-    { username: 'campo_user', nombre: 'Juan Pérez - Residente de Campo', rol: 'campo', tg_user_id: '12345678' },
-    { username: 'sup_user', nombre: 'Ing. Carlos Mendoza - Supervisor de Obra', rol: 'supervisor', tg_user_id: '87654321' },
-    { username: 'dir_user', nombre: 'Lic. Roberto Garza - Director General', rol: 'direccion', tg_user_id: '11223344' },
-    { username: 'admin_user', nombre: 'Admin TI - Soporte Sistemas', rol: 'it', tg_user_id: '99887766' }
+    { username: 'campo_user', pin: '1234', nombre: 'Juan Pérez - Residente de Campo', rol: 'campo', tg_user_id: '12345678' },
+    { username: 'sup_user', pin: '2345', nombre: 'Ing. Carlos Mendoza - Supervisor de Obra', rol: 'supervisor', tg_user_id: '87654321' },
+    { username: 'dir_user', pin: '3456', nombre: 'Lic. Roberto Garza - Director General', rol: 'direccion', tg_user_id: '11223344' },
+    { username: 'admin_user', pin: '9999', nombre: 'Admin TI - Soporte Sistemas', rol: 'it', tg_user_id: '99887766' }
   ];
 
   const userMap = {};
   for (const u of usuarios) {
     const res = await db.run(
-      `INSERT INTO usuario (username, password_hash, nombre, rol, tg_user_id, tg_chat_id, activo)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      [u.username, passwordHash, u.nombre, u.rol, u.tg_user_id, u.tg_user_id]
+      `INSERT INTO usuario (username, password_hash, pin, nombre, rol, tg_user_id, tg_chat_id, activo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+      [u.username, passwordHash, u.pin, u.nombre, u.rol, u.tg_user_id, u.tg_user_id]
     );
     userMap[u.username] = res.lastID;
   }
-  console.log('👤 4 Usuarios creados (campo_user, sup_user, dir_user, admin_user / pass: demo123).');
+  console.log('👤 4 Usuarios creados con PIN (campo_user: 1234, sup_user: 2345, dir_user: 3456, admin_user: 9999 / pass: demo123).');
 
   const supervisorId = userMap['sup_user'];
 

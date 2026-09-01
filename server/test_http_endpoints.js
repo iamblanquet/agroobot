@@ -101,7 +101,10 @@ async function testHttpEndpoints() {
       console.log('   Diesel Total:', dirStats.kpis.total_diesel_litros, 'L');
 
       // 8. Disparo manual de Cron Jobs
-      console.log('\n8. Probando POST /api/stats/cron-trigger (Alertas automáticas 21:00, 21:30 y 08:00)...');
+      console.log('\n8. Probando POST /api/stats/cron-trigger (Automatizaciones 07:30, 08:00, 21:00 y 21:30)...');
+      const cronGen = await requestJson('http://localhost:3099/api/stats/cron-trigger', 'POST', { type: 'general' }, token);
+      console.log('   ✅ Cron 07:30 probado:', cronGen.type, '| Éxito:', cronGen.success);
+
       const cronEve = await requestJson('http://localhost:3099/api/stats/cron-trigger', 'POST', { type: 'evening' }, token);
       console.log('   ✅ Cron 21:00 probado:', cronEve.type, '| Pendientes:', cronEve.result.pendingCount);
 

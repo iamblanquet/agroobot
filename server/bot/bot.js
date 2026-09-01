@@ -24,6 +24,8 @@ async function sendTopicMessage(topicKey, text, extraOptions = {}) {
     threadId = parseInt(process.env.TELEGRAM_THREAD_INCIDENCIAS, 10);
   } else if (topicKey === 'tablero' && process.env.TELEGRAM_THREAD_TABLERO) {
     threadId = parseInt(process.env.TELEGRAM_THREAD_TABLERO, 10);
+  } else if (topicKey === 'general' && process.env.TELEGRAM_THREAD_GENERAL) {
+    threadId = parseInt(process.env.TELEGRAM_THREAD_GENERAL, 10);
   }
 
   const sendOptions = {

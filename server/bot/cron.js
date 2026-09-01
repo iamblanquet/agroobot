@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { db } = require('../db/database');
-const { sendTopicMessage, generateTableroText, getBotInstance } = require('./bot');
+const { sendTopicMessage, generateTableroText, generateProyectosTareasText, getBotInstance } = require('./bot');
 
 const TIMEZONE = process.env.TIMEZONE || 'America/Merida';
 
@@ -129,32 +129,55 @@ async function runMorningAlerts() {
 }
 
 /**
+ * 4. Reporte Diario General de Proyectos y Tareas (07:30 diario)
+ * Publica el estado de tareas y proyectos en curso en el tema #General del grupo
+ */
+async function runDailyGeneralReport() {
+  console.log('⏰ Ejecutando cron diario: Reporte General de Proyectos y Tareas en curso...');
+  try {
+    const generalTxt = await generateProyectosTareasText();
+    await sendTopicMessage('general', generalTxt);
+    console.log('✅ Cron Reporte General de Proyectos finalizado y publicado en el tema General.');
+    return { success: true, text: generalTxt };
+  } catch (err) {
+    console.error('Error en cron general diario:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Inicializar todos los Cron Jobs programados
  */
 function initScheduler() {
   console.log(`🕒 Inicializando planificador de tareas Cron (Zona horaria: ${TIMEZONE})...`);
 
-  // 1. Reclamo de las 21:00 diario
-  cron.schedule('0 21 * * *', () => {
-    runEveningCheck();
+  // 1. Reporte General de Proyectos y Tareas a las 07:30 diario
+  cron.schedule('30 7 * * *', () => {
+    runDailyGeneralReport();
   }, { timezone: TIMEZONE });
 
-  // 2. Corte del Tablero a las 21:30 diario
-  cron.schedule('30 21 * * *', () => {
-    runNightlyTablero();
-  }, { timezone: TIMEZONE });
-
-  // 3. Alertas matutinas a las 08:00 diario
+  // 2. Alertas matutinas a las 08:00 diario
   cron.schedule('0 8 * * *', () => {
     runMorningAlerts();
   }, { timezone: TIMEZONE });
 
-  console.log('✅ Programador Cron activo: [21:00 Reclamos] · [21:30 Tablero Oficial] · [08:00 Alertas Matutinas]');
+  // 3. Reclamo de las 21:00 diario
+  cron.schedule('0 21 * * *', () => {
+    runEveningCheck();
+  }, { timezone: TIMEZONE });
+
+  // 4. Corte del Tablero a las 21:30 diario
+  cron.schedule('30 21 * * *', () => {
+    runNightlyTablero();
+  }, { timezone: TIMEZONE });
+
+  console.log('✅ Programador Cron activo: [07:30 General Proyectos/Tareas] · [08:00 Alertas Matutinas] · [21:00 Reclamos] · [21:30 Tablero Oficial]');
 }
 
 module.exports = {
   initScheduler,
   runEveningCheck,
   runNightlyTablero,
-  runMorningAlerts
+  runMorningAlerts,
+  runDailyGeneralReport
 };

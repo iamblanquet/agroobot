@@ -236,9 +236,12 @@ router.get('/direction', authenticateJWT, async (req, res) => {
 router.post('/cron-trigger', authenticateJWT, requireRole('supervisor', 'direccion', 'it'), async (req, res) => {
   try {
     const { type = 'evening' } = req.body;
-    const { runEveningCheck, runNightlyTablero, runMorningAlerts } = require('../bot/cron');
+    const { runEveningCheck, runNightlyTablero, runMorningAlerts, runDailyGeneralReport } = require('../bot/cron');
 
-    if (type === 'evening') {
+    if (type === 'general') {
+      const result = await runDailyGeneralReport();
+      return res.json({ success: true, type: '07:30 Reporte General de Proyectos y Tareas', result });
+    } else if (type === 'evening') {
       const result = await runEveningCheck();
       return res.json({ success: true, type: '21:00 Reclamo de Obras Sin Reporte', result });
     } else if (type === 'tablero') {
@@ -248,7 +251,7 @@ router.post('/cron-trigger', authenticateJWT, requireRole('supervisor', 'direcci
       const result = await runMorningAlerts();
       return res.json({ success: true, type: '08:00 Alertas Matutinas', result });
     } else {
-      return res.status(400).json({ error: 'Tipo de alerta inválido. Opciones: evening, tablero, morning.' });
+      return res.status(400).json({ error: 'Tipo de alerta inválido. Opciones: general, evening, tablero, morning.' });
     }
   } catch (err) {
     console.error('Error en /cron-trigger:', err);

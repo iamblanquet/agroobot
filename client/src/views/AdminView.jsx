@@ -195,6 +195,20 @@ export default function AdminView() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={() => triggerCronTest('general')}
+            className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 border border-emerald-300 dark:border-slate-700 text-emerald-900 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+          >
+            <Play className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Probar 07:30 (General Proyectos)
+          </button>
+          <button
+            type="button"
+            onClick={() => triggerCronTest('morning')}
+            className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-slate-800 hover:bg-purple-100 dark:hover:bg-slate-700 border border-purple-300 dark:border-slate-700 text-purple-900 dark:text-purple-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+          >
+            <Play className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> Probar 08:00 (Incidencias/300h)
+          </button>
+          <button
+            type="button"
             onClick={() => triggerCronTest('evening')}
             className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-slate-700 border border-amber-300 dark:border-slate-700 text-amber-900 dark:text-amber-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
           >
@@ -206,13 +220,6 @@ export default function AdminView() {
             className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 border border-sky-300 dark:border-slate-700 text-sky-900 dark:text-sky-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
           >
             <Play className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Probar 21:30 (Corte Tablero)
-          </button>
-          <button
-            type="button"
-            onClick={() => triggerCronTest('morning')}
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 border border-emerald-300 dark:border-slate-700 text-emerald-900 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
-          >
-            <Play className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Probar 08:00 (Incidencias/300h)
           </button>
         </div>
 

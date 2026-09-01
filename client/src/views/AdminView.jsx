@@ -4,15 +4,16 @@ import {
   Shield,
   UserPlus,
   Users,
-  Send,
+  KeyRound,
   MapPin,
   Building,
   CheckCircle,
   XCircle,
-  KeyRound,
   RefreshCw,
   Server,
-  Activity
+  Activity,
+  Clock,
+  Play
 } from 'lucide-react';
 
 export default function AdminView() {
@@ -21,15 +22,16 @@ export default function AdminView() {
   const [obras, setObras] = useState([]);
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [cronTriggerStatus, setCronTriggerStatus] = useState(null);
 
   // Formulario Nuevo Usuario
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     username: '',
     password: '',
+    pin: '',
     nombre: '',
-    rol: 'campo',
-    tg_user_id: ''
+    rol: 'campo'
   });
 
   // Modal Edición de Usuario
@@ -37,7 +39,7 @@ export default function AdminView() {
   const [editForm, setEditForm] = useState({
     nombre: '',
     rol: 'campo',
-    tg_user_id: '',
+    pin: '',
     activo: true,
     password: ''
   });
@@ -75,9 +77,9 @@ export default function AdminView() {
       setNewUserForm({
         username: '',
         password: '',
+        pin: '',
         nombre: '',
-        rol: 'campo',
-        tg_user_id: ''
+        rol: 'campo'
       });
       await loadAll();
     } catch (err) {
@@ -96,16 +98,27 @@ export default function AdminView() {
     }
   };
 
+  const triggerCronTest = async (type) => {
+    setCronTriggerStatus('Ejecutando...');
+    try {
+      const res = await api.post('/stats/cron-trigger', { type });
+      setCronTriggerStatus(`✅ ${res.type || 'Ejecutado con éxito'}`);
+      setTimeout(() => setCronTriggerStatus(null), 5000);
+    } catch (err) {
+      setCronTriggerStatus(`❌ Error: ${err.message}`);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
       {/* Header Admin */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Shield className="w-5 h-5 text-amber-400" /> Administración IT & Catálogos Centrales
+            <Shield className="w-5 h-5 text-amber-400" /> Administración IT & Control de Accesos
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Gestión de identidades, vinculación criptográfica de Telegram y configuración de infraestructura
+            Gestión de identidades con PIN de 4 dígitos, monitoreo de servidor y automatización de alertas
           </p>
         </div>
 
@@ -129,7 +142,7 @@ export default function AdminView() {
         </div>
       </div>
 
-      {/* DIAGNÓSTICO DE SERVIDOR & BOT TELEGRAM */}
+      {/* DIAGNÓSTICO DE SERVIDOR & AUTOMATIZACIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
           <div className="p-3 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-700/40">
@@ -140,18 +153,7 @@ export default function AdminView() {
             <p className="text-sm font-bold text-emerald-400">
               {health?.status === 'OK' ? '✅ Standalone API Activo' : 'Conectando...'}
             </p>
-            <p className="text-[10px] text-slate-500 font-mono">SQLite PRAGMA FK = ON</p>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-          <div className="p-3 rounded-lg bg-sky-950 text-sky-400 border border-sky-700/40">
-            <Send className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-slate-400 font-medium">Telegram Bot Engine</p>
-            <p className="text-sm font-bold text-sky-400">Modo Dual Polling/Webhook</p>
-            <p className="text-[10px] text-slate-500">HMAC-SHA256 Auth & NLP Parser</p>
+            <p className="text-[10px] text-slate-500 font-mono">SQLite Relacional (15 tablas)</p>
           </div>
         </div>
 
@@ -160,19 +162,72 @@ export default function AdminView() {
             <Activity className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-medium">Almacenamiento Offline</p>
-            <p className="text-sm font-bold text-purple-400">IndexedDB Client Queue</p>
-            <p className="text-[10px] text-slate-500">Sincronización idempotente por UUID</p>
+            <p className="text-xs text-slate-400 font-medium">Acceso & Offline Storage</p>
+            <p className="text-sm font-bold text-purple-400">PIN 4 Dígitos + IndexedDB</p>
+            <p className="text-[10px] text-slate-500">Sesión persistente y sync idempotente</p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
+          <div className="p-3 rounded-lg bg-sky-950 text-sky-400 border border-sky-700/40">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-400 font-medium">Alertas Automáticas Cron</p>
+            <p className="text-sm font-bold text-sky-400">21:00 · 21:30 · 08:00</p>
+            <p className="text-[10px] text-slate-500">Zona Horaria: America/Merida</p>
           </div>
         </div>
       </div>
 
-      {/* TABLA DE GESTIÓN DE USUARIOS Y VINCULACIÓN TELEGRAM */}
+      {/* DISPARADORES MANUALES DE ALERTAS CRON */}
+      <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-sky-400" /> Disparador de Alertas y Cortes Automáticos
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Simula las alertas programadas sin esperar la hora fija:
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => triggerCronTest('evening')}
+            className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1 transition"
+          >
+            <Play className="w-3 h-3 text-amber-400" /> Probar 21:00 (Obras Sin Reporte)
+          </button>
+          <button
+            type="button"
+            onClick={() => triggerCronTest('tablero')}
+            className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1 transition"
+          >
+            <Play className="w-3 h-3 text-sky-400" /> Probar 21:30 (Corte Tablero)
+          </button>
+          <button
+            type="button"
+            onClick={() => triggerCronTest('morning')}
+            className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1 transition"
+          >
+            <Play className="w-3 h-3 text-emerald-400" /> Probar 08:00 (Incidencias/300h)
+          </button>
+        </div>
+
+        {cronTriggerStatus && (
+          <span className="text-xs font-mono text-sky-300 bg-sky-950/80 px-2 py-1 rounded border border-sky-700/50">
+            {cronTriggerStatus}
+          </span>
+        )}
+      </div>
+
+      {/* TABLA DE GESTIÓN DE USUARIOS Y PIN */}
       <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-bold text-white">Catálogo de Usuarios & Credenciales Telegram</h3>
+            <h3 className="text-sm font-bold text-white">Catálogo de Usuarios & PINs de Campo</h3>
           </div>
           <span className="text-xs text-slate-400 font-mono">{users.length} usuarios registrados</span>
         </div>
@@ -184,7 +239,7 @@ export default function AdminView() {
                 <th className="py-3 px-4">Usuario</th>
                 <th className="py-3 px-4">Nombre Completo</th>
                 <th className="py-3 px-4">Rol Asignado</th>
-                <th className="py-3 px-4">Telegram ID Vinculado</th>
+                <th className="py-3 px-4 text-center">PIN de Acceso (4 Dígitos)</th>
                 <th className="py-3 px-4 text-center">Estado</th>
                 <th className="py-3 px-4 text-right">Acciones</th>
               </tr>
@@ -207,13 +262,13 @@ export default function AdminView() {
                         {u.rol}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-mono">
-                      {u.tg_user_id ? (
-                        <span className="flex items-center gap-1 text-sky-400">
-                          <Send className="w-3 h-3" /> {u.tg_user_id}
+                    <td className="py-3 px-4 text-center">
+                      {u.pin ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/70 border border-amber-600/40 text-amber-300 font-mono font-bold text-xs shadow-sm">
+                          <KeyRound className="w-3 h-3 text-amber-400" /> {u.pin}
                         </span>
                       ) : (
-                        <span className="text-slate-600 italic">No vinculado</span>
+                        <span className="text-slate-600 italic">Sin PIN</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-center">
@@ -235,14 +290,14 @@ export default function AdminView() {
                           setEditForm({
                             nombre: u.nombre,
                             rol: u.rol,
-                            tg_user_id: u.tg_user_id || '',
+                            pin: u.pin || '',
                             activo: !!u.activo,
                             password: ''
                           });
                         }}
                         className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
                       >
-                        Editar / Vincular
+                        Editar / PIN
                       </button>
                     </td>
                   </tr>
@@ -317,7 +372,7 @@ export default function AdminView() {
                   required
                   value={newUserForm.nombre}
                   onChange={(e) => setNewUserForm(prev => ({ ...prev, nombre: e.target.value }))}
-                  placeholder="ej. Juan Pérez"
+                  placeholder="ej. Abner Díaz"
                   className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
                 />
               </div>
@@ -329,19 +384,7 @@ export default function AdminView() {
                   required
                   value={newUserForm.username}
                   onChange={(e) => setNewUserForm(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="ej. juan_campo"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Contraseña</label>
-                <input
-                  type="password"
-                  required
-                  value={newUserForm.password}
-                  onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="••••••••"
+                  placeholder="ej. abner_campo"
                   className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
                 />
               </div>
@@ -362,15 +405,30 @@ export default function AdminView() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Telegram User ID</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    PIN de 4 Dígitos <span className="text-amber-400">*</span>
+                  </label>
                   <input
                     type="text"
-                    value={newUserForm.tg_user_id}
-                    onChange={(e) => setNewUserForm(prev => ({ ...prev, tg_user_id: e.target.value }))}
-                    placeholder="ej. 12345678"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                    maxLength={4}
+                    value={newUserForm.pin}
+                    onChange={(e) => setNewUserForm(prev => ({ ...prev, pin: e.target.value.replace(/\D/g, '') }))}
+                    placeholder="ej. 1234"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-amber-600/40 text-amber-300 font-mono font-bold text-xs"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Contraseña</label>
+                <input
+                  type="password"
+                  required
+                  value={newUserForm.password}
+                  onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-3">
@@ -393,7 +451,7 @@ export default function AdminView() {
         </div>
       )}
 
-      {/* MODAL: Editar Usuario & Vincular Telegram */}
+      {/* MODAL: Editar Usuario & Asignar PIN */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-4">
@@ -431,13 +489,16 @@ export default function AdminView() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Telegram User ID</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    PIN de 4 Dígitos
+                  </label>
                   <input
                     type="text"
-                    value={editForm.tg_user_id}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, tg_user_id: e.target.value }))}
-                    placeholder="ID numérico Telegram"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-mono"
+                    maxLength={4}
+                    value={editForm.pin}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, pin: e.target.value.replace(/\D/g, '') }))}
+                    placeholder="ej. 1234"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-amber-600/40 text-amber-300 font-mono font-bold text-xs"
                   />
                 </div>
               </div>

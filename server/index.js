@@ -115,8 +115,10 @@ async function startServer() {
       await seed();
     }
 
-    // Inicializar Bot de Telegram
+    // Inicializar Bot de Telegram y Planificador de Tareas Cron (Docs 2 §4)
     initTelegramBot(app);
+    const { initScheduler } = require('./bot/cron');
+    initScheduler();
 
     app.listen(PORT, () => {
       console.log(`\n==================================================`);

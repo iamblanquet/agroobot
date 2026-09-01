@@ -41,7 +41,15 @@ async function testHttpEndpoints() {
 
       // 4. Intentar cerrar incidencia con causa raíz corta (< 10 chars) -> Espera HTTP 400
       console.log('\n4. Probando POST /api/issues/:id/close con causa corta (< 10 chars)...');
-      const activeIssue = statsSup.widgets.incidencias_abiertas[0];
+      let activeIssue = statsSup.widgets.incidencias_abiertas[0];
+      if (!activeIssue) {
+        const newIss = await requestJson('http://localhost:3099/api/issues', 'POST', {
+          tipo: 'Falla mecánica: Bomba de agua sobrecalentada',
+          obra_id: 1,
+          causa_raiz: null
+        }, token);
+        activeIssue = newIss.issue;
+      }
       try {
         await requestJson(`http://localhost:3099/api/issues/${activeIssue.id}/close`, 'POST', {
           causa_raiz: 'Corta'
@@ -92,8 +100,19 @@ async function testHttpEndpoints() {
       console.log('   Discrepancia:', dirStats.kpis.discrepancia_ha, 'ha');
       console.log('   Diesel Total:', dirStats.kpis.total_diesel_litros, 'L');
 
+      // 8. Disparo manual de Cron Jobs
+      console.log('\n8. Probando POST /api/stats/cron-trigger (Alertas automáticas 21:00, 21:30 y 08:00)...');
+      const cronEve = await requestJson('http://localhost:3099/api/stats/cron-trigger', 'POST', { type: 'evening' }, token);
+      console.log('   ✅ Cron 21:00 probado:', cronEve.type, '| Pendientes:', cronEve.result.pendingCount);
+
+      const cronTab = await requestJson('http://localhost:3099/api/stats/cron-trigger', 'POST', { type: 'tablero' }, token);
+      console.log('   ✅ Cron 21:30 probado:', cronTab.type, '| Éxito:', cronTab.success);
+
+      const cronMorn = await requestJson('http://localhost:3099/api/stats/cron-trigger', 'POST', { type: 'morning' }, token);
+      console.log('   ✅ Cron 08:00 probado:', cronMorn.type, '| Incidencias:', cronMorn.result.incidenciasCount);
+
       console.log('\n====================================================');
-      console.log('🎉 TODOS LOS ENDPOINTS HTTP RESPONDIERON CORRECTAMENTE');
+      console.log('🎉 TODOS LOS ENDPOINTS HTTP Y CRON JOBS RESPONDIERON CORRECTAMENTE');
       console.log('====================================================\n');
 
       server.close(() => process.exit(0));

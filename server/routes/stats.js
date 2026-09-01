@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateJWT, requireRole } = require('../middleware/auth');
 
 /**
  * GET /api/stats/supervisor
@@ -226,6 +226,33 @@ router.get('/direction', authenticateJWT, async (req, res) => {
   } catch (err) {
     console.error('Error en /api/stats/direction:', err);
     return res.status(500).json({ error: 'Error al obtener KPIs de dirección.' });
+  }
+});
+
+/**
+ * POST /api/stats/cron-trigger
+ * Disparador manual para pruebas de alertas y cortes programados
+ */
+router.post('/cron-trigger', authenticateJWT, requireRole('supervisor', 'direccion', 'it'), async (req, res) => {
+  try {
+    const { type = 'evening' } = req.body;
+    const { runEveningCheck, runNightlyTablero, runMorningAlerts } = require('../bot/cron');
+
+    if (type === 'evening') {
+      const result = await runEveningCheck();
+      return res.json({ success: true, type: '21:00 Reclamo de Obras Sin Reporte', result });
+    } else if (type === 'tablero') {
+      const result = await runNightlyTablero();
+      return res.json({ success: true, type: '21:30 Corte del Tablero de Control', result });
+    } else if (type === 'morning') {
+      const result = await runMorningAlerts();
+      return res.json({ success: true, type: '08:00 Alertas Matutinas', result });
+    } else {
+      return res.status(400).json({ error: 'Tipo de alerta inválido. Opciones: evening, tablero, morning.' });
+    }
+  } catch (err) {
+    console.error('Error en /cron-trigger:', err);
+    return res.status(500).json({ error: 'Error ejecutando cron manual.' });
   }
 });
 

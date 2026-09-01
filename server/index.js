@@ -63,9 +63,20 @@ app.get('/api/health', (req, res) => {
 // Servir frontend compilado (Producción / Render)
 const clientDistPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+  app.use(express.static(clientDistPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    }
+  }));
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(clientDistPath, 'index.html'));
     }
   });

@@ -390,7 +390,7 @@ export default function SupervisorView() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <RefreshCw className="w-8 h-8 text-blue-400 animate-spin" />
-          <p className="text-xs text-slate-400">Cargando Centro de Control del Supervisor...</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Cargando Centro de Control del Supervisor...</p>
         </div>
       </div>
     );
@@ -409,10 +409,10 @@ export default function SupervisorView() {
       {/* Header y Selector de Sub-Pestañas */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-400" /> Panel de Supervisión Operativa & Gestión
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-600 dark:text-slate-600 dark:text-slate-400 mt-1 font-medium">
             Monitoreo en tiempo real, administración de proyectos, hitos, tareas y parque de maquinaria
           </p>
         </div>
@@ -425,7 +425,7 @@ export default function SupervisorView() {
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTab === 'tablero'
                 ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-200'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -438,7 +438,7 @@ export default function SupervisorView() {
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTab === 'proyectos'
                 ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-200'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -451,7 +451,7 @@ export default function SupervisorView() {
           <button
             type="button"
             onClick={loadData}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-white transition"
             title="Refrescar datos"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -467,10 +467,10 @@ export default function SupervisorView() {
           {/* Barra de Acción Superior */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-emerald-400" /> Estructura de Proyectos Agrícolas
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 Define proyectos, crea frentes de obra, calendariza hitos y asigna metas y responsables
               </p>
             </div>
@@ -507,22 +507,22 @@ export default function SupervisorView() {
                         <button
                           type="button"
                           onClick={() => toggleProjectExpand(p.id)}
-                          className="mt-1 p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                          className="mt-1 p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300"
                         >
                           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-base font-bold text-white">{p.nombre}</h4>
+                            <h4 className="text-base font-bold text-slate-900 dark:text-white">{p.nombre}</h4>
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
                               {p.tipo} • {p.ciclo}
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-300 dark:border-slate-700">
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
                               {p.fase_catalogo}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
-                            <span>Gerente: <strong className="text-slate-200">{p.gerente_nombre || 'No asignado'}</strong></span>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-3">
+                            <span>Gerente: <strong className="text-slate-900 dark:text-slate-200">{p.gerente_nombre || 'No asignado'}</strong></span>
                             <span>•</span>
                             <span>Inicio: {p.fecha_inicio || 'Sin fecha'}</span>
                             {p.fecha_fin && <span>Fin: {p.fecha_fin}</span>}
@@ -534,7 +534,7 @@ export default function SupervisorView() {
                       <div className="flex flex-wrap items-center gap-4">
                         <div className="w-40 space-y-1">
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-400 font-medium">Avance Total:</span>
+                            <span className="text-slate-600 dark:text-slate-400 font-medium">Avance Total:</span>
                             <span className="text-emerald-400 font-bold">{totalAcumuladoHa}/{p.superficie_meta_ha} ha ({progresoPct}%)</span>
                           </div>
                           <div className="w-full bg-slate-800 rounded-full h-2">
@@ -566,7 +566,7 @@ export default function SupervisorView() {
                           <button
                             type="button"
                             onClick={() => handleOpenProjectModal(p)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
                             title="Editar Proyecto"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -587,9 +587,9 @@ export default function SupervisorView() {
                     {/* Frentes / Obras Asociadas */}
                     {p.obras?.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800/60 flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
                         {p.obras.map(o => (
-                          <span key={o.id} className="px-2 py-0.5 rounded text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-200">
+                          <span key={o.id} className="px-2 py-0.5 rounded text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-200">
                             {o.nombre} ({o.fase_actual})
                           </span>
                         ))}
@@ -608,7 +608,7 @@ export default function SupervisorView() {
                           const hitoPct = h.superficie_meta_ha > 0 ? Math.min(100, Math.round((hitoAcumHa / h.superficie_meta_ha) * 100)) : 0;
 
                           const statusColors = {
-                            pendiente: 'bg-slate-800 text-slate-300 border-slate-300 dark:border-slate-700',
+                            pendiente: 'bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
                             en_proceso: 'bg-blue-950 text-blue-300 border-blue-700',
                             completado: 'bg-emerald-950 text-emerald-300 border-emerald-700',
                             bloqueado: 'bg-rose-950 text-rose-300 border-rose-700'
@@ -622,7 +622,7 @@ export default function SupervisorView() {
                                   <button
                                     type="button"
                                     onClick={() => toggleHitoExpand(h.id)}
-                                    className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white"
+                                    className="p-1 rounded bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white"
                                   >
                                     {isHitoExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                                   </button>
@@ -636,7 +636,7 @@ export default function SupervisorView() {
                                         {h.estado.replace('_', ' ')}
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">
+                                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
                                       {h.descripcion || 'Sin descripción'} • Meta: <strong>{h.superficie_meta_ha} ha</strong> {h.fecha_meta && `• Fecha Meta: ${h.fecha_meta}`}
                                     </p>
                                   </div>
@@ -644,7 +644,7 @@ export default function SupervisorView() {
 
                                 <div className="flex items-center gap-3 self-end md:self-auto">
                                   <div className="w-32 hidden sm:block">
-                                    <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
+                                    <div className="flex justify-between text-[10px] text-slate-600 dark:text-slate-400 mb-0.5">
                                       <span>Progreso:</span>
                                       <span className="font-bold text-emerald-400">{hitoPct}%</span>
                                     </div>
@@ -665,7 +665,7 @@ export default function SupervisorView() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenHitoModal(p, h)}
-                                    className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white"
+                                    className="p-1 rounded bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white"
                                     title="Editar Hito"
                                   >
                                     <Edit2 className="w-3 h-3" />
@@ -687,8 +687,8 @@ export default function SupervisorView() {
                                 <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800/80">
                                   {hitoTareas.length > 0 ? (
                                     <div className="overflow-x-auto">
-                                      <table className="w-full text-left text-xs text-slate-300">
-                                        <thead className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                                      <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                                        <thead className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                                           <tr>
                                             <th className="py-2 px-3">Tarea / Actividad</th>
                                             <th className="py-2 px-3">Predio</th>
@@ -702,7 +702,7 @@ export default function SupervisorView() {
                                           {hitoTareas.map((t) => {
                                             const tPct = t.cantidad_meta > 0 ? Math.min(100, Math.round((t.cantidad_acumulada / t.cantidad_meta) * 100)) : 0;
                                             const taskStatusColors = {
-                                              pendiente: 'bg-slate-800 text-slate-400 border-slate-300 dark:border-slate-700',
+                                              pendiente: 'bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700',
                                               en_progreso: 'bg-blue-950 text-blue-300 border-blue-700',
                                               completada: 'bg-emerald-950 text-emerald-300 border-emerald-700 font-bold',
                                               detenida: 'bg-amber-950 text-amber-300 border-amber-700'
@@ -712,19 +712,19 @@ export default function SupervisorView() {
                                               <tr key={t.id} className="hover:bg-slate-900/60">
                                                 <td className="py-2.5 px-3">
                                                   <span className="font-semibold text-white">{t.nombre}</span>
-                                                  <span className="block text-[10px] text-slate-500 font-mono">[{t.actividad_id}]</span>
+                                                  <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-mono">[{t.actividad_id}]</span>
                                                 </td>
-                                                <td className="py-2.5 px-3 text-slate-400">
+                                                <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
                                                   {t.predio_nombre || 'General'}
                                                 </td>
                                                 <td className="py-2.5 px-3">
-                                                  <span className="flex items-center gap-1 text-slate-300">
-                                                    <User className="w-3 h-3 text-slate-500" /> {t.responsable || 'Sin asignar'}
+                                                  <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                                                    <User className="w-3 h-3 text-slate-500 dark:text-slate-400" /> {t.responsable || 'Sin asignar'}
                                                   </span>
                                                 </td>
                                                 <td className="py-2.5 px-3 text-right font-mono">
                                                   <span className="text-emerald-400 font-bold">{t.cantidad_acumulada}</span>
-                                                  <span className="text-slate-500"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
+                                                  <span className="text-slate-500 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
                                                 </td>
                                                 <td className="py-2.5 px-3 text-center">
                                                   <button
@@ -741,7 +741,7 @@ export default function SupervisorView() {
                                                     <button
                                                       type="button"
                                                       onClick={() => handleOpenTaskModal(p, h, t)}
-                                                      className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white"
+                                                      className="p-1 rounded bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white"
                                                       title="Editar Tarea"
                                                     >
                                                       <Edit2 className="w-3 h-3" />
@@ -763,7 +763,7 @@ export default function SupervisorView() {
                                       </table>
                                     </div>
                                   ) : (
-                                    <div className="py-4 text-center text-xs text-slate-500">
+                                    <div className="py-4 text-center text-xs text-slate-500 dark:text-slate-400">
                                       No hay tareas configuradas en este hito.{' '}
                                       <button
                                         type="button"
@@ -780,7 +780,7 @@ export default function SupervisorView() {
                           );
                         })
                       ) : (
-                        <div className="py-6 text-center text-xs text-slate-500">
+                        <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
                           Este proyecto aún no tiene hitos definidos.{' '}
                           <button
                             type="button"
@@ -850,8 +850,8 @@ export default function SupervisorView() {
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">1. Obras Sin Reporte Hoy</h3>
-                    <p className="text-[11px] text-slate-400">Frentes en operación sin registro en la fecha actual</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">1. Obras Sin Reporte Hoy</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Frentes en operación sin registro en la fecha actual</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600/50">
@@ -864,14 +864,14 @@ export default function SupervisorView() {
                   obras_sin_reporte_hoy.map((o) => (
                     <div key={o.id} className="py-2.5 flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-xs font-semibold text-slate-200">{o.nombre}</p>
-                        <p className="text-[10px] text-slate-500">{o.proyecto_nombre} • Fase: {o.fase_actual}</p>
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{o.nombre}</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-600 dark:text-slate-400">{o.proyecto_nombre} • Fase: {o.fase_actual}</p>
                       </div>
                       <div className="text-right">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
                           {o.dias_atraso} {o.dias_atraso === 1 ? 'día' : 'días'} de retraso
                         </span>
-                        <p className="text-[9px] text-slate-500 mt-0.5">Último: {o.ultimo_reporte_fecha}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Último: {o.ultimo_reporte_fecha}</p>
                       </div>
                     </div>
                   ))
@@ -892,8 +892,8 @@ export default function SupervisorView() {
                     <TrendingUp className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">2. Avance Contra Meta & Validación Dron</h3>
-                    <p className="text-[11px] text-slate-400">Comparativa Hectáreas Campo vs Medición Dron vs Meta</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">2. Avance Contra Meta & Validación Dron</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Comparativa Hectáreas Campo vs Medición Dron vs Meta</p>
                   </div>
                 </div>
               </div>
@@ -902,12 +902,12 @@ export default function SupervisorView() {
                 {avance_contra_meta.map((p) => (
                   <div key={p.proyecto_id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 space-y-2">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-slate-200">{p.proyecto_nombre}</span>
-                      <span className="text-slate-400 font-medium">Meta: {p.meta_ha} ha</span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{p.proyecto_nombre}</span>
+                      <span className="text-slate-600 dark:text-slate-600 dark:text-slate-400 font-bold">Meta: {p.meta_ha} ha</span>
                     </div>
 
                     <div className="space-y-1 text-[11px]">
-                      <div className="flex items-center justify-between text-slate-300">
+                      <div className="flex items-center justify-between text-slate-700 dark:text-slate-700 dark:text-slate-300 font-medium">
                         <span>🚜 Reportado Campo:</span>
                         <span className="font-bold text-emerald-400">{p.campo_ha} ha ({p.porcentaje_campo}%)</span>
                       </div>
@@ -917,14 +917,14 @@ export default function SupervisorView() {
 
                       {p.dron_ha !== null ? (
                         <>
-                          <div className="flex items-center justify-between text-slate-300 pt-1">
+                          <div className="flex items-center justify-between text-slate-700 dark:text-slate-700 dark:text-slate-300 font-medium pt-1">
                             <span>🛰️ Medición Dron:</span>
                             <span className="font-bold text-sky-400">{p.dron_ha} ha ({p.porcentaje_dron}%)</span>
                           </div>
                           <div className="w-full bg-slate-800 rounded-full h-1.5">
                             <div className="bg-sky-400 h-1.5 rounded-full" style={{ width: `${p.porcentaje_dron}%` }} />
                           </div>
-                          <div className="flex justify-between text-[10px] text-slate-400 pt-0.5">
+                          <div className="flex justify-between text-[10px] text-slate-600 dark:text-slate-400 pt-0.5">
                             <span>Discrepancia: {Math.abs(p.discrepancia_ha)} ha</span>
                             <span className={p.discrepancia_ha > 0 ? 'text-amber-400' : 'text-emerald-400'}>
                               {p.discrepancia_ha > 0 ? `+${p.discrepancia_ha} ha sobredeclarada` : 'Alineado con ortofoto'}
@@ -932,7 +932,7 @@ export default function SupervisorView() {
                           </div>
                         </>
                       ) : (
-                        <p className="text-[10px] text-slate-500 italic pt-1">Sin vuelo de validación dron reciente</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic pt-1">Sin vuelo de validación dron reciente</p>
                       )}
                     </div>
                   </div>
@@ -948,8 +948,8 @@ export default function SupervisorView() {
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">3. Incidencias Abiertas</h3>
-                    <p className="text-[11px] text-slate-400">Folios activos con resolución y validación de causa raíz</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">3. Incidencias Abiertas</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Folios activos con resolución y validación de causa raíz</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-600/50">
@@ -964,12 +964,12 @@ export default function SupervisorView() {
                       <div className="max-w-[70%]">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-xs font-bold text-rose-400">{inc.folio}</span>
-                          <span className="px-1.5 py-0.2 rounded text-[9px] uppercase font-semibold bg-slate-800 text-slate-300">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] uppercase font-semibold bg-slate-800 text-slate-700 dark:text-slate-300">
                             {inc.estado}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-200 mt-0.5 line-clamp-1">{inc.tipo}</p>
-                        <p className="text-[10px] text-slate-500">{inc.obra_nombre}</p>
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100 mt-0.5 line-clamp-1">{inc.tipo}</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-600 dark:text-slate-400">{inc.obra_nombre}</p>
                       </div>
                       <button
                         type="button"
@@ -978,7 +978,7 @@ export default function SupervisorView() {
                           setCausaRaizInput('');
                           setCloseError(null);
                         }}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-800 hover:text-white text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition flex items-center gap-1"
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-800 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition flex items-center gap-1"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Cerrar</span>
@@ -1002,8 +1002,8 @@ export default function SupervisorView() {
                     <PackageX className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">4. Bloqueado por Material</h3>
-                    <p className="text-[11px] text-slate-400">Insumos donde requerido - en_sitio &gt; 0 con ETA</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">4. Bloqueado por Material</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">Insumos donde requerido - en_sitio &gt; 0 con ETA</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600/50">
@@ -1016,8 +1016,8 @@ export default function SupervisorView() {
                   bloqueado_por_material.map((mat) => (
                     <div key={mat.id} className="py-2.5 flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-xs font-semibold text-slate-200">{mat.nombre}</p>
-                        <p className="text-[10px] text-slate-500">
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{mat.nombre}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
                           {mat.obra_nombre} • En Sitio: {mat.en_sitio}/{mat.requerido} {mat.unidad}
                         </p>
                       </div>
@@ -1026,8 +1026,8 @@ export default function SupervisorView() {
                           Faltan {mat.deficit} {mat.unidad}
                         </span>
                         <div className="flex items-center gap-1 justify-end mt-0.5">
-                          <Calendar className="w-3 h-3 text-slate-500" />
-                          <span className={`text-[10px] font-semibold ${mat.eta_vencido ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
+                          <Calendar className="w-3 h-3 text-slate-500 dark:text-slate-400" />
+                          <span className={`text-[10px] font-semibold ${mat.eta_vencido ? 'text-rose-400 font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
                             ETA: {mat.eta || 'Sin fecha'} {mat.eta_vencido ? '⚠️ ATRASADO' : ''}
                           </span>
                         </div>
@@ -1053,7 +1053,7 @@ export default function SupervisorView() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">Monitor de Maquinaria y Alertas Preventivas</h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     Regla preventiva: Alerta activa cuando horas desde último servicio ≥ 280 hrs (≤ 20 hrs para las 300 hrs)
                   </p>
                 </div>
@@ -1086,22 +1086,22 @@ export default function SupervisorView() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{maq.modelo}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{maq.modelo}</p>
                       </div>
                     </div>
 
                     <div className="mt-3 space-y-1.5 text-xs">
-                      <div className="flex justify-between text-slate-300">
+                      <div className="flex justify-between text-slate-700 dark:text-slate-300">
                         <span>Horómetro Actual:</span>
                         <span className="font-bold text-white">{maq.horometro_actual} hrs</span>
                       </div>
-                      <div className="flex justify-between text-slate-400">
+                      <div className="flex justify-between text-slate-600 dark:text-slate-400">
                         <span>Último Servicio:</span>
                         <span>{maq.ultimo_servicio_hr} hrs</span>
                       </div>
-                      <div className="flex justify-between text-slate-300 font-medium">
+                      <div className="flex justify-between text-slate-700 dark:text-slate-300 font-medium">
                         <span>Uso Desde Servicio:</span>
-                        <span className={isAlert ? 'text-rose-400 font-bold' : 'text-slate-200'}>
+                        <span className={isAlert ? 'text-rose-400 font-bold' : 'text-slate-900 dark:text-slate-200'}>
                           {maq.horas_desde_servicio} hrs / 300 hrs
                         </span>
                       </div>
@@ -1117,7 +1117,7 @@ export default function SupervisorView() {
                       <button
                         type="button"
                         onClick={() => handleMachineService(maq.id, maq.codigo)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-700 hover:text-white text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-700 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5"
                       >
                         <Wrench className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Registrar Servicio 300h</span>
@@ -1144,12 +1144,12 @@ export default function SupervisorView() {
                 <FolderPlus className="w-5 h-5 text-emerald-400" />
                 {editingProject ? 'Editar Proyecto Agrícola' : 'Nuevo Proyecto Agrícola'}
               </h3>
-              <button type="button" onClick={() => setShowProjectModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button type="button" onClick={() => setShowProjectModal(false)} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveProject} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre del Proyecto</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Proyecto</label>
                 <input
                   type="text"
                   required
@@ -1162,7 +1162,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Cultivo</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Tipo de Cultivo</label>
                   <input
                     type="text"
                     required
@@ -1173,7 +1173,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Ciclo Agrícola</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Ciclo Agrícola</label>
                   <input
                     type="text"
                     required
@@ -1187,7 +1187,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Superficie Meta (Hectáreas)</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Superficie Meta (Hectáreas)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -1199,7 +1199,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Fase Catálogo</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fase Catálogo</label>
                   <input
                     type="text"
                     value={projectForm.fase_catalogo}
@@ -1212,7 +1212,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Fecha Inicio</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fecha Inicio</label>
                   <input
                     type="date"
                     value={projectForm.fecha_inicio}
@@ -1221,7 +1221,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Fecha Fin Meta</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fecha Fin Meta</label>
                   <input
                     type="date"
                     value={projectForm.fecha_fin}
@@ -1235,7 +1235,7 @@ export default function SupervisorView() {
                 <button
                   type="button"
                   onClick={() => setShowProjectModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
@@ -1260,12 +1260,12 @@ export default function SupervisorView() {
                 <Flag className="w-5 h-5 text-blue-400" />
                 {editingHito ? 'Editar Hito' : `Nuevo Hito: ${selectedProjectForHito?.nombre}`}
               </h3>
-              <button type="button" onClick={() => setShowHitoModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button type="button" onClick={() => setShowHitoModal(false)} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveHito} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre del Hito</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Hito</label>
                 <input
                   type="text"
                   required
@@ -1277,7 +1277,7 @@ export default function SupervisorView() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Descripción / Alcance</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Descripción / Alcance</label>
                 <textarea
                   rows="2"
                   value={hitoForm.descripcion}
@@ -1289,7 +1289,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Nº Orden</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nº Orden</label>
                   <input
                     type="number"
                     min="1"
@@ -1299,7 +1299,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Superficie Meta (ha)</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Superficie Meta (ha)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -1310,7 +1310,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Estado</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Estado</label>
                   <select
                     value={hitoForm.estado}
                     onChange={(e) => setHitoForm(prev => ({ ...prev, estado: e.target.value }))}
@@ -1325,7 +1325,7 @@ export default function SupervisorView() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Fecha Meta</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fecha Meta</label>
                 <input
                   type="date"
                   value={hitoForm.fecha_meta}
@@ -1338,7 +1338,7 @@ export default function SupervisorView() {
                 <button
                   type="button"
                   onClick={() => setShowHitoModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
@@ -1363,12 +1363,12 @@ export default function SupervisorView() {
                 <CheckSquare className="w-5 h-5 text-emerald-400" />
                 {editingTask ? 'Editar Tarea' : `Nueva Tarea en Hito: ${selectedHitoForTask?.nombre}`}
               </h3>
-              <button type="button" onClick={() => setShowTaskModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button type="button" onClick={() => setShowTaskModal(false)} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveTask} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre de la Tarea</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre de la Tarea</label>
                 <input
                   type="text"
                   required
@@ -1381,7 +1381,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Actividad ID</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Actividad ID</label>
                   <input
                     type="text"
                     value={taskForm.actividad_id}
@@ -1391,7 +1391,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Predio / Lote Asignado</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Predio / Lote Asignado</label>
                   <select
                     value={taskForm.predio_id}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, predio_id: e.target.value }))}
@@ -1407,7 +1407,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Cantidad Meta</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Cantidad Meta</label>
                   <input
                     type="number"
                     step="0.1"
@@ -1419,7 +1419,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Unidad</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Unidad</label>
                   <input
                     type="text"
                     value={taskForm.unidad}
@@ -1428,7 +1428,7 @@ export default function SupervisorView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Estado</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Estado</label>
                   <select
                     value={taskForm.estado}
                     onChange={(e) => setTaskForm(prev => ({ ...prev, estado: e.target.value }))}
@@ -1457,7 +1457,7 @@ export default function SupervisorView() {
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Responsable en Campo</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Responsable en Campo</label>
                 <input
                   type="text"
                   value={taskForm.responsable}
@@ -1471,7 +1471,7 @@ export default function SupervisorView() {
                 <button
                   type="button"
                   onClick={() => setShowTaskModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
@@ -1496,12 +1496,12 @@ export default function SupervisorView() {
                 <Building className="w-5 h-5 text-purple-400" />
                 Nuevo Frente de Obra: {selectedProjectForObra?.nombre}
               </h3>
-              <button type="button" onClick={() => setShowObraModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button type="button" onClick={() => setShowObraModal(false)} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveObra} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre del Frente / Obra</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Frente / Obra</label>
                 <input
                   type="text"
                   required
@@ -1513,7 +1513,7 @@ export default function SupervisorView() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Fase Actual</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fase Actual</label>
                 <input
                   type="text"
                   value={obraForm.fase_actual}
@@ -1525,7 +1525,7 @@ export default function SupervisorView() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Estado</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Estado</label>
                   <select
                     value={obraForm.estado}
                     onChange={(e) => setObraForm(prev => ({ ...prev, estado: e.target.value }))}
@@ -1541,7 +1541,7 @@ export default function SupervisorView() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Predio Vinculado</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Predio Vinculado</label>
                   <select
                     value={obraForm.predio_id}
                     onChange={(e) => setObraForm(prev => ({ ...prev, predio_id: e.target.value }))}
@@ -1559,7 +1559,7 @@ export default function SupervisorView() {
                 <button
                   type="button"
                   onClick={() => setShowObraModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
@@ -1584,21 +1584,21 @@ export default function SupervisorView() {
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Cierre Técnico de Incidencia
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                   Folio: <strong className="text-rose-400 font-mono">{selectedIssueToClose.folio}</strong> — {selectedIssueToClose.obra_nombre}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedIssueToClose(null)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-slate-600 dark:text-slate-400 hover:text-white text-sm"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-300">
-              <p className="text-slate-400 font-medium mb-1">Descripción reportada:</p>
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
+              <p className="text-slate-600 dark:text-slate-400 font-medium mb-1">Descripción reportada:</p>
               <p>{selectedIssueToClose.tipo}</p>
             </div>
 
@@ -1611,7 +1611,7 @@ export default function SupervisorView() {
             <form onSubmit={handleCloseIssueSubmit} className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                  <label className="text-xs font-semibold text-slate-900 dark:text-slate-200 uppercase tracking-wider">
                     Causa Raíz & Acción Correctiva (Obligatorio)
                   </label>
                   <span className={`text-[11px] font-mono ${causaRaizInput.trim().length >= 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -1632,7 +1632,7 @@ export default function SupervisorView() {
                 <button
                   type="button"
                   onClick={() => setSelectedIssueToClose(null)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
                 </button>

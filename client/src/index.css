@@ -8,8 +8,9 @@
     touch-action: manipulation;
   }
 
+  /* Tema Claro Corporativo (Por Defecto) */
   body {
-    @apply bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-slate-950 min-h-screen;
+    @apply bg-slate-100 text-slate-900 antialiased selection:bg-emerald-600 selection:text-white min-h-screen transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-tap-highlight-color: transparent;
     padding-top: env(safe-area-inset-top, 0px);
@@ -18,25 +19,46 @@
     padding-right: env(safe-area-inset-right, 0px);
     overflow-x: hidden;
   }
+
+  /* Tema Oscuro */
+  html.dark body {
+    @apply bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950;
+  }
 }
 
-/* Scrollbar estilizada */
+/* Scrollbar estilizada y adaptable */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+}
+html.dark ::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.6);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.5);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(16, 185, 129, 0.8);
 }
 
-/* Efectos de pulso y animación sutil */
+/* Clases de utilidad para componentes limpios en modo claro y oscuro */
+.card-surface {
+  @apply bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-sm dark:shadow-xl rounded-2xl transition-colors duration-200;
+}
+
+.input-surface {
+  @apply bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl transition-all;
+}
+
+.badge-neutral {
+  @apply bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700;
+}
+
+/* Animaciones sutiles */
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }

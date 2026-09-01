@@ -40,8 +40,8 @@ export default function DireccionView() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
-          <p className="text-xs text-slate-400">Cargando KPIs Consolidados del Ciclo Agrícola...</p>
+          <RefreshCw className="w-8 h-8 text-emerald-600 dark:text-purple-400 animate-spin" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">Cargando KPIs Consolidados del Ciclo Agrícola...</p>
         </div>
       </div>
     );
@@ -52,12 +52,12 @@ export default function DireccionView() {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
       {/* Header Ejecutivo */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-purple-400" /> Tablero de Control Ejecutivo & Dirección
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-emerald-700 dark:text-purple-400" /> Tablero de Control Ejecutivo & Dirección
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Consolidado estratégico: Hectáreas habilitadas vs sembradas, discrepancias dron y eficiencia operativa
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function DireccionView() {
         <button
           type="button"
           onClick={loadData}
-          className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1.5 transition self-start sm:self-auto"
+          className="p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm self-start sm:self-auto"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Actualizar KPIs</span>
@@ -114,15 +114,15 @@ export default function DireccionView() {
       </div>
 
       {/* SECCIÓN ANALÍTICA: COMPARATIVA DE PROYECTOS */}
-      <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-purple-950 text-purple-400 border border-purple-600/40">
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-600/40">
               <PieChart className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Desglose por Proyecto & Auditoría Dron</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Desglose por Proyecto & Auditoría Dron</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Auditoría cruzada de hectáreas declaradas por residentes vs verificación aérea
               </p>
             </div>
@@ -130,8 +130,8 @@ export default function DireccionView() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+          <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-950/80 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="py-3 px-4">Proyecto</th>
                 <th className="py-3 px-4">Ciclo</th>
@@ -144,7 +144,7 @@ export default function DireccionView() {
                 <th className="py-3 px-4 text-center">Incidencias</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {proyectos.map((p) => {
                 const haCampo = parseFloat(p.ha_campo) || 0;
                 const haDron = p.ha_dron !== null ? parseFloat(p.ha_dron) : null;
@@ -153,48 +153,48 @@ export default function DireccionView() {
                 const diff = haDron !== null ? parseFloat((haCampo - haDron).toFixed(2)) : null;
 
                 return (
-                  <tr key={p.id} className="hover:bg-slate-800/40 transition">
-                    <td className="py-3 px-4 font-semibold text-white">
+                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                       <div>{p.nombre}</div>
                       <span className="text-[10px] text-slate-500 font-normal">{p.fase_catalogo}</span>
                     </td>
                     <td className="py-3 px-4 font-mono">{p.ciclo}</td>
-                    <td className="py-3 px-4 text-right font-bold text-white">{meta} ha</td>
-                    <td className="py-3 px-4 text-right text-emerald-400 font-bold">{haCampo} ha</td>
-                    <td className="py-3 px-4 text-right text-sky-400 font-bold">
-                      {haDron !== null ? `${haDron} ha` : <span className="text-slate-500 font-normal italic">Sin vuelo</span>}
+                    <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{meta} ha</td>
+                    <td className="py-3 px-4 text-right text-emerald-700 dark:text-emerald-400 font-black">{haCampo} ha</td>
+                    <td className="py-3 px-4 text-right text-sky-700 dark:text-sky-400 font-black">
+                      {haDron !== null ? `${haDron} ha` : <span className="text-slate-400 font-normal italic">Sin vuelo</span>}
                     </td>
                     <td className="py-3 px-4 text-right font-mono">
                       {diff !== null ? (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diff > 0 ? 'bg-amber-950 text-amber-300 border border-amber-700' : 'bg-emerald-950 text-emerald-300 border border-emerald-700'}`}>
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${diff > 0 ? 'bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700' : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'}`}>
                           {diff > 0 ? `+${diff} ha` : `${diff} ha`}
                         </span>
                       ) : (
-                        <span className="text-slate-600">-</span>
+                        <span className="text-slate-400">-</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="w-24 mx-auto space-y-1">
-                        <div className="flex justify-between text-[10px]">
+                        <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400">
                           <span>{pct}%</span>
                         </div>
-                        <div className="w-full bg-slate-800 rounded-full h-1.5">
-                          <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                        <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
+                          <div className="bg-purple-600 dark:bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-300">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                         {p.num_obras} frentes
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
                       {p.incidencias_activas > 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
                           {p.incidencias_activas} activas
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950 text-emerald-300 border border-emerald-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                           0 activas
                         </span>
                       )}

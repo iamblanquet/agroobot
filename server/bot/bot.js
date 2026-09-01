@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db/database');
-const { parseFreeTextReport } = require('./parser');
+const { parseFreeTextReport, KNOWN_PREDIOS } = require('./parser');
 
 let botInstance = null;
 
@@ -15,10 +15,7 @@ async function sendTopicMessage(topicKey, text, extraOptions = {}) {
   if (!botInstance) return null;
 
   const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
-  if (!supergroupId) {
-    // Si no hay supergrupo configurado, no enviamos notificación a grupo
-    return null;
-  }
+  if (!supergroupId) return null;
 
   let threadId = null;
   if (topicKey === 'reportes' && process.env.TELEGRAM_THREAD_REPORTES) {
@@ -63,7 +60,7 @@ async function notifyReporte(reportData) {
   if (esSinActividad) {
     const text = `🌧️ *DÍA SIN ACTIVIDAD REPORTADO*\n\n` +
                  `🏢 *Obra:* ${obraNombre || 'General'}\n` +
-                 `🌾 *Proyecto:* ${proyectoNombre || 'No especificado'}\n` +
+                 `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
                  `📅 *Fecha Operativa:* \`${fechaOperativa}\`\n` +
                  `📝 *Motivo:* ${motivoSinActividad || 'Paro operativo'}\n` +
                  `👤 *Autor:* ${autorNombre || 'Operador'}\n` +
@@ -73,7 +70,7 @@ async function notifyReporte(reportData) {
 
   let avanceTxt = '';
   if (lineas.length > 0) {
-    avanceTxt = `\n🌾 *Avance:* ` + lineas.map(l => `${l.cantidad_ha || l.cantidad} ${l.unidad || 'ha'} (${l.actividad_id || 'Labor'})`).join(', ');
+    avanceTxt = `\n📊 *Avance:* ` + lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha || l.cantidad} ${l.unidad || 'ha'} (${l.actividad_id || 'Labor'})`).join(' · ');
   }
 
   let cuadrillaTxt = '';
@@ -82,13 +79,14 @@ async function notifyReporte(reportData) {
   }
 
   let maqTxt = '';
-  if (maquinaria.length > 0) {
-    maqTxt = `\n🚜 *Maquinaria:* ` + maquinaria.map(m => `${m.codigo || 'Máq'}: ${m.horas_trabajadas || 0} hrs (${m.litros_diesel || 0} L)`).join(', ');
+  if (maquinaria && (maquinaria.length > 0 || maquinaria.codigo)) {
+    const maqs = Array.isArray(maquinaria) ? maquinaria : [maquinaria];
+    maqTxt = `\n🚜 *Maquinaria:* ` + maqs.map(m => `${m.codigo || 'Máquina'}: ${m.horas_trabajadas || 0} hrs (${m.litros_diesel || 0} L)`).join(', ');
   }
 
-  const text = `📋 *NUEVO REPORTE DE CAMPO*\n\n` +
+  const text = `📋 *REPORTE DE CAMPO OFICIAL*\n\n` +
                `🏢 *Obra:* ${obraNombre || 'General'}\n` +
-               `🌾 *Proyecto:* ${proyectoNombre || 'General'}\n` +
+               `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
                `📅 *Fecha Operativa:* \`${fechaOperativa}\`\n` +
                `👤 *Autor:* ${autorNombre || 'Operador'}` +
                avanceTxt +
@@ -134,10 +132,10 @@ async function generateTableroText() {
   const incs = await db.all("SELECT folio, tipo, estado FROM incidencia WHERE estado != 'cerrada'");
 
   // 3. Materiales bloqueados
-  const mats = await db.all("SELECT o.nombre AS obra, m.insumo, (m.requerido - m.en_sitio) AS deficit FROM material m JOIN obra o ON m.obra_id = o.id WHERE (m.requerido - m.en_sitio) > 0");
+  const mats = await db.all("SELECT o.nombre AS obra, m.nombre AS insumo, (m.requerido - m.en_sitio) AS deficit, m.eta FROM material m JOIN obra o ON m.obra_id = o.id WHERE (m.requerido - m.en_sitio) > 0");
 
   // 4. Maquinaria en alerta
-  const maqs = await db.all('SELECT codigo, horometro_actual FROM maquina WHERE alerta_mantenimiento = 1');
+  const maqs = await db.all('SELECT codigo, modelo, horometro_actual FROM maquina WHERE alerta_mantenimiento = 1');
 
   let text = `📊 *TABLERO DE CONTROL AGROK · CORTE DIARIO*\n📅 \`${today}\`\n\n`;
 
@@ -155,18 +153,21 @@ async function generateTableroText() {
     incs.forEach(i => text += `  • \`${i.folio}\` [${i.estado.toUpperCase()}] ➔ ${i.tipo}\n`);
   }
 
-  text += `\n📦 *MATERIALES EN DÉFICIT (${mats.length}):*\n`;
+  text += `\n📦 *BLOQUEADO POR MATERIAL (${mats.length}):*\n`;
   if (mats.length === 0) {
     text += `  ✅ Abastecimiento completo en sitio.\n`;
   } else {
-    mats.forEach(m => text += `  • *${m.obra}:* Falta ${m.deficit} de ${m.insumo}\n`);
+    mats.forEach(m => {
+      const etaStr = m.eta ? `(ETA: ${m.eta})` : `(Sin fecha)`;
+      text += `  • *${m.obra}:* Falta ${m.deficit} de ${m.insumo} ${etaStr}\n`;
+    });
   }
 
   text += `\n🚜 *MAQUINARIA EN ALERTA 300H (${maqs.length}):*\n`;
   if (maqs.length === 0) {
     text += `  ✅ Todo el parque opera en parámetros normales.\n`;
   } else {
-    maqs.forEach(m => text += `  • \`${m.codigo}\`: ${m.horometro_actual} hrs (Próximo a servicio)\n`);
+    maqs.forEach(m => text += `  • \`${m.codigo}\` (${m.modelo}): *${m.horometro_actual} hrs* (Próximo a servicio)\n`);
   }
 
   return text;
@@ -175,7 +176,6 @@ async function generateTableroText() {
 function initTelegramBot(app) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   
-  // Priorizar URL pública de Render (HTTPS) sobre localhost para evitar errores en móviles
   let miniAppUrl = process.env.RENDER_EXTERNAL_URL || process.env.TELEGRAM_MINI_APP_URL || 'http://localhost:3000';
   if (miniAppUrl && miniAppUrl.includes('localhost') && process.env.RENDER_EXTERNAL_URL) {
     miniAppUrl = process.env.RENDER_EXTERNAL_URL;
@@ -210,22 +210,16 @@ function initTelegramBot(app) {
       console.log('🤖 Bot de Telegram iniciado en MODO POLLING.');
     }
 
-    // Manejadores de error para evitar que caídas de red o conflictos detengan el proceso
     botInstance.on('polling_error', (error) => {
       if (error.code === 'ETELEGRAM' && error.message && error.message.includes('409 Conflict')) {
-        console.warn('⚠️ Telegram Polling 409 Conflict (instancia anterior cerrando, esperando relevo)...');
+        console.warn('⚠️ Telegram Polling 409 Conflict (instancia anterior cerrando)...');
       } else {
         console.warn('⚠️ Telegram Polling Error:', error.message || error);
       }
     });
 
-    botInstance.on('error', (error) => {
-      console.warn('⚠️ Telegram Bot Error:', error.message || error);
-    });
-
-    botInstance.on('webhook_error', (error) => {
-      console.warn('⚠️ Telegram Webhook Error:', error.message || error);
-    });
+    botInstance.on('error', (error) => console.warn('⚠️ Telegram Bot Error:', error.message || error));
+    botInstance.on('webhook_error', (error) => console.warn('⚠️ Telegram Webhook Error:', error.message || error));
 
     const hasHttps = miniAppUrl && miniAppUrl.startsWith('https://');
 
@@ -255,7 +249,7 @@ function initTelegramBot(app) {
       }
     };
 
-    // 1. Comando /id o /tema para obtener fácilmente los IDs de los topics
+    // 1. Comando /id o /tema
     botInstance.onText(/\/(id|tema|info_tema)/, async (msg) => {
       const chatId = msg.chat.id;
       const threadId = msg.message_thread_id;
@@ -300,7 +294,7 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
 • *🚜 Horómetro* ➔ Consultar horómetros de maquinaria.
 • *🌧️ Sin Actividad* ➔ Reportar paro por lluvia de inmediato.
 
-💡 _Tip para Administradores:_ Escribe \`/id\` dentro de cualquier tema del supergrupo para obtener su ID numérico.`;
+💡 _Tip:_ Escribe \`/id\` dentro de cualquier tema del supergrupo para obtener su ID numérico.`;
 
       const welcomeInline = {
         reply_markup: {
@@ -322,7 +316,67 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
       }).catch(err => console.error('Error welcomeMsg:', err.message));
     });
 
-    // 3. Manejador de Botones y Mensajes
+    // 3. Callback Query Handler (Confirmación / Corrección interactiva)
+    botInstance.on('callback_query', async (query) => {
+      const { id, data, message } = query;
+      const chatId = message.chat.id;
+      const threadId = message.message_thread_id;
+
+      try {
+        if (data.startsWith('confirm_rep:')) {
+          const repId = parseInt(data.replace('confirm_rep:', ''), 10);
+          const rep = await db.get('SELECT r.*, o.nombre AS obra_nombre, p.nombre AS proyecto_nombre FROM reporte r LEFT JOIN obra o ON r.obra_id = o.id LEFT JOIN proyecto p ON r.proyecto_id = p.id WHERE r.id = ?', [repId]);
+
+          if (rep) {
+            await db.run("UPDATE reporte SET estado = 'confirmado' WHERE id = ?", [repId]);
+
+            // Obtener líneas y cuadrilla
+            const lineas = await db.all('SELECT rl.*, p.nombre AS predio_nombre FROM reporte_linea rl LEFT JOIN predio p ON rl.predio_id = p.id WHERE rl.reporte_id = ?', [repId]);
+            const cuadrilla = await db.all('SELECT * FROM reporte_cuadrilla WHERE reporte_id = ?', [repId]);
+            const maqs = await db.all('SELECT lm.*, m.codigo FROM lectura_maquina lm LEFT JOIN maquina m ON lm.maquina_id = m.id WHERE lm.reporte_id = ?', [repId]);
+
+            // Actualizar el mensaje del chat para reflejar confirmación
+            botInstance.editMessageText(
+              `✅ *REPORTE CONFIRMADO OFICIALMENTE*\n\n` +
+              `🏢 *Obra:* ${rep.obra_nombre || 'General'}\n` +
+              `📅 *Fecha:* \`${rep.fecha_operativa}\`\n` +
+              `👤 *Autor:* ${rep.autor_nombre || 'Operador'}\n` +
+              `📊 *Avance:* ` + lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha} ha (${l.actividad_id})`).join(' · ') + `\n\n` +
+              `💾 _Folio:_ \`${rep.client_uuid}\``,
+              {
+                chat_id: chatId,
+                message_id: message.message_id,
+                parse_mode: 'Markdown'
+              }
+            );
+
+            // Publicar automáticamente en el tema #Reportes
+            notifyReporte({
+              obraNombre: rep.obra_nombre,
+              proyectoNombre: rep.proyecto_nombre,
+              fechaOperativa: rep.fecha_operativa,
+              autorNombre: rep.autor_nombre,
+              esSinActividad: !!rep.es_sin_actividad,
+              motivoSinActividad: rep.motivo_sin_actividad,
+              lineas,
+              cuadrilla,
+              maquinaria: maqs,
+              clientUuid: rep.client_uuid
+            });
+
+            botInstance.answerCallbackQuery(id, { text: '¡Reporte confirmado exitosamente!' });
+          }
+        } else if (data.startsWith('edit_rep:')) {
+          botInstance.answerCallbackQuery(id, { text: 'Por favor envía el texto corregido en tu siguiente mensaje.' });
+          botInstance.sendMessage(chatId, '✏️ *Modo Corrección:* Pega el reporte con los datos corregidos para actualizarlo.', { parse_mode: 'Markdown', message_thread_id: threadId });
+        }
+      } catch (cbErr) {
+        console.warn('Error en callback_query:', cbErr.message);
+        botInstance.answerCallbackQuery(id, { text: 'Error procesando la acción.' });
+      }
+    });
+
+    // 4. Manejador Principal de Mensajes
     botInstance.on('message', async (msg) => {
       if (!msg.text) return;
 
@@ -330,29 +384,22 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
       const threadId = msg.message_thread_id;
       const text = msg.text.trim();
 
-      // Log informativo para ver qué tema envió el mensaje
-      if (msg.chat.type === 'supergroup') {
-        console.log(`📌 Mensaje en Supergrupo: ChatID = ${chatId} | ThreadID = ${threadId || 'General'} | Texto = "${text}"`);
-      }
-
-      // Botón 1: 📊 Tablero Hoy
+      // Botón 1: 📊 Tablero Hoy o /hoy
       if (text === '📊 Tablero Hoy' || text.toLowerCase() === '/tablero' || text.toLowerCase() === '/hoy') {
         const tableroTxt = await generateTableroText();
-        // Responder en el chat actual
         botInstance.sendMessage(chatId, tableroTxt, {
           parse_mode: 'Markdown',
           message_thread_id: threadId,
           ...mainKeyboard
         });
-        // Si no estamos en el tema de tablero, publicar también en #Tablero
         if (process.env.TELEGRAM_THREAD_TABLERO && String(threadId) !== String(process.env.TELEGRAM_THREAD_TABLERO)) {
           sendTopicMessage('tablero', tableroTxt);
         }
         return;
       }
 
-      // Botón 2: ⚠️ Incidencias
-      if (text === '⚠️ Incidencias' || text.toLowerCase().startsWith('/incidencias')) {
+      // Botón 2: ⚠️ Incidencias o /pendientes
+      if (text === '⚠️ Incidencias' || text.toLowerCase().startsWith('/incidencias') || text.toLowerCase() === '/pendientes') {
         const incs = await db.all("SELECT i.folio, i.tipo, i.estado, o.nombre AS obra_nombre FROM incidencia i JOIN obra o ON i.obra_id = o.id WHERE i.estado != 'cerrada'");
         if (incs.length === 0) {
           return botInstance.sendMessage(chatId, '✅ *Cero Incidencias:* Todos los frentes operan con normalidad.', { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard });
@@ -363,10 +410,10 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
         return botInstance.sendMessage(chatId, resp, { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard });
       }
 
-      // Botón 3: 🚜 Horómetro
-      if (text === '🚜 Horómetro' || text.toLowerCase() === '/horometro' || text.toLowerCase() === '/maquinaria') {
+      // Botón 3: 🚜 Horómetro o /maquina
+      if (text === '🚜 Horómetro' || text.toLowerCase() === '/horometro' || text.toLowerCase() === '/maquinaria' || text.toLowerCase().startsWith('/maquina')) {
         const maqs = await db.all('SELECT codigo, modelo, horometro_actual, alerta_mantenimiento FROM maquina');
-        let resp = `🚜 *PARQUE DE MAQUINARIA:*\n\n`;
+        let resp = `🚜 *PARQUE DE MAQUINARIA AGROK:*\n\n`;
         maqs.forEach(m => {
           const alertBadge = m.alerta_mantenimiento ? '🚨 *ALERTA 300H*' : '✅ ÓPTIMO';
           resp += `• \`${m.codigo}\` (${m.modelo}): *${m.horometro_actual} hrs* ➔ ${alertBadge}\n`;
@@ -396,14 +443,12 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
             [clientUuid, obra?.id || null, today, author, msg.text, 'Declarado vía Telegram', motivo, String(chatId), msg.message_id]
           );
 
-          // Confirmar en el chat actual
           botInstance.sendMessage(
             chatId,
             `🌧️ *DÍA SIN ACTIVIDAD REGISTRADO*\n\n🏢 *Obra:* ${obra?.nombre || 'General'}\n📅 *Fecha:* \`${today}\`\n📝 *Motivo:* ${motivo}\n👤 *Autor:* ${author}`,
             { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard }
           );
 
-          // Notificar automáticamente al tema #Reportes
           notifyReporte({
             obraNombre: obra?.nombre,
             proyectoNombre: obra?.proyecto_nombre,
@@ -420,6 +465,28 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
         }
       }
 
+      // Consulta /avance
+      if (text.toLowerCase().startsWith('/avance')) {
+        const obras = await db.all(`
+          SELECT o.nombre AS obra_nombre, p.nombre AS proyecto_nombre,
+                 COALESCE(SUM(rl.cantidad_ha), 0) AS total_ha,
+                 pr.superficie_meta_ha
+          FROM obra o
+          JOIN proyecto pr ON o.proyecto_id = pr.id
+          LEFT JOIN reporte r ON r.obra_id = o.id
+          LEFT JOIN reporte_linea rl ON rl.reporte_id = r.id
+          LEFT JOIN predio p ON rl.predio_id = p.id
+          WHERE o.estado = 'operacion'
+          GROUP BY o.id
+        `);
+
+        let resp = `📊 *AVANCE DE OBRAS ACTIVAS:*\n\n`;
+        obras.forEach(o => {
+          resp += `• *${o.obra_nombre}:* ${o.total_ha} ha habilitadas / ${o.superficie_meta_ha} ha meta\n`;
+        });
+        return botInstance.sendMessage(chatId, resp, { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard });
+      }
+
       // Reply a Incidencia
       if (msg.reply_to_message?.text) {
         const rText = msg.reply_to_message.text;
@@ -428,10 +495,7 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
           const folio = folioMatch[1];
           const inc = await db.get('SELECT * FROM incidencia WHERE folio = ?', [folio]);
           if (inc) {
-            await db.run(
-              `UPDATE incidencia SET causa_raiz = ? WHERE id = ?`,
-              [text, inc.id]
-            );
+            await db.run(`UPDATE incidencia SET causa_raiz = ? WHERE id = ?`, [text, inc.id]);
             return botInstance.sendMessage(
               chatId,
               `📝 *SEGUIMIENTO REGISTRADO EN INCIDENCIA ${folio}*\n\n_${text}_`,
@@ -441,35 +505,40 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
         }
       }
 
-      // Parser de Texto Libre
-      const parsed = parseFreeTextReport(text);
+      // 5. Parser Avanzado de Texto Libre (Multi-predio y Confirmación interactiva)
+      const parsed = parseFreeTextReport(text, new Date(msg.date * 1000));
       if (parsed.isValid) {
         try {
           const clientUuid = `tg-rep-${uuidv4()}`;
           const author = `${msg.from.first_name || 'Operador'}`;
-          const today = new Date().toISOString().split('T')[0];
+          const opDate = parsed.fecha_operativa || new Date().toISOString().split('T')[0];
 
+          // Buscar obra correspondiente por nombre o por thread
           let obra = null;
           if (parsed.obra_nombre) {
             obra = await db.get('SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.nombre LIKE ?', [`%${parsed.obra_nombre}%`]);
+          }
+          if (!obra && threadId) {
+            obra = await db.get('SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.tg_thread_id = ?', [String(threadId)]);
           }
           if (!obra) {
             obra = await db.get("SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.estado = 'operacion' LIMIT 1");
           }
 
+          // Guardar reporte en estado 'borrador'
           const repRes = await db.run(
             `INSERT INTO reporte (
               client_uuid, obra_id, proyecto_id, fecha_operativa, autor_nombre,
               texto_original, nota, estado, es_sin_actividad, motivo_sin_actividad, tg_chat_id, tg_message_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmado', ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?)`,
             [
               clientUuid,
               obra?.id || null,
               obra?.proyecto_id || null,
-              today,
+              opDate,
               author,
               text,
-              'Reportado vía Telegram',
+              parsed.nota || 'Reportado vía Telegram',
               parsed.es_sin_actividad ? 1 : 0,
               parsed.motivo_sin_actividad || null,
               String(chatId),
@@ -477,28 +546,77 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
             ]
           );
 
-          // Confirmar en el chat actual
-          botInstance.sendMessage(
-            chatId,
-            `✅ *REPORTE REGISTRADO CON ÉXITO*\n\n🏢 *Obra:* ${obra?.nombre || 'General'}\n🌾 *Avance:* ${parsed.avance_ha} ha (${parsed.actividad})\n👥 *Cuadrilla:* ${parsed.cuadrilla_count} op\n👤 *Autor:* ${author}\n\n💾 _Folio:_ \`${clientUuid}\``,
-            { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard }
-          );
+          const reporteId = repRes.lastID;
 
-          // Notificar automáticamente al tema #Reportes
-          notifyReporte({
-            obraNombre: obra?.nombre,
-            proyectoNombre: obra?.proyecto_nombre,
-            fechaOperativa: today,
-            autorNombre: author,
-            esSinActividad: parsed.es_sin_actividad,
-            motivoSinActividad: parsed.motivo_sin_actividad,
-            lineas: [{ cantidad_ha: parsed.avance_ha, actividad_id: parsed.actividad }],
-            cuadrilla: [{ rol_id: 'operador', headcount: parsed.cuadrilla_count }],
-            clientUuid
+          // Guardar líneas multi-predio
+          for (const line of parsed.lineas) {
+            let predio = null;
+            if (line.predio_nombre) {
+              predio = await db.get('SELECT id FROM predio WHERE nombre LIKE ?', [`%${line.predio_nombre}%`]);
+            }
+            if (!predio && obra) {
+              const op = await db.get('SELECT predio_id FROM obra_predio WHERE obra_id = ? LIMIT 1', [obra.id]);
+              if (op) predio = { id: op.predio_id };
+            }
+
+            await db.run(
+              `INSERT INTO reporte_linea (reporte_id, predio_id, actividad_id, cantidad, unidad, cantidad_ha, fuente)
+               VALUES (?, ?, ?, ?, ?, ?, 'campo')`,
+              [reporteId, predio?.id || null, line.actividad_id || 'siembra', line.cantidad, line.unidad, line.cantidad_ha]
+            );
+          }
+
+          // Guardar cuadrilla
+          for (const c of parsed.cuadrilla) {
+            await db.run(
+              `INSERT INTO reporte_cuadrilla (reporte_id, rol_id, headcount) VALUES (?, ?, ?)`,
+              [reporteId, c.rol_id, c.headcount]
+            );
+          }
+
+          // Guardar maquinaria si viene
+          if (parsed.maquinaria && parsed.maquinaria.codigo) {
+            const maq = await db.get('SELECT id FROM maquina WHERE codigo LIKE ? OR modelo LIKE ?', [`%${parsed.maquinaria.codigo}%`, `%${parsed.maquinaria.codigo}%`]);
+            if (maq) {
+              await db.run(
+                `INSERT INTO lectura_maquina (reporte_id, maquina_id, horometro_inicio, horometro_fin, horas_trabajadas, litros_diesel)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [reporteId, maq.id, parsed.maquinaria.horometro_inicio || 0, parsed.maquinaria.horometro_fin || 0, parsed.maquinaria.horas_trabajadas || 0, parsed.maquinaria.litros_diesel || 0]
+              );
+            }
+          }
+
+          // Ficha de Confirmación según especificación (Docs 2 §2)
+          let cuadrillaTxt = parsed.cuadrilla.map(c => `${c.role_text || c.rol_id} ${c.headcount}`).join(' · ');
+          let actividadesTxt = parsed.actividades.length > 0 ? parsed.actividades.map(a => a.actividad_id).join(' · ') : 'labores de campo';
+          let avanceTxt = parsed.lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha || l.cantidad} ${l.unidad}`).join(' · ');
+
+          const confirmMsg = `📋 *Reporte · ${obra?.nombre || 'General'} · ${opDate} · ${author}*\n\n` +
+                             `👥 *Cuadrilla:* ${cuadrillaTxt}\n` +
+                             `🌾 *Actividades:* ${actividadesTxt}\n` +
+                             `📊 *Avance:* ${avanceTxt || 'Sin avance de superficie'}\n` +
+                             `💾 _Estado:_ Borrador pendiente de confirmación`;
+
+          const confirmInline = {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '✅ Confirmar', callback_data: `confirm_rep:${reporteId}` },
+                  { text: '✏️ Corregir', callback_data: `edit_rep:${reporteId}` }
+                ]
+              ]
+            }
+          };
+
+          botInstance.sendMessage(chatId, confirmMsg, {
+            parse_mode: 'Markdown',
+            message_thread_id: threadId,
+            reply_to_message_id: msg.message_id,
+            ...confirmInline
           });
 
         } catch (err) {
-          botInstance.sendMessage(chatId, `❌ Error al registrar reporte: ${err.message}`, { message_thread_id: threadId, ...mainKeyboard });
+          botInstance.sendMessage(chatId, `❌ Error procesando reporte: ${err.message}`, { message_thread_id: threadId });
         }
       }
     });

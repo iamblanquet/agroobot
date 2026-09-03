@@ -25,7 +25,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#f8faf2] dark:bg-[#0c1400] flex items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="w-20 h-20 rounded-full bg-black border-2 border-[#a1c62e] shadow-xl shadow-[#2c4001]/30 mx-auto overflow-hidden p-1 animate-pulse">
+          <div className="w-24 h-24 rounded-3xl bg-[#2c4001] border-2 border-[#a1c62e] shadow-2xl shadow-[#2c4001]/40 mx-auto p-2.5 animate-pulse flex items-center justify-center">
             <img src="/logo.png" alt="AGROKOOL" className="w-full h-full object-contain" />
           </div>
           <p className="text-xs font-bold text-[#2c4001] dark:text-[#a1c62e] tracking-wide uppercase">AGROKOOL · Iniciando...</p>

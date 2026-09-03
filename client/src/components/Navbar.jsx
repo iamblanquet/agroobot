@@ -42,19 +42,16 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
     <header className="bg-[#2c4001] border-b border-[#3e5606] sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
         <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-          {/* Logo & Brand Info */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          {/* Logo Oficial AGROKOOL */}
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src="/logo.png"
               alt="AGROKOOL"
-              className="w-9 h-9 rounded-full object-cover border-2 border-[#a1c62e] shadow-sm flex-shrink-0 bg-black"
+              className="h-10 sm:h-12 w-auto object-contain flex-shrink-0"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 hidden sm:block">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-sm sm:text-base font-black text-white tracking-wide leading-none truncate font-serif">
-                  AGROKOOL
-                </h1>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#a1c62e] text-[#2c4001] font-black uppercase tracking-wider hidden xs:inline-block">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#a1c62e] text-[#2c4001] font-black uppercase tracking-wider">
                   Operación
                 </span>
                 {isTelegram && (
@@ -63,7 +60,7 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
                   </span>
                 )}
               </div>
-              <p className="text-[10px] sm:text-[11px] text-[#d4e6b5] font-medium leading-tight mt-0.5 truncate hidden xs:block">
+              <p className="text-[10px] sm:text-[11px] text-[#d4e6b5] font-medium leading-tight mt-0.5 truncate">
                 {user?.nombre || 'Operador Conectado'}
               </p>
             </div>

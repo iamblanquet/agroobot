@@ -652,31 +652,31 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 : 0;
 
               return (
-                <div key={p.id} className="rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl overflow-hidden">
+                <div key={p.id} className="rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                   {/* Tarjeta de Encabezado de Proyecto */}
-                  <div className="p-4 sm:p-5 bg-white dark:bg-[#152202] hover:bg-slate-850 transition">
+                  <div className="p-4 sm:p-5 bg-white dark:bg-[#152202]">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       {/* Título & Meta */}
                       <div className="flex items-start gap-3">
                         <button
                           type="button"
                           onClick={() => toggleProjectExpand(p.id)}
-                          className="mt-1 p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                          className="mt-0.5 p-1 rounded-lg bg-[#2c4001] text-white hover:bg-[#1e2d01] transition"
                         >
                           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-base font-bold text-slate-900 dark:text-white">{p.nombre}</h4>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
-                              {p.tipo} • {p.ciclo}
+                            <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight">{p.nombre}</h4>
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-[#2c4001] text-[#d4e6b5]">
+                              {p.tipo} • Ciclo {p.ciclo}
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-200 dark:bg-slate-800 dark:text-slate-300">
                               {p.fase_catalogo}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-3">
-                            <span>Gerente: <strong className="text-slate-900 dark:text-slate-100">{p.gerente_nombre || 'No asignado'}</strong></span>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2 font-medium">
+                            <span>Gerente: <strong className="text-slate-900 dark:text-slate-200">{p.gerente_nombre || 'No asignado'}</strong></span>
                             <span>•</span>
                             <span>Inicio: {p.fecha_inicio || 'Sin fecha'}</span>
                             {p.fecha_fin && <span>Fin: {p.fecha_fin}</span>}
@@ -686,13 +686,13 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
                       {/* Progreso y Botones de Acción */}
                       <div className="flex flex-wrap items-center gap-4">
-                        <div className="w-40 space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-slate-600 dark:text-slate-400 font-medium">Avance Total:</span>
-                            <span className="text-emerald-400 font-bold">{totalAcumuladoHa}/{p.superficie_meta_ha} ha ({progresoPct}%)</span>
+                        <div className="w-44 space-y-1">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span className="text-slate-600 dark:text-slate-400 font-semibold">Avance Total:</span>
+                            <span className="text-[#2c4001] dark:text-[#a1c62e]">{totalAcumuladoHa}/{p.superficie_meta_ha} ha ({progresoPct}%)</span>
                           </div>
-                          <div className="w-full bg-slate-800 rounded-full h-2">
-                            <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${progresoPct}%` }} />
+                          <div className="w-full bg-slate-200 dark:bg-[#1e2d01] rounded-full h-2 overflow-hidden">
+                            <div className="bg-[#2c4001] dark:bg-[#a1c62e] h-2 rounded-full transition-all" style={{ width: `${progresoPct}%` }} />
                           </div>
                         </div>
 
@@ -700,27 +700,27 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                           <button
                             type="button"
                             onClick={() => handleOpenHitoModal(p)}
-                            className="px-2.5 py-1.5 rounded-lg bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-600/40 text-xs font-semibold flex items-center gap-1"
-                            title="Agregar Hito"
+                            className="px-3 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                            title="Agregar Hito en Cascada"
                           >
-                            <Flag className="w-3.5 h-3.5 text-blue-400" />
+                            <Flag className="w-3.5 h-3.5 text-[#a1c62e]" />
                             <span>+ Hito</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleOpenObraModal(p)}
-                            className="px-2.5 py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-600/40 text-xs font-semibold flex items-center gap-1"
-                            title="Agregar Frente/Obra"
+                            className="px-3 py-1.5 rounded-xl bg-[#5c4015] hover:bg-[#45300f] text-[#fbebd0] text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                            title="Agregar Frente de Obra"
                           >
-                            <Building className="w-3.5 h-3.5 text-purple-400" />
+                            <Building className="w-3.5 h-3.5 text-[#dfb75c]" />
                             <span>+ Frente</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleOpenProjectModal(p)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                            className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-slate-300 transition border border-slate-300 dark:border-[#3e5606]"
                             title="Editar Proyecto"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -729,7 +729,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                           <button
                             type="button"
                             onClick={() => handleDeleteProject(p.id, p.nombre)}
-                            className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/40 transition"
+                            className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40 transition"
                             title="Eliminar Proyecto"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -738,27 +738,27 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                       </div>
                     </div>
 
-                    {/* Frentes / Obras Asociadas */}
+                    {/* Frentes / Obras Asociadas con chips claros redondeados estilo screenshot */}
                     {p.obras?.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-[#e2ebd3] dark:border-[#253905]/60 flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
+                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
                         {p.obras.map(o => (
-                          <div key={o.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs shadow-sm">
-                            <span className="font-semibold">{o.nombre}</span>
-                            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">({o.fase_actual})</span>
+                          <div key={o.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-[#1e2d01] border border-[#d9e6c3] dark:border-[#3e5606] text-slate-800 dark:text-slate-200 text-xs shadow-xs">
+                            <span className="font-bold">{o.nombre}</span>
+                            <span className="text-[11px] text-purple-600 dark:text-purple-300 font-mono">({o.fase_actual})</span>
                             <button
                               type="button"
                               onClick={() => handleOpenObraModal(p, o)}
-                              className="text-slate-400 hover:text-purple-400 ml-1"
-                              title="Editar frente de obra"
+                              className="text-slate-400 hover:text-purple-600 ml-1"
+                              title="Editar frente"
                             >
                               <Edit2 className="w-3 h-3" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteObra(o.id, o.nombre)}
-                              className="text-slate-400 hover:text-rose-500"
-                              title="Eliminar frente de obra"
+                              className="text-slate-400 hover:text-rose-600"
+                              title="Eliminar frente"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -770,7 +770,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
                   {/* HITOS DEL PROYECTO (Desplegable) */}
                   {isExpanded && (
-                    <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border-t border-[#e2ebd3] dark:border-[#253905] space-y-4">
+                    <div className="p-4 sm:p-5 bg-[#fbfdf8] dark:bg-[#0f1701] border-t border-[#d9e6c3] dark:border-[#253905] space-y-4">
                       {p.hitos?.length > 0 ? (
                         p.hitos.map((h) => {
                           const isHitoExp = !!expandedHitos[h.id];
@@ -778,141 +778,141 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                           const hitoAcumHa = hitoTareas.reduce((acc, t) => acc + (t.cantidad_acumulada || 0), 0);
                           const hitoPct = h.superficie_meta_ha > 0 ? Math.min(100, Math.round((hitoAcumHa / h.superficie_meta_ha) * 100)) : 0;
 
-                          const statusColors = {
-                            pendiente: 'bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
-                            en_proceso: 'bg-blue-950 text-blue-300 border-blue-700',
-                            completado: 'bg-emerald-950 text-emerald-300 border-emerald-700',
-                            bloqueado: 'bg-rose-950 text-rose-300 border-rose-700'
+                          const statusBadgeColors = {
+                            pendiente: 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-300',
+                            en_proceso: 'bg-blue-900 text-white border-blue-950 font-black',
+                            completado: 'bg-[#2c4001] text-[#d4e6b5] border-[#1e2d01] font-black',
+                            bloqueado: 'bg-rose-800 text-white border-rose-950 font-black'
                           };
 
                           return (
-                            <div key={h.id} className="rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905]/90 overflow-hidden">
+                            <div key={h.id} className="rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] overflow-hidden shadow-xs">
                               {/* Fila del Hito */}
-                              <div className="p-3.5 bg-white dark:bg-[#152202] flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div className="p-3.5 bg-white dark:bg-[#152202] flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#f0f4ea] dark:border-[#253905]/50">
                                 <div className="flex items-center gap-2.5">
                                   <button
                                     type="button"
                                     onClick={() => toggleHitoExpand(h.id)}
-                                    className="p-1 rounded bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white"
+                                    className="p-1 rounded-lg bg-[#2c4001] text-white hover:bg-[#1e2d01] transition"
                                   >
                                     {isHitoExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                                   </button>
-                                  <div className="w-6 h-6 rounded-full bg-blue-950 text-blue-400 border border-blue-600/40 flex items-center justify-center font-bold text-xs">
+                                  <div className="w-6 h-6 rounded-full bg-[#2c4001] text-[#a1c62e] flex items-center justify-center font-black text-xs">
                                     {h.orden}
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <h5 className="text-sm font-bold text-white">{h.nombre}</h5>
-                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusColors[h.estado] || statusColors.pendiente}`}>
+                                      <h5 className="text-sm font-bold text-slate-900 dark:text-white">{h.nombre}</h5>
+                                      <span className={`px-2 py-0.5 rounded-md text-[10px] uppercase border ${statusBadgeColors[h.estado] || statusBadgeColors.pendiente}`}>
                                         {h.estado.replace('_', ' ')}
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                                      {h.descripcion || 'Sin descripción'} • Meta: <strong>{h.superficie_meta_ha} ha</strong> {h.fecha_meta && `• Fecha Meta: ${h.fecha_meta}`}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                                      {h.descripcion || 'Sin descripción'} • Meta: <strong className="text-slate-800 dark:text-slate-200">{h.superficie_meta_ha} ha</strong> {h.fecha_meta && `• Fecha Meta: ${h.fecha_meta}`}
                                     </p>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-3 self-end md:self-auto">
                                   <div className="w-32 hidden sm:block">
-                                    <div className="flex justify-between text-[10px] text-slate-600 dark:text-slate-400 mb-0.5">
+                                    <div className="flex justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
                                       <span>Progreso:</span>
-                                      <span className="font-bold text-emerald-400">{hitoPct}%</span>
+                                      <span className="font-bold text-[#2c4001] dark:text-[#a1c62e]">{hitoPct}%</span>
                                     </div>
-                                    <div className="w-full bg-slate-800 rounded-full h-1.5">
-                                      <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${hitoPct}%` }} />
+                                    <div className="w-full bg-slate-200 dark:bg-[#1e2d01] rounded-full h-1.5 overflow-hidden">
+                                      <div className="bg-[#2c4001] dark:bg-[#a1c62e] h-1.5 rounded-full" style={{ width: `${hitoPct}%` }} />
                                     </div>
                                   </div>
 
                                   <button
                                     type="button"
                                     onClick={() => handleOpenTaskModal(p, h)}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-600/40 text-xs font-semibold flex items-center gap-1"
+                                    className="px-3 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1 shadow-sm transition"
                                   >
-                                    <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+                                    <CheckSquare className="w-3.5 h-3.5 text-[#a1c62e]" />
                                     <span>+ Tarea</span>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleOpenHitoModal(p, h)}
-                                    className="p-1 rounded bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white"
+                                    className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-slate-300 transition border border-slate-200 dark:border-[#3e5606]"
                                     title="Editar Hito"
                                   >
-                                    <Edit2 className="w-3 h-3" />
+                                    <Edit2 className="w-3.5 h-3.5" />
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteHito(h.id, h.nombre)}
-                                    className="p-1 rounded bg-rose-950/60 text-rose-300 border border-rose-800/40"
+                                    className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40"
                                     title="Eliminar Hito"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               </div>
 
-                              {/* TAREAS DENTRO DEL HITO */}
+                              {/* TAREAS DENTRO DEL HITO (TABLA LIMPIA EN CASCADA) */}
                               {isHitoExp && (
-                                <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-[#e2ebd3] dark:border-[#253905]/80">
+                                <div className="p-3 bg-white dark:bg-[#152202]">
                                   {hitoTareas.length > 0 ? (
                                     <div className="overflow-x-auto">
-                                      <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-                                        <thead className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-[#e2ebd3] dark:border-[#253905]">
+                                      <table className="w-full text-left text-xs text-slate-800 dark:text-slate-200">
+                                        <thead className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-[#e2ebd3] dark:border-[#253905]">
                                           <tr>
-                                            <th className="py-2 px-3">Tarea / Actividad</th>
-                                            <th className="py-2 px-3">Predio</th>
-                                            <th className="py-2 px-3">Responsable</th>
-                                            <th className="py-2 px-3 text-right">Meta vs Acumulado</th>
-                                            <th className="py-2 px-3 text-center">Estado (Clic para alternar)</th>
-                                            <th className="py-2 px-3 text-right">Acciones</th>
+                                            <th className="py-2.5 px-3">Tarea / Actividad</th>
+                                            <th className="py-2.5 px-3">Predio</th>
+                                            <th className="py-2.5 px-3">Responsable</th>
+                                            <th className="py-2.5 px-3 text-right">Meta vs Acumulado</th>
+                                            <th className="py-2.5 px-3 text-center">Estado (Clic para alternar)</th>
+                                            <th className="py-2.5 px-3 text-right">Acciones</th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-800/60">
+                                        <tbody className="divide-y divide-[#f0f4ea] dark:divide-[#253905]/60">
                                           {hitoTareas.map((t) => {
                                             const tPct = t.cantidad_meta > 0 ? Math.min(100, Math.round((t.cantidad_acumulada / t.cantidad_meta) * 100)) : 0;
-                                            const taskStatusColors = {
-                                              pendiente: 'bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700',
-                                              en_progreso: 'bg-blue-950 text-blue-300 border-blue-700',
-                                              completada: 'bg-emerald-950 text-emerald-300 border-emerald-700 font-bold',
-                                              detenida: 'bg-amber-950 text-amber-300 border-amber-700'
+                                            const taskStatusPill = {
+                                              pendiente: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300',
+                                              en_progreso: 'bg-blue-900 text-white font-bold shadow-xs',
+                                              completada: 'bg-[#2c4001] text-[#d4e6b5] font-black shadow-xs',
+                                              detenida: 'bg-amber-800 text-white font-bold'
                                             };
 
                                             return (
-                                              <tr key={t.id} className="hover:bg-slate-900/60">
-                                                <td className="py-2.5 px-3">
-                                                  <span className="font-semibold text-white">{t.nombre}</span>
-                                                  <span className="block text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 font-mono">[{t.actividad_id}]</span>
+                                              <tr key={t.id} className="hover:bg-[#f8faf4] dark:hover:bg-[#1a2b03] transition-colors">
+                                                <td className="py-3 px-3">
+                                                  <span className="font-bold text-slate-900 dark:text-white block">{t.nombre}</span>
+                                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">[{t.actividad_id}]</span>
                                                 </td>
-                                                <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
+                                                <td className="py-3 px-3 font-medium text-slate-700 dark:text-slate-300">
                                                   {t.predio_nombre || 'General'}
                                                 </td>
-                                                <td className="py-2.5 px-3">
-                                                  <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                                                    <User className="w-3 h-3 text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400" /> {t.responsable || 'Sin asignar'}
+                                                <td className="py-3 px-3">
+                                                  <span className="flex items-center gap-1 text-slate-800 dark:text-slate-200 font-medium">
+                                                    <User className="w-3.5 h-3.5 text-slate-400" /> {t.responsable || 'Sin asignar'}
                                                   </span>
                                                 </td>
-                                                <td className="py-2.5 px-3 text-right font-mono">
-                                                  <span className="text-emerald-400 font-bold">{t.cantidad_acumulada}</span>
-                                                  <span className="text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
+                                                <td className="py-3 px-3 text-right font-mono">
+                                                  <span className="text-[#2c4001] dark:text-[#a1c62e] font-black">{t.cantidad_acumulada}</span>
+                                                  <span className="text-slate-500 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
                                                 </td>
-                                                <td className="py-2.5 px-3 text-center">
+                                                <td className="py-3 px-3 text-center">
                                                   <button
                                                     type="button"
                                                     onClick={() => handleToggleTaskStatus(t)}
-                                                    className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border transition ${taskStatusColors[t.estado] || taskStatusColors.pendiente}`}
-                                                    title="Haz clic para cambiar el estado de la tarea"
+                                                    className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wide transition transform active:scale-95 ${taskStatusPill[t.estado] || taskStatusPill.pendiente}`}
+                                                    title="Haz clic para alternar estado en cascada"
                                                   >
                                                     {t.estado.replace('_', ' ')}
                                                   </button>
                                                 </td>
-                                                <td className="py-2.5 px-3 text-right">
+                                                <td className="py-3 px-3 text-right">
                                                   <div className="flex items-center justify-end gap-1">
                                                     <button
                                                       type="button"
                                                       onClick={() => handleOpenTaskModal(p, h, t)}
-                                                      className="p-1 rounded bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white"
+                                                      className="p-1 rounded-lg bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                                                       title="Editar Tarea"
                                                     >
                                                       <Edit2 className="w-3 h-3" />
@@ -920,7 +920,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                                                     <button
                                                       type="button"
                                                       onClick={() => handleDeleteTask(t.id, t.nombre)}
-                                                      className="p-1 rounded bg-rose-950/60 text-rose-300 border border-rose-800/40"
+                                                      className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 hover:bg-rose-100 transition"
                                                       title="Eliminar Tarea"
                                                     >
                                                       <Trash2 className="w-3 h-3" />
@@ -934,12 +934,12 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                                       </table>
                                     </div>
                                   ) : (
-                                    <div className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">
+                                    <div className="py-4 text-center text-xs text-slate-500 dark:text-slate-400">
                                       No hay tareas configuradas en este hito.{' '}
                                       <button
                                         type="button"
                                         onClick={() => handleOpenTaskModal(p, h)}
-                                        className="text-emerald-400 font-semibold underline ml-1"
+                                        className="text-[#2c4001] dark:text-[#a1c62e] font-bold underline ml-1"
                                       >
                                         Crear la primera tarea
                                       </button>

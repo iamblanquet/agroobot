@@ -194,6 +194,15 @@ router.patch('/hitos/:id', authenticateJWT, requireRole('supervisor', 'it', 'dir
       ]
     );
 
+    // LÓGICA EN CASCADA DESCENDENTE: Si el hito cambia de estado explícitamente
+    if (estado !== undefined && estado !== hito.estado) {
+      if (estado === 'completado') {
+        await db.run("UPDATE tarea SET estado = 'completada' WHERE hito_id = ?", [id]);
+      } else if (estado === 'pendiente') {
+        await db.run("UPDATE tarea SET estado = 'pendiente' WHERE hito_id = ?", [id]);
+      }
+    }
+
     const updated = await db.get('SELECT * FROM hito WHERE id = ?', [id]);
     return res.json({ success: true, hito: updated });
   } catch (err) {
@@ -277,6 +286,23 @@ router.patch('/tareas/:id', authenticateJWT, requireRole('supervisor', 'it', 'di
         id
       ]
     );
+
+    // LÓGICA EN CASCADA: Verificar estado del hito padre según sus tareas
+    const hitoId = tarea.hito_id;
+    if (hitoId) {
+      const allTasks = await db.all('SELECT estado FROM tarea WHERE hito_id = ?', [hitoId]);
+      if (allTasks.length > 0) {
+        const allCompleted = allTasks.every(t => t.estado === 'completada');
+        const anyInProgress = allTasks.some(t => t.estado === 'en_progreso');
+        let newHitoStatus = 'pendiente';
+        if (allCompleted) {
+          newHitoStatus = 'completado';
+        } else if (anyInProgress || allTasks.some(t => t.estado === 'completada')) {
+          newHitoStatus = 'en_proceso';
+        }
+        await db.run('UPDATE hito SET estado = ? WHERE id = ?', [newHitoStatus, hitoId]);
+      }
+    }
 
     const updated = await db.get(`
       SELECT t.*, pr.nombre AS predio_nombre

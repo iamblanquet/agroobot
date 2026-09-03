@@ -210,28 +210,24 @@ export default function App() {
       {/* ========================================================================= */}
       <header className="bg-[#2c4001] text-white border-b border-[#3e5606] sticky top-0 z-40 shadow-md h-14 sm:h-16 flex items-center px-3 sm:px-6 justify-between gap-3">
         <div className="flex items-center min-w-0">
-          {/* Logo Oficial AGROKOOL como Botón de Hamburguesa / Toggle */}
+          {/* Logo Oficial AGROKOOL Simple */}
           <button
             type="button"
             onClick={() => {
-              // En desktop colapsa/expande ancho; en móvil abre drawer flotante
               if (window.innerWidth < 768) {
                 setMobileDrawerOpen(!mobileDrawerOpen);
               } else {
                 setSidebarOpen(!sidebarOpen);
               }
             }}
-            className="flex items-center gap-2 p-1 sm:p-1.5 rounded-2xl hover:bg-[#1e2d01] border border-transparent hover:border-[#3e5606] transition-all group focus:outline-none focus:ring-2 focus:ring-[#a1c62e]/50"
-            title={sidebarOpen ? "Click en el logo para colapsar menú" : "Click en el logo para expandir menú"}
+            className="flex items-center p-0 bg-transparent border-0 outline-none focus:outline-none cursor-pointer"
+            title="AGROKOOL"
           >
             <img
               src="/logo.png"
               alt="AGROKOOL"
-              className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+              className="h-10 sm:h-12 w-auto object-contain block"
             />
-            <span className="hidden xl:inline text-[10px] font-bold text-[#a1c62e] bg-[#152000] px-2 py-0.5 rounded-full border border-[#3e5606]">
-              {sidebarOpen ? '◀ Colapsar' : '▶ Menú'}
-            </span>
           </button>
         </div>
 

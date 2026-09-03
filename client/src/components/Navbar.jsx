@@ -292,45 +292,47 @@ export default function Navbar({
             </div>
 
             {/* 2. Switch Rápido de Roles Canónicos */}
-            <div className="pt-2 border-t border-[#3e5606]/60">
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#dfb75c] block mb-2 px-1">
-                Probar Rol Canónico
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  onClick={() => { quickLogin('campo'); setMobileMenuOpen(false); }}
-                  className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
-                >
-                  <HardHat className="w-3.5 h-3.5 text-[#a1c62e]" />
-                  <span>Abner (Campo)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { quickLogin('supervisor'); setMobileMenuOpen(false); }}
-                  className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
-                >
-                  <Activity className="w-3.5 h-3.5 text-[#a87d13]" />
-                  <span>Karen (Supervisor)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { quickLogin('direccion'); setMobileMenuOpen(false); }}
-                  className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
-                >
-                  <BarChart3 className="w-3.5 h-3.5 text-white" />
-                  <span>Luis (Dirección)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { quickLogin('it'); setMobileMenuOpen(false); }}
-                  className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
-                >
-                  <Shield className="w-3.5 h-3.5 text-[#dfb75c]" />
-                  <span>Julio (Admin IT)</span>
-                </button>
+            {(user?.rol === 'it' || user?.rol === 'direccion') && (
+              <div className="pt-2 border-t border-[#3e5606]/60">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#dfb75c] block mb-2 px-1">
+                  Probar Rol Canónico
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { quickLogin('campo'); setMobileMenuOpen(false); }}
+                    className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
+                  >
+                    <HardHat className="w-3.5 h-3.5 text-[#a1c62e]" />
+                    <span>Abner (Campo)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { quickLogin('supervisor'); setMobileMenuOpen(false); }}
+                    className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-[#a87d13]" />
+                    <span>Karen (Supervisor)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { quickLogin('direccion'); setMobileMenuOpen(false); }}
+                    className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5 text-white" />
+                    <span>Luis (Dirección)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { quickLogin('it'); setMobileMenuOpen(false); }}
+                    className="p-2 rounded-xl bg-[#1e2d01] text-slate-200 hover:bg-[#152000] border border-[#3e5606] text-xs font-medium flex items-center gap-2"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-[#dfb75c]" />
+                    <span>Julio (Admin IT)</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 3. Usuario Actual y Cerrar Sesión */}
             <div className="pt-2 border-t border-[#3e5606]/60 flex items-center justify-between">

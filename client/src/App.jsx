@@ -312,39 +312,53 @@ export default function App() {
           {/* Pie de Sidebar: Probar Roles Canónicos */}
           {sidebarOpen ? (
             <div className="p-3 border-t border-[#3e5606]/80 bg-[#1e2d01]/60 space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#a1c62e] block">
-                Roles Canónicos
-              </span>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => quickLogin('campo')}
-                  className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
-                >
-                  🌾 Abner
-                </button>
-                <button
-                  type="button"
-                  onClick={() => quickLogin('supervisor')}
-                  className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
-                >
-                  📋 Karen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => quickLogin('direccion')}
-                  className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
-                >
-                  📊 Luis
-                </button>
-                <button
-                  type="button"
-                  onClick={() => quickLogin('it')}
-                  className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
-                >
-                  🛡️ Julio
-                </button>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#a1c62e] block">
+                  Sesión: {user?.nombre?.split(' ')[0] || user?.username}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#3e5606] text-white font-mono uppercase">
+                  {user?.rol}
+                </span>
               </div>
+              {(user?.rol === 'it' || user?.rol === 'direccion') && (
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => quickLogin('campo')}
+                    className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
+                  >
+                    🌾 Abner
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => quickLogin('supervisor')}
+                    className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
+                  >
+                    📋 Karen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => quickLogin('direccion')}
+                    className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
+                  >
+                    📊 Luis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => quickLogin('it')}
+                    className="px-2 py-1.5 rounded-lg bg-[#243302] hover:bg-[#152000] text-[11px] text-[#d4e6b5] border border-[#3e5606] truncate text-left"
+                  >
+                    🛡️ Julio
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={logout}
+                className="w-full mt-1 py-1.5 px-2 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-[11px] font-bold border border-rose-800/40 flex items-center justify-center gap-1.5 transition"
+              >
+                <LogOut className="w-3.5 h-3.5" /> Cerrar Sesión
+              </button>
             </div>
           ) : (
             <div className="p-2 border-t border-[#3e5606]/80 flex flex-col items-center gap-2">
@@ -408,41 +422,55 @@ export default function App() {
                 })}
               </div>
 
-              {/* Roles en Móvil */}
+              {/* Usuario y Sesión en Móvil */}
               <div className="p-4 border-t border-[#3e5606] bg-[#1e2d01] space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#a1c62e] block">
-                  Cambiar Rol de Prueba
-                </span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { quickLogin('campo'); setMobileDrawerOpen(false); }}
-                    className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
-                  >
-                    Abner (Campo)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { quickLogin('supervisor'); setMobileDrawerOpen(false); }}
-                    className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
-                  >
-                    Karen (Superv)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { quickLogin('direccion'); setMobileDrawerOpen(false); }}
-                    className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
-                  >
-                    Luis (Dirección)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { quickLogin('it'); setMobileDrawerOpen(false); }}
-                    className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
-                  >
-                    Julio (Admin IT)
-                  </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#a1c62e] block">
+                    Sesión: {user?.nombre?.split(' ')[0] || user?.username}
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#3e5606] text-white font-mono uppercase">
+                    {user?.rol}
+                  </span>
                 </div>
+                {(user?.rol === 'it' || user?.rol === 'direccion') && (
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { quickLogin('campo'); setMobileDrawerOpen(false); }}
+                      className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
+                    >
+                      Abner (Campo)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { quickLogin('supervisor'); setMobileDrawerOpen(false); }}
+                      className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
+                    >
+                      Karen (Superv)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { quickLogin('direccion'); setMobileDrawerOpen(false); }}
+                      className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
+                    >
+                      Luis (Dirección)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { quickLogin('it'); setMobileDrawerOpen(false); }}
+                      className="px-2.5 py-2 rounded-xl bg-[#243302] text-xs font-semibold text-slate-200 border border-[#3e5606]"
+                    >
+                      Julio (Admin IT)
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { logout(); setMobileDrawerOpen(false); }}
+                  className="w-full mt-2 py-2 px-3 rounded-xl bg-rose-950/40 text-rose-300 text-xs font-bold border border-rose-800/40 flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" /> Cerrar Sesión
+                </button>
               </div>
             </div>
           </div>

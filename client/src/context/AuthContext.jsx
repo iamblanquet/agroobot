@@ -175,6 +175,10 @@ export function AuthProvider({ children }) {
   };
 
   const quickLogin = async (role) => {
+    // Protección: Solo permitir alternar roles si ya existe una sesión iniciada
+    if (!token || !user) {
+      throw new Error('Acceso protegido: Debe iniciar sesión con su PIN o contraseña para poder cambiar de rol.');
+    }
     const userMap = {
       campo: { pin: '1234', username: 'campo_user', pass: 'demo123' },
       supervisor: { pin: '2345', username: 'sup_user', pass: 'demo123' },

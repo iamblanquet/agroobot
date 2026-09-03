@@ -279,78 +279,19 @@ export default function LoginView() {
           </form>
         )}
 
-        {/* ========================================================================= */}
-        {/* ACCESOS RÁPIDOS DIRECTOS                                                  */}
-        {/* ========================================================================= */}
-        <div className="pt-3 border-t border-[#e2ebd3] dark:border-[#253905]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-black text-[#5c6b4b] dark:text-[#a1c62e] uppercase tracking-wider">
-              ⚡ Accesos de Demostración
-            </p>
-            <button
-              type="button"
-              onClick={toggleOfflineSimulation}
-              className="text-[10px] text-[#a87d13] font-bold hover:underline"
-            >
-              {offlineSimulated ? '🟢 Online' : '🟠 Simular Offline'}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleQuick('campo')}
-              disabled={isLoading}
-              className="p-2 rounded-xl bg-[#fbfdf7] dark:bg-[#0e1700] hover:bg-[#ebf3dc] dark:hover:bg-[#1f3004] border border-[#d3e2be] dark:border-[#253905] text-left transition flex items-center gap-1.5"
-            >
-              <HardHat className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
-              <div>
-                <p className="text-[11px] font-black text-[#1c2d01] dark:text-slate-200">1. Campo</p>
-                <p className="text-[9px] text-[#5c6b4b] font-mono">PIN: 1234</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuick('supervisor')}
-              disabled={isLoading}
-              className="p-2 rounded-xl bg-[#fbfdf7] dark:bg-[#0e1700] hover:bg-[#f9f2df] dark:hover:bg-[#362409] border border-[#d3e2be] dark:border-[#253905] text-left transition flex items-center gap-1.5"
-            >
-              <Activity className="w-3.5 h-3.5 text-[#a87d13]" />
-              <div>
-                <p className="text-[11px] font-black text-[#1c2d01] dark:text-slate-200">2. Supervisor</p>
-                <p className="text-[9px] text-[#5c6b4b] font-mono">PIN: 2345</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuick('direccion')}
-              disabled={isLoading}
-              className="p-2 rounded-xl bg-[#fbfdf7] dark:bg-[#0e1700] hover:bg-[#ebf3dc] dark:hover:bg-[#1f3004] border border-[#d3e2be] dark:border-[#253905] text-left transition flex items-center gap-1.5"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
-              <div>
-                <p className="text-[11px] font-black text-[#1c2d01] dark:text-slate-200">3. Dirección</p>
-                <p className="text-[9px] text-[#5c6b4b] font-mono">PIN: 3456</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuick('it')}
-              disabled={isLoading}
-              className="p-2 rounded-xl bg-[#fbfdf7] dark:bg-[#0e1700] hover:bg-[#f9f2df] dark:hover:bg-[#362409] border border-[#d3e2be] dark:border-[#253905] text-left transition flex items-center gap-1.5"
-            >
-              <Shield className="w-3.5 h-3.5 text-[#a87d13]" />
-              <div>
-                <p className="text-[11px] font-black text-[#1c2d01] dark:text-slate-200">4. Admin IT</p>
-                <p className="text-[9px] text-[#5c6b4b] font-mono">PIN: 9999</p>
-              </div>
-            </button>
-          </div>
+        {/* Footer: Modo Fuera de Línea / Simulación */}
+        <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between">
+          <p className="text-[10px] text-[#5c6b4b] dark:text-[#a1c62e]/70">
+            AGROKOOL · Acceso Seguro
+          </p>
+          <button
+            type="button"
+            onClick={toggleOfflineSimulation}
+            className="text-[10px] text-[#a87d13] font-bold hover:underline"
+          >
+            {offlineSimulated ? '🟢 Conexión Online' : '🟠 Probar Sin Señal'}
+          </button>
         </div>
-
       </div>
     </div>
   );

@@ -13,7 +13,9 @@ import {
   KeyRound,
   Delete,
   Sun,
-  Moon
+  Moon,
+  Sparkles,
+  Sprout
 } from 'lucide-react';
 
 export default function LoginView() {
@@ -107,17 +109,40 @@ export default function LoginView() {
 
       <div className="w-full max-w-sm bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] rounded-3xl shadow-xl dark:shadow-2xl p-6 backdrop-blur-xl relative z-10 space-y-5">
         
-        {/* Header */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-[#2c4001] border-2 border-[#a1c62e] shadow-xl shadow-[#2c4001]/25 p-2.5 mb-3">
-            <img src="/logo.png" alt="AGROKOOL Logo" className="w-full h-full object-contain" />
+        {/* Header con Nuevo Diseño de Logo Premium */}
+        <div className="text-center pt-1">
+          <div className="relative inline-block mb-3.5 group">
+            {/* Resplandor ambiental de fondo */}
+            <div className="absolute -inset-1.5 bg-gradient-to-tr from-[#2c4001] via-[#a1c62e] to-[#dfb75c] rounded-[2rem] blur-md opacity-40 dark:opacity-60 group-hover:opacity-75 transition-opacity duration-500 animate-pulse-subtle" />
+            
+            {/* Contenedor principal con marco biselado y fondo degradado verde bosque */}
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-[1.75rem] bg-gradient-to-b from-[#344d03] via-[#2c4001] to-[#1a2701] border-2 border-[#a1c62e]/70 dark:border-[#a1c62e] p-3 shadow-2xl flex items-center justify-center overflow-hidden">
+              {/* Reflejo de cristal superior */}
+              <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none rounded-t-[1.75rem]" />
+              
+              {/* Imagen del Logo con sombra interna nítida */}
+              <img
+                src="/logo.png"
+                alt="AGROKOOL"
+                className="w-full h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105"
+              />
+            </div>
+
+            {/* Badge insignia flotante "PIN SAFE" */}
+            <div className="absolute -bottom-2 -right-1.5 bg-[#a87d13] text-white border-2 border-white dark:border-[#152202] rounded-full p-1.5 shadow-lg flex items-center justify-center">
+              <KeyRound className="w-3.5 h-3.5 text-[#f3e3ba]" />
+            </div>
           </div>
-          <h2 className="text-xl font-black text-[#2c4001] dark:text-white tracking-wider font-serif">
+
+          <h2 className="text-2xl font-black text-[#2c4001] dark:text-white tracking-wider font-serif">
             AGROKOOL
           </h2>
-          <p className="text-[11px] text-[#5c6b4b] dark:text-[#a1c62e] font-bold uppercase tracking-wider mt-0.5">
-            Operación de Campo · Acceso PIN
-          </p>
+          <div className="inline-flex items-center gap-1.5 mt-1 px-3 py-0.5 rounded-full bg-[#ebf3dc] dark:bg-[#1f3004] border border-[#d3e2be] dark:border-[#2f4509]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#a1c62e] animate-ping" />
+            <p className="text-[10px] text-[#2c4001] dark:text-[#a1c62e] font-extrabold uppercase tracking-widest">
+              Acceso Seguro · PIN TESA
+            </p>
+          </div>
         </div>
 
         {/* Offline Banner */}

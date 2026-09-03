@@ -23,16 +23,22 @@ import {
   User,
   Building,
   MapPin,
-  Sparkles
+  Sparkles,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export default function SupervisorView() {
-  const [activeTab, setActiveTab] = useState('tablero'); // 'tablero' | 'proyectos'
+  const [activeTab, setActiveTab] = useState('tablero'); // 'tablero' | 'proyectos' | 'reportes'
   const [stats, setStats] = useState(null);
   const [proyectosList, setProyectosList] = useState([]);
   const [prediosList, setPrediosList] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [reportesList, setReportesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Modal Visor de Foto Ampliada
+  const [activePhotoModal, setActivePhotoModal] = useState(null);
 
   // Estados de expansión de proyectos e hitos
   const [expandedProjects, setExpandedProjects] = useState({});
@@ -101,15 +107,17 @@ export default function SupervisorView() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [statsData, projData, predData] = await Promise.all([
+      const [statsData, projData, predData, repData] = await Promise.all([
         api.get('/stats/supervisor'),
         api.get('/projects'),
-        api.get('/projects/predios')
+        api.get('/projects/predios'),
+        api.get('/reports?limit=50')
       ]);
 
       setStats(statsData);
       setProyectosList(projData.projects || []);
       setPrediosList(predData.predios || []);
+      setReportesList(repData.reports || []);
 
       // Auto-expandir el primer proyecto
       if (projData.projects?.length > 0) {
@@ -445,6 +453,22 @@ export default function SupervisorView() {
             <span>Gestor de Proyectos & Hitos</span>
             <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-500/50">
               {proyectosList.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('reportes')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'reportes'
+                ? 'bg-[#a87d13] text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100'
+            }`}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>Bitácora & Evidencias</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-[#362409] text-[#dfb75c] border border-[#a87d13]/50">
+              {reportesList.length}
             </span>
           </button>
 
@@ -1127,6 +1151,192 @@ export default function SupervisorView() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VISTA 3: BITÁCORA DE REPORTES & EVIDENCIAS FOTOGRÁFICAS                   */}
+      {/* ========================================================================= */}
+      {activeTab === 'reportes' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#a87d13]" /> Bitácora Oficial de Campo con Evidencias Fotográficas
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Historial cronológico de reportes con fotos de avance, maquinaria y labores agrícolas
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Actualizar Bitácora</span>
+            </button>
+          </div>
+
+          {reportesList.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] text-slate-500 dark:text-slate-400 space-y-2">
+              <Camera className="w-8 h-8 mx-auto text-slate-400" />
+              <p className="text-sm font-bold">No hay reportes registrados en la bitácora.</p>
+              <p className="text-xs">Los reportes enviados desde la vista de Campo aparecerán aquí automáticamente.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {reportesList.map((rep) => {
+                const repFotos = rep.fotos || [];
+                const repLineas = rep.lineas || [];
+                const repMaq = rep.maquinaria || [];
+
+                return (
+                  <div
+                    key={rep.id}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm space-y-4 transition hover:border-[#a1c62e]/60"
+                  >
+                    {/* Header del reporte */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-bold text-[#2c4001] dark:text-[#a1c62e] bg-[#f4f8ed] dark:bg-[#1f3004] px-2 py-0.5 rounded border border-[#d3e2be] dark:border-[#3e5606]">
+                            Folio: {rep.client_uuid ? rep.client_uuid.substring(0, 13) + '...' : `REP-${rep.id}`}
+                          </span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            {rep.obra_nombre || 'Frente General'}
+                          </span>
+                          {rep.proyecto_nombre && (
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                              ({rep.proyecto_nombre})
+                            </span>
+                          )}
+                          {rep.es_sin_actividad ? (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                              🌧️ PARO OPERATIVO
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                              ✅ EFECTUADO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          Fecha Operativa: <strong className="text-slate-800 dark:text-slate-200">{rep.fecha_operativa}</strong> · Registrado por: <strong className="text-slate-800 dark:text-slate-200">{rep.autor_nombre}</strong>
+                        </p>
+                      </div>
+
+                      {repFotos.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-[#a87d13] bg-[#fdfaf3] dark:bg-[#362409] px-2.5 py-1 rounded-xl border border-[#f3e3ba] dark:border-[#704f15] self-start sm:self-auto">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>{repFotos.length} foto(s)</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Resumen de labor, avance y notas */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-[#e2ebd3] dark:border-[#253905] space-y-1">
+                        <p className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">
+                          Avance & Actividad
+                        </p>
+                        {rep.es_sin_actividad ? (
+                          <p className="text-amber-700 dark:text-amber-400 font-medium">
+                            Motivo de paro: {rep.motivo_sin_actividad || 'Lluvia / Condiciones climáticas'}
+                          </p>
+                        ) : repLineas.length > 0 ? (
+                          repLineas.map((l, idx) => (
+                            <p key={idx} className="text-slate-900 dark:text-white font-medium">
+                              • <strong className="text-emerald-600 dark:text-emerald-400">{l.cantidad_ha || l.cantidad} {l.unidad || 'ha'}</strong> ({l.actividad_id})
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-slate-500 italic">Sin líneas cuantitativas registradas</p>
+                        )}
+                        {rep.nota && (
+                          <p className="text-slate-600 dark:text-slate-400 pt-1 text-[11px] border-t border-slate-200 dark:border-slate-800">
+                            <strong>Nota:</strong> {rep.nota}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-[#e2ebd3] dark:border-[#253905] space-y-1">
+                        <p className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">
+                          Maquinaria & Recursos
+                        </p>
+                        {repMaq.length > 0 ? (
+                          repMaq.map((m, idx) => (
+                            <p key={idx} className="text-slate-900 dark:text-white font-medium">
+                              🚜 <strong>{m.maquina_codigo || 'Equipo'}:</strong> {m.horas_trabajadas} hrs ({m.litros_diesel} L diésel)
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-slate-500 italic">No se utilizó maquinaria en este turno</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Galería de Fotos */}
+                    {repFotos.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60">
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" /> Evidencias Fotográficas Adjuntas
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                          {repFotos.map((foto, fIdx) => (
+                            <button
+                              key={foto.id || fIdx}
+                              type="button"
+                              onClick={() => setActivePhotoModal(foto)}
+                              className="group relative rounded-xl overflow-hidden aspect-video border border-[#e2ebd3] dark:border-[#253905] bg-slate-100 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#a1c62e]"
+                            >
+                              <img
+                                src={foto.url}
+                                alt={foto.descripcion || `Evidencia ${fIdx + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded">
+                                  Ver ampliada
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: VISOR DE FOTO LIGHTBOX                                             */}
+      {/* ========================================================================= */}
+      {activePhotoModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4">
+          <div className="relative max-w-4xl w-full max-h-[85vh] flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setActivePhotoModal(null)}
+              className="absolute -top-10 right-0 text-white hover:text-rose-400 font-bold text-xl px-2 py-1 bg-black/40 rounded-lg transition"
+            >
+              ✕ Cerrar
+            </button>
+            <img
+              src={activePhotoModal.url}
+              alt="Evidencia fotográfica ampliada"
+              className="max-h-[75vh] w-auto object-contain rounded-2xl border border-white/20 shadow-2xl"
+            />
+            {activePhotoModal.descripcion && (
+              <p className="mt-3 text-white text-xs text-center bg-black/60 px-4 py-1.5 rounded-xl border border-white/10">
+                {activePhotoModal.descripcion}
+              </p>
+            )}
           </div>
         </div>
       )}

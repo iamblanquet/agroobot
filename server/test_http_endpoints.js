@@ -67,8 +67,9 @@ async function testHttpEndpoints() {
       console.log('   ✅ Incidencia cerrada:', closeRes.issue.folio, '| Estado:', closeRes.issue.estado);
 
       // 6. Sincronización idempotente de reporte offline
-      console.log('\n6. Probando POST /api/reports/sync (idempotencia y actualización)...');
+      console.log('\n6. Probando POST /api/reports/sync (idempotencia, actualización y fotos)...');
       const syncUUID = 'test-client-sync-' + Date.now();
+      const samplePhotoBase64 = 'data:image/jpeg;base64,' + Buffer.from('fake-jpeg-content-for-testing').toString('base64');
       const syncRes = await requestJson('http://localhost:3099/api/reports/sync', 'POST', {
         reports: [{
           client_uuid: syncUUID,
@@ -80,16 +81,23 @@ async function testHttpEndpoints() {
           es_sin_actividad: false,
           lineas: [{ cantidad: 5.0, unidad: 'ha', cantidad_ha: 5.0 }],
           cuadrilla: [{ rol_id: 'operador', headcount: 3 }],
-          maquinaria: [{ maquina_id: 2, horometro_inicio: 415.5, horometro_fin: 423.5, horas_trabajadas: 8.0, litros_diesel: 120 }]
+          maquinaria: [{ maquina_id: 2, horometro_inicio: 415.5, horometro_fin: 423.5, horas_trabajadas: 8.0, litros_diesel: 120 }],
+          fotos: [{ data: samplePhotoBase64, descripcion: 'Evidencia de prueba horómetro' }]
         }]
       }, token);
-      console.log('   ✅ Reportes sincronizados:', syncRes.syncedCount, '| Ignorados:', syncRes.ignoredCount);
+      console.log('   ✅ Reportes sincronizados:', syncRes.syncedCount, '| Fotos guardadas:', syncRes.results[0]?.fotosCount);
 
       // Re-enviar el mismo UUID para verificar idempotencia
       const dupRes = await requestJson('http://localhost:3099/api/reports/sync', 'POST', {
         reports: [{ client_uuid: syncUUID }]
       }, token);
       console.log('   ✅ Re-envío duplicado detectado (Idempotente): Ignorados =', dupRes.ignoredCount);
+
+      // 6b. Verificar GET /api/reports con fotos
+      console.log('\n6b. Probando GET /api/reports (con evidencias fotográficas)...');
+      const repListRes = await requestJson('http://localhost:3099/api/reports?limit=5', 'GET', null, token);
+      const repWithFotos = repListRes.reports?.find(r => r.client_uuid === syncUUID);
+      console.log('   ✅ Reportes consultados:', repListRes.reports?.length, '| Fotos en reporte sinc:', repWithFotos?.fotos?.length);
 
       // 7. Stats Dirección
       console.log('\n7. Probando GET /api/stats/direction (KPIs Dirección)...');

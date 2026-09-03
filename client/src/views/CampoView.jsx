@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { saveReportOffline, cacheCatalogData, getCachedCatalogData } from '../db/indexedDb';
+import { compressImage } from '../utils/imageCompressor';
 import {
   HardHat,
   Tractor,
@@ -15,7 +16,11 @@ import {
   Clock,
   Fuel,
   WifiOff,
-  Layers
+  Layers,
+  Camera,
+  Image as ImageIcon,
+  X,
+  Upload
 } from 'lucide-react';
 
 export default function CampoView() {
@@ -63,6 +68,48 @@ export default function CampoView() {
 
   // Notas
   const [nota, setNota] = useState('');
+
+  // Evidencias Fotográficas
+  const [fotos, setFotos] = useState([]);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+
+  // Manejo de carga y compresión de fotos
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Máximo 6 fotos por reporte
+    if (fotos.length + files.length > 6) {
+      alert('Puedes adjuntar un máximo de 6 fotografías por reporte.');
+      return;
+    }
+
+    setIsProcessingPhoto(true);
+    try {
+      const compressedList = [];
+      for (const file of files) {
+        const compressed = await compressImage(file, 1280, 1280, 0.75);
+        compressedList.push({
+          id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          data: compressed.data,
+          name: compressed.name,
+          sizeKb: Math.round(compressed.sizeAfter / 1024),
+          descripcion: ''
+        });
+      }
+      setFotos(prev => [...prev, ...compressedList]);
+    } catch (err) {
+      alert('Error al procesar fotografía: ' + err.message);
+    } finally {
+      setIsProcessingPhoto(false);
+      // Reset input value para permitir seleccionar el mismo archivo
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePhoto = (photoId) => {
+    setFotos(prev => prev.filter(f => f.id !== photoId));
+  };
 
   // Feedback y Envío
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -226,7 +273,11 @@ export default function CampoView() {
               litros_diesel: parseFloat(litrosDiesel) || 0
             }
           ]
-        : []
+        : [],
+      fotos: fotos.map(f => ({
+        data: f.data,
+        descripcion: f.descripcion || ''
+      }))
     };
 
     const isOfflineMode = offlineSimulated || !navigator.onLine;
@@ -237,14 +288,14 @@ export default function CampoView() {
         await saveReportOffline(reportPayload);
         setSubmitFeedback({
           type: 'offline',
-          text: `📡 Reporte guardado en almacenamiento local (Modo Sin Señal). Se sincronizará automáticamente al volver la red.`
+          text: `📡 Reporte guardado con ${fotos.length} foto(s) en almacenamiento local (Modo Sin Señal). Se sincronizará automáticamente al volver la red.`
         });
       } else {
         // Enviar a Standalone API
         await api.post('/reports/sync', { reports: [reportPayload] });
         setSubmitFeedback({
           type: 'online',
-          text: `✅ Reporte sincronizado exitosamente con el servidor central.`
+          text: `✅ Reporte y ${fotos.length} foto(s) sincronizados exitosamente con el servidor central.`
         });
         loadCatalog();
       }
@@ -252,6 +303,7 @@ export default function CampoView() {
       // Resetear campos variables
       setAvanceHa('');
       setNota('');
+      setFotos([]);
       if (selectedMaquinaId) {
         setHorometroInicio(hFin);
         setHorometroFin(hFin + 8);
@@ -719,6 +771,91 @@ export default function CampoView() {
             placeholder="Detalles sobre el estado del terreno, condiciones climáticas, etc."
             className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none resize-none"
           />
+        </div>
+
+        {/* SECCIÓN 6: EVIDENCIA FOTOGRÁFICA DE LA JORNADA */}
+        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-2">
+            <div className="flex items-center gap-2 text-[#2c4001] dark:text-[#a1c62e] font-bold text-sm">
+              <Camera className="w-4 h-4" /> 6. Evidencias Fotográficas de Campo
+            </div>
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              {fotos.length} / 6 fotos
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Adjunta fotos de la labor realizada, estado del cultivo, predio o lectura de horómetros. Se comprimen automáticamente para no saturar la red.
+          </p>
+
+          {/* Grid de Fotos Cargadas */}
+          {fotos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {fotos.map((foto, idx) => (
+                <div key={foto.id} className="relative group rounded-xl overflow-hidden border border-[#e2ebd3] dark:border-[#253905] bg-slate-100 dark:bg-slate-950 aspect-video shadow-sm">
+                  <img
+                    src={foto.data}
+                    alt={`Evidencia ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(foto.id)}
+                      className="p-1.5 rounded-full bg-rose-600 text-white hover:bg-rose-700 shadow-md transition"
+                      title="Eliminar foto"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
+                    {foto.sizeKb} KB
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(foto.id)}
+                    className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white hover:bg-rose-600 transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Botones de Captura / Subida */}
+          {fotos.length < 6 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Botón Tomar Foto con Cámara */}
+              <label className="cursor-pointer flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-[#2c4001]/40 dark:border-[#a1c62e]/40 hover:bg-[#f4f8ed] dark:hover:bg-[#1f3004] transition text-xs font-bold text-[#2c4001] dark:text-[#a1c62e]">
+                <Camera className="w-4 h-4" />
+                <span>{isProcessingPhoto ? 'Comprimiendo...' : 'Tomar Foto con Cámara'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  disabled={isProcessingPhoto}
+                  className="hidden"
+                />
+              </label>
+
+              {/* Botón Seleccionar de Galería */}
+              <label className="cursor-pointer flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 transition text-xs font-bold text-slate-700 dark:text-slate-300">
+                <ImageIcon className="w-4 h-4 text-[#a87d13]" />
+                <span>{isProcessingPhoto ? 'Comprimiendo...' : 'Elegir de la Galería'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  disabled={isProcessingPhoto}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          )}
         </div>
 
         {/* BOTÓN DE GUARDADO / SINCRONIZACIÓN */}

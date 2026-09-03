@@ -225,7 +225,7 @@ La interfaz web (PWA) adapta su navegación y funciones según el rol del usuari
 | `POST` | `/api/issues/:id/close` | Supervisor / IT | Cierre con validación estricta de causa raíz ($\ge 10$ chars). |
 | `GET` | `/api/machines` | Autenticado | Catálogo de maquinaria y estado de servicio preventivo. |
 | `GET` | `/api/materials` | Autenticado | Listado de insumos con cálculo de déficit y alertas ETA. |
-| `GET` | `/api/projects` | Autenticado | Árbol WBS de Proyectos, Hitos, Tareas y Predios. |
+| `GET` | `/uploads/:archivo` | Público | Servicio estático de evidencias fotográficas de campo. |
 | `GET` | `/api/users` | Admin IT | Catálogo de usuarios y asignación de PIN. |
 
 ---
@@ -237,6 +237,7 @@ La interfaz web (PWA) adapta su navegación y funciones según el rol del usuari
 | **Patrón TESA (Telegram Entry, Standalone API, Offline Storage)** | ✅ Cumplido | Backend desacoplado en Express, Bot en `node-telegram-bot-api`, PWA con IndexedDB. |
 | **Autenticación con PIN 4 Dígitos & Sesión Persistente** | ✅ Cumplido | `LoginView.jsx`, `pin-login` endpoint, `localStorage` para sesión sin re-logins innecesarios. |
 | **Parser Multi-predio con Confirmación Interactiva** | ✅ Cumplido | `server/bot/parser.js`, despiece de Cristina/Rach/Mangos, botones `[✅ Confirmar]` / `[✏️ Corregir]`. |
+| **Evidencias Fotográficas en Reportes (Cámara / Galería)** | ✅ Cumplido | `CampoView.jsx` (compresión automática a 1280px), tabla `reporte_foto`, fotos en Telegram (`sendPhoto` / `sendMediaGroup`) y bitácora con lightbox en `SupervisorView.jsx`. |
 | **Cron Jobs Automatizados (4 Horarios)** | ✅ Cumplido | `server/bot/cron.js` (07:30 General Proyectos/Tareas, 08:00 Matutinas, 21:00 Reclamos, 21:30 Tablero). |
 | **4 Widgets Canónicos de Supervisión** | ✅ Cumplido | `SupervisorView.jsx` (Sin reporte, Avance vs Meta, Incidencias, Materiales bloqueados). |
 | **Cierre de Incidencias con Validación de Causa Raíz** | ✅ Cumplido | `server/routes/issues.js` (Rechaza strings $< 10$ caracteres con HTTP 400). |

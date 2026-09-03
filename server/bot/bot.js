@@ -56,6 +56,7 @@ async function notifyReporte(reportData) {
     lineas = [],
     cuadrilla = [],
     maquinaria = [],
+    fotos = [],
     clientUuid
   } = reportData;
 
@@ -86,6 +87,8 @@ async function notifyReporte(reportData) {
     maqTxt = `\n🚜 *Maquinaria:* ` + maqs.map(m => `${m.codigo || 'Máquina'}: ${m.horas_trabajadas || 0} hrs (${m.litros_diesel || 0} L)`).join(', ');
   }
 
+  const fotosTxt = fotos.length > 0 ? `\n📷 *Evidencias fotográficas:* ${fotos.length} adjunta(s)` : '';
+
   const text = `📋 *REPORTE DE CAMPO OFICIAL*\n\n` +
                `🏢 *Obra:* ${obraNombre || 'General'}\n` +
                `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
@@ -94,7 +97,41 @@ async function notifyReporte(reportData) {
                avanceTxt +
                cuadrillaTxt +
                maqTxt +
+               fotosTxt +
                `\n\n💾 _Folio:_ \`${clientUuid || 'N/A'}\``;
+
+  // Si hay bot y fotos en disco, enviar las fotos adjuntas
+  if (botInstance && process.env.TELEGRAM_SUPERGROUP_ID && fotos && fotos.length > 0) {
+    const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
+    let threadId = process.env.TELEGRAM_THREAD_REPORTES ? parseInt(process.env.TELEGRAM_THREAD_REPORTES, 10) : null;
+    const fs = require('fs');
+
+    const validFiles = fotos.filter(f => f.filePath && fs.existsSync(f.filePath));
+    if (validFiles.length > 0) {
+      try {
+        if (validFiles.length === 1) {
+          return await botInstance.sendPhoto(supergroupId, validFiles[0].filePath, {
+            caption: text,
+            parse_mode: 'Markdown',
+            ...(threadId ? { message_thread_id: threadId } : {})
+          });
+        } else {
+          // Grupo de fotos (álbum)
+          const mediaGroup = validFiles.slice(0, 10).map((f, idx) => ({
+            type: 'photo',
+            media: f.filePath,
+            caption: idx === 0 ? text : undefined,
+            parse_mode: 'Markdown'
+          }));
+          return await botInstance.sendMediaGroup(supergroupId, mediaGroup, {
+            ...(threadId ? { message_thread_id: threadId } : {})
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ Error al enviar fotos a Telegram, enviando texto alternativo:', err.message);
+      }
+    }
+  }
 
   return sendTopicMessage('reportes', text);
 }

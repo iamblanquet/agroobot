@@ -275,11 +275,23 @@ const DDL_SCHEMA = `
     FOREIGN KEY (proyecto_id) REFERENCES proyecto(id) ON DELETE CASCADE
   );
 
+  -- 16. Tabla de Fotos y Evidencias de Reporte
+  CREATE TABLE IF NOT EXISTS reporte_foto (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reporte_id INTEGER NOT NULL,
+    archivo_ruta TEXT NOT NULL,
+    url TEXT NOT NULL,
+    descripcion TEXT,
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reporte_id) REFERENCES reporte(id) ON DELETE CASCADE
+  );
+
   -- Índices de Rendimiento
   CREATE INDEX IF NOT EXISTS idx_tarea_hito ON tarea(hito_id);
   CREATE INDEX IF NOT EXISTS idx_tarea_proyecto ON tarea(proyecto_id);
   CREATE INDEX IF NOT EXISTS idx_reporte_obra ON reporte(obra_id);
   CREATE INDEX IF NOT EXISTS idx_reporte_fecha ON reporte(fecha_operativa);
+  CREATE INDEX IF NOT EXISTS idx_reporte_foto_reporte ON reporte_foto(reporte_id);
   CREATE INDEX IF NOT EXISTS idx_incidencia_obra ON incidencia(obra_id);
   CREATE INDEX IF NOT EXISTS idx_incidencia_estado ON incidencia(estado);
   CREATE INDEX IF NOT EXISTS idx_material_obra ON material(obra_id);
@@ -291,7 +303,7 @@ async function initDatabase() {
     try {
       await db.run("ALTER TABLE usuario ADD COLUMN pin TEXT");
     } catch (e) {}
-    console.log('✅ Esquema DDL de SQLite inicializado correctamente (15 tablas relacionales).');
+    console.log('✅ Esquema DDL de SQLite inicializado correctamente (16 tablas relacionales con soporte de fotos).');
   } catch (err) {
     console.error('❌ Error al inicializar esquema DDL:', err);
     throw err;

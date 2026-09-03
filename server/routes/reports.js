@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
 const { db } = require('../db/database');
 const { authenticateJWT } = require('../middleware/auth');
 
@@ -37,7 +39,8 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         motivo_sin_actividad,
         lineas = [],
         cuadrilla = [],
-        maquinaria = []
+        maquinaria = [],
+        fotos = []
       } = item;
 
       if (!client_uuid) {
@@ -163,6 +166,54 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         }
       }
 
+      // 4. Guardar evidencias fotográficas si se incluyeron
+      const savedFotos = [];
+      const uploadsDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      if (Array.isArray(fotos) && fotos.length > 0) {
+        for (let i = 0; i < fotos.length; i++) {
+          const fotoItem = fotos[i];
+          const dataUri = typeof fotoItem === 'string' ? fotoItem : (fotoItem.data || fotoItem.url);
+          const descripcion = typeof fotoItem === 'object' ? (fotoItem.descripcion || '') : '';
+
+          if (dataUri && dataUri.startsWith('data:image')) {
+            try {
+              // Parse data URI: data:image/jpeg;base64,...
+              const matches = dataUri.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+              if (matches) {
+                const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+                const base64Data = matches[2];
+                const filename = `foto_${client_uuid}_${Date.now()}_${i}.${ext}`;
+                const filePath = path.join(uploadsDir, filename);
+                fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+
+                const publicUrl = `/uploads/${filename}`;
+                await db.run(
+                  `INSERT INTO reporte_foto (reporte_id, archivo_ruta, url, descripcion)
+                   VALUES (?, ?, ?, ?)`,
+                  [reporteId, filePath, publicUrl, descripcion]
+                );
+
+                savedFotos.push({ url: publicUrl, filePath, descripcion });
+              }
+            } catch (err) {
+              console.warn('⚠️ Error al procesar imagen base64:', err.message);
+            }
+          } else if (dataUri && dataUri.startsWith('/uploads/')) {
+            // Ya es una ruta existente
+            await db.run(
+              `INSERT INTO reporte_foto (reporte_id, archivo_ruta, url, descripcion)
+               VALUES (?, ?, ?, ?)`,
+              [reporteId, path.join(uploadsDir, path.basename(dataUri)), dataUri, descripcion]
+            );
+            savedFotos.push({ url: dataUri, filePath: path.join(uploadsDir, path.basename(dataUri)), descripcion });
+          }
+        }
+      }
+
       // Notificar al tema #Reportes de Telegram si el supergrupo está configurado
       try {
         const { notifyReporte } = require('../bot/bot');
@@ -178,12 +229,13 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           lineas,
           cuadrilla,
           maquinaria,
+          fotos: savedFotos,
           clientUuid: client_uuid
         });
       } catch (e) {}
 
       syncedCount++;
-      results.push({ client_uuid, id: reporteId, status: 'synced' });
+      results.push({ client_uuid, id: reporteId, status: 'synced', fotosCount: savedFotos.length });
     }
 
     return res.json({
@@ -250,6 +302,7 @@ router.get('/', authenticateJWT, async (req, res) => {
         JOIN maquina m ON lm.maquina_id = m.id
         WHERE lm.reporte_id = ?
       `, [r.id]);
+      r.fotos = await db.all('SELECT id, url, descripcion, creado_en FROM reporte_foto WHERE reporte_id = ?', [r.id]);
     }
 
     return res.json({ reports });

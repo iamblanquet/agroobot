@@ -114,7 +114,7 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
                   onClick={() => quickLogin('direccion')}
                   className="w-full text-left px-3 py-1.5 text-xs text-[#1c2d01] dark:text-slate-200 hover:bg-[#f4f8ed] dark:hover:bg-[#1f3004] hover:text-[#2c4001] flex items-center gap-2 font-medium"
                 >
-                  <BarChart3 className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" /> Dirección (Luis B.)
+                  <BarChart3 className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" /> Dirección (Luis)
                 </button>
                 <button
                   type="button"

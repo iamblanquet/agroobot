@@ -34,7 +34,7 @@ async function seed() {
   const usuarios = [
     { username: 'campo_user', pin: '1234', nombre: 'Abner Díaz - Residente de Campo', rol: 'campo', tg_user_id: '12345678' },
     { username: 'sup_user', pin: '2345', nombre: 'Karen García - Supervisora de Operaciones', rol: 'supervisor', tg_user_id: '87654321' },
-    { username: 'dir_user', pin: '3456', nombre: 'Luis Blanquet - Dirección General', rol: 'direccion', tg_user_id: '11223344' },
+    { username: 'dir_user', pin: '3456', nombre: 'Luis - Dirección General', rol: 'direccion', tg_user_id: '11223344' },
     { username: 'admin_user', pin: '9999', nombre: 'Julio Silva - Administrador IT', rol: 'it', tg_user_id: '99887766' },
     { username: 'beche_user', pin: '5678', nombre: 'Beche Dorantes - Encargado de Maquinaria', rol: 'campo', tg_user_id: '55667788' }
   ];

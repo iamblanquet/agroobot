@@ -31,8 +31,11 @@ import {
   Filter
 } from 'lucide-react';
 
-export default function SupervisorView() {
-  const [activeTab, setActiveTab] = useState('tablero'); // 'tablero' | 'proyectos' | 'reportes'
+export default function SupervisorView({ activeTab: externalActiveTab, onTabChange: externalOnTabChange, onRegisterMetadata }) {
+  const [internalActiveTab, setInternalActiveTab] = useState('tablero'); // 'tablero' | 'proyectos' | 'reportes'
+  const activeTab = externalActiveTab || internalActiveTab;
+  const setActiveTab = externalOnTabChange || setInternalActiveTab;
+
   const [stats, setStats] = useState(null);
   const [proyectosList, setProyectosList] = useState([]);
   const [prediosList, setPrediosList] = useState([]);
@@ -135,9 +138,22 @@ export default function SupervisorView() {
       ]);
 
       setStats(statsData);
-      setProyectosList(projData.projects || []);
-      setPrediosList(predData.predios || []);
-      setReportesList(repData.reports || []);
+      const prList = projData.projects || [];
+      const pdList = predData.predios || [];
+      const rpList = repData.reports || [];
+      setProyectosList(prList);
+      setPrediosList(pdList);
+      setReportesList(rpList);
+
+      if (onRegisterMetadata) {
+        onRegisterMetadata({
+          proyectos: prList.length,
+          predios: pdList.length,
+          obras: prList.reduce((acc, p) => acc + (p.obras?.length || 0), 0),
+          reportes: rpList.length,
+          reloadFn: loadData
+        });
+      }
 
       // Auto-expandir el primer proyecto
       if (projData.projects?.length > 0) {
@@ -523,8 +539,8 @@ export default function SupervisorView() {
           </p>
         </div>
 
-        {/* Switcher de Sub-Pestañas Responsivo */}
-        <div className="flex items-center gap-2 bg-white dark:bg-[#152202] p-1.5 rounded-2xl border border-[#e2ebd3] dark:border-[#253905] overflow-x-auto no-scrollbar w-full sm:w-auto shadow-sm">
+        {/* Switcher de Sub-Pestañas Responsivo (Solo visible en pantallas pequeñas si no se usa la barra de navegación) */}
+        <div className="hidden items-center gap-2 bg-white dark:bg-[#152202] p-1.5 rounded-2xl border border-[#e2ebd3] dark:border-[#253905] overflow-x-auto no-scrollbar w-full sm:w-auto shadow-sm">
           <button
             type="button"
             onClick={() => setActiveTab('tablero')}

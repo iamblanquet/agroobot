@@ -10,6 +10,8 @@ import AdminView from './views/AdminView';
 export default function App() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [currentView, setCurrentView] = useState('campo');
+  const [activeSupervisorTab, setActiveSupervisorTab] = useState('tablero');
+  const [supervisorMetadata, setSupervisorMetadata] = useState(null);
 
   // Ajustar vista predeterminada según el rol del usuario autenticado
   useEffect(() => {
@@ -43,14 +45,26 @@ export default function App() {
       <Navbar
         currentView={currentView}
         onViewChange={setCurrentView}
+        activeSubTab={activeSupervisorTab}
+        onSubTabChange={setActiveSupervisorTab}
+        subTabCounts={supervisorMetadata}
+        onRefresh={supervisorMetadata?.reloadFn}
         onSyncComplete={() => {
-          // Trigger refresh if needed
+          if (supervisorMetadata?.reloadFn) {
+            supervisorMetadata.reloadFn();
+          }
         }}
       />
 
       <main className="flex-1">
         {currentView === 'campo' && <CampoView />}
-        {currentView === 'supervisor' && <SupervisorView />}
+        {currentView === 'supervisor' && (
+          <SupervisorView
+            activeTab={activeSupervisorTab}
+            onTabChange={setActiveSupervisorTab}
+            onRegisterMetadata={setSupervisorMetadata}
+          />
+        )}
         {currentView === 'direccion' && <DireccionView />}
         {currentView === 'it' && <AdminView />}
       </main>

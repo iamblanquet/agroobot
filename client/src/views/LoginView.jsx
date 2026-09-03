@@ -107,17 +107,13 @@ export default function LoginView() {
       {/* Fondo limpio sin elipses */}
       <div className="w-full max-w-sm bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] rounded-3xl shadow-xl dark:shadow-2xl p-6 backdrop-blur-xl relative z-10 space-y-5">
         
-        {/* Header: Logo Oficial AGROKOOL limpio con sutil efecto verde */}
+        {/* Header: Logo dinámico según el tema (Verde en fondo blanco / Blanco en fondo oscuro) sin efectos */}
         <div className="text-center pt-2 pb-1">
-          <div className="relative inline-flex items-center justify-center mb-2 group">
-            {/* Resplandor verde suave directo sobre la silueta del logo */}
-            <div className="absolute inset-0 bg-[#a1c62e]/20 dark:bg-[#a1c62e]/30 blur-xl rounded-full scale-110 pointer-events-none group-hover:scale-125 transition-transform duration-500" />
-            
-            {/* Logo de AGROKOOL */}
+          <div className="inline-flex items-center justify-center mb-2">
             <img
-              src="/logo.png"
+              src={isDark ? '/logo.png' : '/AGROKOOL_verde.png'}
               alt="AGROKOOL"
-              className="relative w-auto h-20 sm:h-24 object-contain transition-transform duration-300 group-hover:scale-105 filter drop-shadow-[0_4px_12px_rgba(44,64,1,0.25)] dark:drop-shadow-[0_4px_16px_rgba(161,198,46,0.35)]"
+              className="w-auto h-20 sm:h-24 object-contain transition-opacity duration-200"
             />
           </div>
           <p className="text-[11px] text-[#5c6b4b] dark:text-[#a1c62e] font-bold uppercase tracking-wider mt-1">

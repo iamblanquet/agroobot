@@ -368,6 +368,29 @@ function initTelegramBot(app) {
       ? [{ text: '🚀 ABRIR MINI APP', web_app: { url: miniAppUrl } }]
       : [{ text: '🚀 Abrir Mini App' }];
 
+    const unauthKeyboard = {
+      reply_markup: {
+        keyboard: [
+          appButton,
+          [{ text: '🔐 Iniciar Sesión (PIN)' }]
+        ],
+        resize_keyboard: true,
+        persistent: true
+      }
+    };
+
+    async function getAuthUser(msg) {
+      const tgUserId = String(msg.from?.id || '');
+      if (!tgUserId) return null;
+      try {
+        const u = await db.get('SELECT * FROM usuario WHERE tg_user_id = ? AND activo = 1', [tgUserId]);
+        return u || null;
+      } catch (err) {
+        console.error('Error getAuthUser:', err.message);
+        return null;
+      }
+    }
+
     const mainKeyboard = {
       reply_markup: {
         keyboard: [
@@ -401,6 +424,70 @@ function initTelegramBot(app) {
       }).catch(e => console.error('Error enviando /id:', e.message));
     });
 
+    // Comando /login [PIN] o /pin [PIN]
+    botInstance.onText(/\/(login|pin)\s*(\d{4})?/i, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const threadId = msg.message_thread_id;
+      const tgUserId = String(msg.from.id);
+      const pin = match[2];
+
+      if (!pin) {
+        return botInstance.sendMessage(
+          chatId,
+          `🔐 *INICIO DE SESIÓN AGROK*\n\nPor favor escribe tu PIN de 4 dígitos:\nEjemplo: \`/login 1234\` o \`/pin 1234\`\n\n_O pulsa el botón 🚀 ABRIR MINI APP para identificarte visualmente._`,
+          { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+        );
+      }
+
+      try {
+        const u = await db.get('SELECT * FROM usuario WHERE pin = ? AND activo = 1', [pin]);
+        if (!u) {
+          return botInstance.sendMessage(
+            chatId,
+            '❌ *PIN incorrecto o usuario inactivo.*\nVerifica tu clave de 4 dígitos o contacta al Administrador IT.',
+            { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+          );
+        }
+
+        // Vincular usuario a este Telegram
+        await db.run('UPDATE usuario SET tg_user_id = ?, tg_chat_id = ? WHERE id = ?', [tgUserId, String(chatId), u.id]);
+
+        return botInstance.sendMessage(
+          chatId,
+          `✅ *¡Sesión iniciada con éxito!*\n\n👤 *Bienvenido(a):* ${u.nombre}\n🏷️ *Rol:* \`${u.rol.toUpperCase()}\`\n\nYa tienes acceso completo al teclado de operaciones y reportes.`,
+          { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard }
+        );
+      } catch (err) {
+        return botInstance.sendMessage(chatId, `❌ Error al autenticar: ${err.message}`, { message_thread_id: threadId });
+      }
+    });
+
+    // Comando /logout o /salir
+    botInstance.onText(/\/(logout|salir|cerrar_sesion)/i, async (msg) => {
+      const chatId = msg.chat.id;
+      const threadId = msg.message_thread_id;
+
+      try {
+        const u = await getAuthUser(msg);
+        if (u) {
+          await db.run('UPDATE usuario SET tg_user_id = NULL WHERE id = ?', [u.id]);
+          return botInstance.sendMessage(
+            chatId,
+            `🔒 *Sesión finalizada para ${u.nombre}.*\nLos accesos rápidos han sido bloqueados hasta que vuelvas a iniciar sesión.`,
+            { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+          );
+        } else {
+          return botInstance.sendMessage(
+            chatId,
+            'ℹ️ No tenías ninguna sesión activa vinculada.',
+            { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+          );
+        }
+      } catch (err) {
+        return botInstance.sendMessage(chatId, `❌ Error al cerrar sesión: ${err.message}`, { message_thread_id: threadId });
+      }
+    });
+
     // 2. Comando /start y /menu
     botInstance.onText(/\/(start|menu|ayuda)/, async (msg) => {
       const chatId = msg.chat.id;
@@ -411,24 +498,31 @@ function initTelegramBot(app) {
         await db.run('UPDATE usuario SET tg_chat_id = ? WHERE tg_user_id = ?', [String(chatId), tgUserId]);
       } catch (e) {}
 
-      const welcomeMsg = `👋 *¡Bienvenido al Asistente de Operación AGROK, ${firstName}!*
+      const authUser = await getAuthUser(msg);
 
-🌾 *Control de Jornadas, Proyectos, Maquinaria e Incidencias*
-Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
-• 🌐 *#General* ➔ Consulta de proyectos y tareas en curso.
-• 📋 *#Reportes* ➔ Nuevos reportes y paros operativos.
-• ⚠️ *#Incidencias* ➔ Folios de fallas y seguimiento.
-• 📊 *#Tablero* ➔ Resumen diario del ciclo agrícola.
+      let welcomeMsg = '';
+      let keyboardToUse = mainKeyboard;
 
-🔘 *Opciones Rápidas:*
-• *📁 Proyectos & Tareas* ➔ Ver tareas activas y avance de proyectos.
-• *🚀 ABRIR MINI APP* ➔ Formulario interactivo completo (con o sin señal).
-• *📊 Tablero Hoy* ➔ Consultar métricas del día.
-• *⚠️ Incidencias* ➔ Ver folios activos en campo.
-• *🚜 Horómetro* ➔ Consultar horómetros de maquinaria.
-• *🌧️ Sin Actividad* ➔ Reportar paro por lluvia de inmediato.
-
-💡 _Tip:_ Escribe \`/general\` o \`/proyectos\` para ver el reporte de proyectos y tareas en curso.`;
+      if (authUser) {
+        welcomeMsg = `👋 *¡Bienvenido al Asistente de Operación AGROK, ${authUser.nombre}!*\n\n` +
+                     `🌾 *Sesión Activa:* Rol \`${authUser.rol.toUpperCase()}\`\n\n` +
+                     `🔘 *Opciones Rápidas Habilitadas:*\n` +
+                     `• *📁 Proyectos & Tareas* ➔ Ver tareas activas y avance de proyectos.\n` +
+                     `• *🚀 ABRIR MINI APP* ➔ Formulario interactivo completo (con o sin señal).\n` +
+                     `• *📊 Tablero Hoy* ➔ Consultar métricas del día.\n` +
+                     `• *⚠️ Incidencias* ➔ Ver folios activos en campo.\n` +
+                     `• *🚜 Horómetro* ➔ Consultar horómetros de maquinaria.\n` +
+                     `• *🌧️ Sin Actividad* ➔ Reportar paro por lluvia de inmediato.\n\n` +
+                     `_Para cerrar sesión escribe: /logout_`;
+        keyboardToUse = mainKeyboard;
+      } else {
+        welcomeMsg = `👋 *¡Hola ${firstName}! Bienvenido al Asistente de Operación AGROK.*\n\n` +
+                     `🔒 *Acceso Protegido:* Los botones de consulta y reportes operativos requieren una sesión iniciada.\n\n` +
+                     `🔑 *Para iniciar sesión:*\n` +
+                     `1. Escribe: \`/login [tu_PIN]\` (ejemplo: \`/login 1234\`)\n` +
+                     `2. O pulsa el botón *🚀 ABRIR MINI APP* e ingresa tu PIN en pantalla.`;
+        keyboardToUse = unauthKeyboard;
+      }
 
       const welcomeInline = {
         reply_markup: {
@@ -447,7 +541,7 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
         parse_mode: 'Markdown',
         message_thread_id: msg.message_thread_id,
         ...welcomeInline,
-        ...mainKeyboard
+        ...keyboardToUse
       }).catch(err => console.error('Error welcomeMsg:', err.message));
     });
 
@@ -519,6 +613,69 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
       const threadId = msg.message_thread_id;
       const text = msg.text.trim();
 
+      // Botón del teclado de no autenticado: 🔐 Iniciar Sesión (PIN)
+      if (text === '🔐 Iniciar Sesión (PIN)') {
+        return botInstance.sendMessage(
+          chatId,
+          '🔐 *INICIO DE SESIÓN AGROK*\n\nPor favor ingresa tu clave escribiendo:\n`/login [PIN]` (ejemplo: `/login 1234`)\n\nO pulsa el botón *🚀 ABRIR MINI APP* para identificarte en pantalla.',
+          { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+        );
+      }
+
+      // Identificar si la acción corresponde a los botones rápidos o comandos del sistema
+      const isQuickButtonAction =
+        text === '📁 Proyectos & Tareas' ||
+        text.toLowerCase() === '/general' ||
+        text.toLowerCase() === '/proyectos' ||
+        text.toLowerCase() === '/tareas' ||
+        text.toLowerCase() === 'general' ||
+        text === '📊 Tablero Hoy' ||
+        text.toLowerCase() === '/tablero' ||
+        text.toLowerCase() === '/hoy' ||
+        text === '⚠️ Incidencias' ||
+        text.toLowerCase().startsWith('/incidencias') ||
+        text.toLowerCase() === '/pendientes' ||
+        text === '🚜 Horómetro' ||
+        text.toLowerCase() === '/horometro' ||
+        text.toLowerCase() === '/maquinaria' ||
+        text.toLowerCase().startsWith('/maquina') ||
+        text === '🌧️ Sin Actividad' ||
+        text.toLowerCase().startsWith('/sin_actividad') ||
+        text.toLowerCase().startsWith('/avance');
+
+      // Comandos que no requieren sesión previa
+      const isPublicCommand =
+        text.toLowerCase().startsWith('/start') ||
+        text.toLowerCase().startsWith('/menu') ||
+        text.toLowerCase().startsWith('/ayuda') ||
+        text.toLowerCase().startsWith('/login') ||
+        text.toLowerCase().startsWith('/pin') ||
+        text.toLowerCase().startsWith('/logout') ||
+        text.toLowerCase().startsWith('/salir') ||
+        text.toLowerCase().startsWith('/id') ||
+        text.toLowerCase().startsWith('/tema') ||
+        text.toLowerCase().startsWith('/info_tema');
+
+      // 🛡️ PROTECCIÓN DE ACCESO: Si el usuario pulsa un botón rápido o intenta reportar sin sesión
+      if (isQuickButtonAction || (!isPublicCommand && !msg.reply_to_message?.text)) {
+        const user = await getAuthUser(msg);
+        if (!user) {
+          return botInstance.sendMessage(
+            chatId,
+            '🔒 *Acceso Protegido - Sesión Requerida*\n\n' +
+            'No tienes una sesión activa vinculada a tu cuenta de Telegram.\n' +
+            'Los botones de operación, consulta y reportes están bloqueados.\n\n' +
+            '👉 Para desbloquear, escribe: `/login [tu_PIN]` (ej: `/login 1234`)\n' +
+            'O pulsa **🚀 ABRIR MINI APP** para identificarte.',
+            {
+              parse_mode: 'Markdown',
+              message_thread_id: threadId,
+              ...unauthKeyboard
+            }
+          );
+        }
+      }
+
       // Opción General: 📁 Proyectos & Tareas en curso (o comandos /general, /proyectos, /tareas)
       if (
         text === '📁 Proyectos & Tareas' ||
@@ -579,7 +736,8 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
           motivo = text.replace(/^\/sin_actividad\s*/i, '').trim();
         }
 
-        const author = `${msg.from.first_name || 'Operador'}`;
+        const authUser = await getAuthUser(msg);
+        const author = authUser?.nombre || `${msg.from.first_name || 'Operador'}`;
         const obra = await db.get("SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.estado = 'operacion' LIMIT 1");
 
         const clientUuid = `tg-paro-${uuidv4()}`;
@@ -661,7 +819,8 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
       if (parsed.isValid) {
         try {
           const clientUuid = `tg-rep-${uuidv4()}`;
-          const author = `${msg.from.first_name || 'Operador'}`;
+          const authUser = await getAuthUser(msg);
+          const author = authUser?.nombre || `${msg.from.first_name || 'Operador'}`;
           const opDate = parsed.fecha_operativa || new Date().toISOString().split('T')[0];
 
           // Buscar obra correspondiente por nombre o por thread

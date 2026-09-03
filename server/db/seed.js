@@ -201,43 +201,50 @@ async function seed() {
   }
   console.log(`🏢 ${obrasData.length} Obras reales creadas y vinculadas a sus predios.`);
 
+  // 6.5 Entidades canónicas (Aspromex y Agrokool)
+  await db.run("INSERT OR IGNORE INTO entidad (nombre, tipo, contacto) VALUES ('Aspromex', 'empresa', 'Corporativo Aspromex')");
+  await db.run("INSERT OR IGNORE INTO entidad (nombre, tipo, contacto) VALUES ('Agrokool', 'empresa', 'Dirección General Agrokool')");
+  const aspromex = await db.get("SELECT id FROM entidad WHERE nombre = 'Aspromex'");
+  const agrokool = await db.get("SELECT id FROM entidad WHERE nombre = 'Agrokool'");
+
   // 7. Maquinaria Real de AGROK y Aspromex (Docs 5)
   // Puma con 288.5h para disparar la alerta preventiva de 300h (<= 20h)
+  // Préstamo Aspromex a Agrokool
   const m1 = await db.run(
-    `INSERT INTO maquina (codigo, modelo, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
-     VALUES (?, ?, ?, ?, ?)`,
-    ['TRACTOR-PUMA-01', 'Tractor CASE IH Puma 155 (Aspromex)', 288.5, 0.0, 1]
+    `INSERT INTO maquina (codigo, nombre, tipo, modelo, propietaria_id, operadora_id, umbral_servicio_hrs, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['TRACTOR-PUMA-01', 'Puma CASE IH 155', 'tractor', 'CASE IH Puma 155 CVX', aspromex.id, agrokool.id, 300, 288.5, 0.0, 1]
   );
   const m1Id = m1.lastID;
 
   const m2 = await db.run(
-    `INSERT INTO maquina (codigo, modelo, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
-     VALUES (?, ?, ?, ?, ?)`,
-    ['BULLDOZER-CAT-D6', 'Bulldozer Caterpillar D6', 1420.0, 1250.0, 0]
+    `INSERT INTO maquina (codigo, nombre, tipo, modelo, propietaria_id, operadora_id, umbral_servicio_hrs, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['BULLDOZER-CAT-D6', 'Bulldozer Caterpillar D6', 'bulldozer', 'Caterpillar D6T XL', agrokool.id, agrokool.id, 500, 1420.0, 1250.0, 0]
   );
   const m2Id = m2.lastID;
 
   const m3 = await db.run(
-    `INSERT INTO maquina (codigo, modelo, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
-     VALUES (?, ?, ?, ?, ?)`,
-    ['RETRO-NEW-HOLLAND', 'Retroexcavadora New Holland (Alfredo)', 286.5, 0.0, 1]
+    `INSERT INTO maquina (codigo, nombre, tipo, modelo, propietaria_id, operadora_id, umbral_servicio_hrs, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['RETRO-NEW-HOLLAND', 'Retroexcavadora New Holland (Alfredo)', 'retroexcavadora', 'New Holland B95B', agrokool.id, agrokool.id, 300, 286.5, 0.0, 1]
   );
   const m3Id = m3.lastID;
 
   const m4 = await db.run(
-    `INSERT INTO maquina (codigo, modelo, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
-     VALUES (?, ?, ?, ?, ?)`,
-    ['DRON-AGRAS-T70P', 'Dron Agrícola DJI Agras T70P (Abner)', 45.0, 0.0, 0]
+    `INSERT INTO maquina (codigo, nombre, tipo, modelo, propietaria_id, operadora_id, umbral_servicio_hrs, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['DRON-AGRAS-T70P', 'Dron Agrícola DJI Agras T70P (Abner)', 'dron', 'DJI Agras T70P', agrokool.id, agrokool.id, 100, 45.0, 0.0, 0]
   );
   const m4Id = m4.lastID;
 
   const m5 = await db.run(
-    `INSERT INTO maquina (codigo, modelo, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
-     VALUES (?, ?, ?, ?, ?)`,
-    ['SEMBRADORA-CASE-PRO6', 'Sembradora Case PRO 6 Hileras', 62.0, 0.0, 0]
+    `INSERT INTO maquina (codigo, nombre, tipo, modelo, propietaria_id, operadora_id, umbral_servicio_hrs, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['SEMBRADORA-CASE-PRO6', 'Sembradora Case PRO 6 Hileras', 'sembradora', 'Case IH Early Riser 2150', agrokool.id, agrokool.id, 250, 62.0, 0.0, 0]
   );
 
-  console.log('🚜 5 Máquinas reales creadas (Tractor Puma y Retroexcavadora en alerta preventiva 300h).');
+  console.log('🚜 5 Máquinas reales creadas con entidades propietarias y operadoras (Tractor Puma de Aspromex operado por Agrokool).');
 
   // 8. Incidencias Abiertas Reales del Corpus (Docs 2 y 5)
   await db.run(

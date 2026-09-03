@@ -217,14 +217,30 @@ const DDL_SCHEMA = `
     FOREIGN KEY (reporte_id) REFERENCES reporte(id) ON DELETE CASCADE
   );
 
-  -- 11. Tabla de Maquinaria y Equipos
+  -- 11. Tabla de Entidades Locales (Empresas propietarias / operadoras)
+  CREATE TABLE IF NOT EXISTS entidad (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT UNIQUE NOT NULL,
+    tipo TEXT DEFAULT 'empresa',
+    contacto TEXT,
+    activo INTEGER NOT NULL DEFAULT 1
+  );
+
+  -- 11. Tabla de Maquinaria y Equipos (Flota Móvil)
   CREATE TABLE IF NOT EXISTS maquina (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     codigo TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL DEFAULT '',
+    tipo TEXT NOT NULL DEFAULT 'tractor' CHECK(tipo IN ('tractor', 'bulldozer', 'retroexcavadora', 'dron', 'sembradora', 'rastra')),
     modelo TEXT NOT NULL,
+    propietaria_id INTEGER,
+    operadora_id INTEGER,
+    umbral_servicio_hrs REAL NOT NULL DEFAULT 300,
     horometro_actual REAL NOT NULL DEFAULT 0,
     ultimo_servicio_hr REAL NOT NULL DEFAULT 0,
-    alerta_mantenimiento INTEGER NOT NULL DEFAULT 0
+    alerta_mantenimiento INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (propietaria_id) REFERENCES entidad(id) ON DELETE SET NULL,
+    FOREIGN KEY (operadora_id) REFERENCES entidad(id) ON DELETE SET NULL
   );
 
   -- 12. Tabla de Lecturas de Horómetro
@@ -311,7 +327,53 @@ async function initDatabase() {
     try {
       await db.run("ALTER TABLE reporte ADD COLUMN creado_offline DATETIME");
     } catch (e) {}
-    console.log('✅ Esquema DDL de SQLite inicializado correctamente (16 tablas relacionales con soporte de fotos y hora offline).');
+    try {
+      await db.run("ALTER TABLE maquina ADD COLUMN nombre TEXT NOT NULL DEFAULT ''");
+    } catch (e) {}
+    try {
+      await db.run("ALTER TABLE maquina ADD COLUMN tipo TEXT NOT NULL DEFAULT 'tractor'");
+    } catch (e) {}
+    try {
+      await db.run("ALTER TABLE maquina ADD COLUMN propietaria_id INTEGER REFERENCES entidad(id)");
+    } catch (e) {}
+    try {
+      await db.run("ALTER TABLE maquina ADD COLUMN operadora_id INTEGER REFERENCES entidad(id)");
+    } catch (e) {}
+    try {
+      await db.run("ALTER TABLE maquina ADD COLUMN umbral_servicio_hrs REAL NOT NULL DEFAULT 300");
+    } catch (e) {}
+
+    // Sembrar entidades canónicas básicas si no existen
+    try {
+      await db.run("INSERT OR IGNORE INTO entidad (nombre, tipo) VALUES ('Aspromex', 'empresa'), ('Agrokool', 'empresa'), ('Particular / Tercero', 'externo')");
+    } catch (e) {}
+
+    // Sincronizar nombre y tipo si estaban vacíos
+    try {
+      await db.run("UPDATE maquina SET nombre = modelo WHERE nombre = '' OR nombre IS NULL");
+      await db.run(`
+        UPDATE maquina
+        SET tipo = CASE
+          WHEN codigo LIKE '%TRACTOR%' OR modelo LIKE '%Tractor%' THEN 'tractor'
+          WHEN codigo LIKE '%BULL%' OR modelo LIKE '%Bulldozer%' THEN 'bulldozer'
+          WHEN codigo LIKE '%RETRO%' OR modelo LIKE '%Retroexcavadora%' THEN 'retroexcavadora'
+          WHEN codigo LIKE '%DRON%' OR modelo LIKE '%Dron%' THEN 'dron'
+          WHEN codigo LIKE '%SEMBRADORA%' OR modelo LIKE '%Sembradora%' THEN 'sembradora'
+          WHEN codigo LIKE '%RASTRA%' OR modelo LIKE '%Rastra%' THEN 'rastra'
+          ELSE 'tractor'
+        END
+        WHERE tipo IS NULL OR tipo = 'tractor'
+      `);
+      // Asociar Puma a Aspromex y Agrokool
+      const aspro = await db.get("SELECT id FROM entidad WHERE nombre = 'Aspromex'");
+      const agro = await db.get("SELECT id FROM entidad WHERE nombre = 'Agrokool'");
+      if (aspro && agro) {
+        await db.run(`UPDATE maquina SET propietaria_id = ?, operadora_id = ? WHERE codigo = 'TRACTOR-PUMA-01' AND (propietaria_id IS NULL OR operadora_id IS NULL)`, [aspro.id, agro.id]);
+        await db.run(`UPDATE maquina SET propietaria_id = ?, operadora_id = ? WHERE propietaria_id IS NULL`, [agro.id, agro.id]);
+      }
+    } catch (e) {}
+
+    console.log('✅ Esquema DDL de SQLite inicializado correctamente (17 tablas relacionales con soporte de fotos, hora offline y catálogo de maquinaria).');
   } catch (err) {
     console.error('❌ Error al inicializar esquema DDL:', err);
     throw err;

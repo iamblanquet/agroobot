@@ -100,11 +100,11 @@ export default function App() {
     },
     {
       id: 'catalogos',
-      label: 'Predios & Frentes',
+      label: 'Predios, Frentes & Maq.',
       icon: MapPin,
       view: 'supervisor',
       subTab: 'catalogos',
-      badge: supervisorMetadata ? `${supervisorMetadata.predios}P` : null,
+      badge: supervisorMetadata ? `${supervisorMetadata.predios}P / ${supervisorMetadata.maquinas || 0}M` : null,
       roles: ['supervisor', 'direccion', 'it']
     },
     {

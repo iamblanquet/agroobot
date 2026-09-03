@@ -39,13 +39,30 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const [stats, setStats] = useState(null);
   const [proyectosList, setProyectosList] = useState([]);
   const [prediosList, setPrediosList] = useState([]);
+  const [machinesList, setMachinesList] = useState([]);
+  const [entidadesList, setEntidadesList] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [reportesList, setReportesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filtro y búsqueda en Catálogos
-  const [catalogoSubTab, setCatalogoSubTab] = useState('todos'); // 'todos' | 'predios' | 'frentes'
+  const [catalogoSubTab, setCatalogoSubTab] = useState('todos'); // 'todos' | 'predios' | 'frentes' | 'maquinaria'
   const [catalogoSearch, setCatalogoSearch] = useState('');
+
+  // Modal Maquinaria (Crear / Editar)
+  const [showMachineModal, setShowMachineModal] = useState(false);
+  const [editingMachine, setEditingMachine] = useState(null);
+  const [machineForm, setMachineForm] = useState({
+    codigo: '',
+    nombre: '',
+    tipo: 'tractor',
+    modelo: '',
+    propietaria_id: '',
+    operadora_id: '',
+    umbral_servicio_hrs: 300,
+    horometro_actual: 0,
+    ultimo_servicio_hr: 0
+  });
 
   // Modal Visor de Foto Ampliada
   const [activePhotoModal, setActivePhotoModal] = useState(null);
@@ -130,20 +147,26 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [statsData, projData, predData, repData] = await Promise.all([
+      const [statsData, projData, predData, repData, machData, entData] = await Promise.all([
         api.get('/stats/supervisor'),
         api.get('/projects'),
         api.get('/projects/predios'),
-        api.get('/reports?limit=50')
+        api.get('/reports?limit=50'),
+        api.get('/machines'),
+        api.get('/machines/entidades')
       ]);
 
       setStats(statsData);
       const prList = projData.projects || [];
       const pdList = predData.predios || [];
       const rpList = repData.reports || [];
+      const mcList = machData.machines || [];
+      const etList = entData.entidades || [];
       setProyectosList(prList);
       setPrediosList(pdList);
       setReportesList(rpList);
+      setMachinesList(mcList);
+      setEntidadesList(etList);
 
       if (onRegisterMetadata) {
         onRegisterMetadata({
@@ -151,6 +174,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
           predios: pdList.length,
           obras: prList.reduce((acc, p) => acc + (p.obras?.length || 0), 0),
           reportes: rpList.length,
+          maquinas: mcList.length,
           reloadFn: loadData
         });
       }
@@ -466,6 +490,74 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       await loadData();
     } catch (err) {
       alert('Error al eliminar predio: ' + err.message);
+    }
+  };
+
+  // --- CRUD MAQUINARIA (FLOTA MÓVIL) ---
+  const handleOpenMachineModal = (machine = null) => {
+    setEditingMachine(machine);
+    if (machine) {
+      setMachineForm({
+        codigo: machine.codigo,
+        nombre: machine.nombre || machine.modelo,
+        tipo: machine.tipo || 'tractor',
+        modelo: machine.modelo,
+        propietaria_id: machine.propietaria_id ? String(machine.propietaria_id) : '',
+        operadora_id: machine.operadora_id ? String(machine.operadora_id) : '',
+        umbral_servicio_hrs: machine.umbral_servicio_hrs || 300,
+        horometro_actual: machine.horometro_actual || 0,
+        ultimo_servicio_hr: machine.ultimo_servicio_hr || 0
+      });
+    } else {
+      setMachineForm({
+        codigo: '',
+        nombre: '',
+        tipo: 'tractor',
+        modelo: '',
+        propietaria_id: entidadesList.find(e => e.nombre.toLowerCase().includes('aspromex'))?.id ? String(entidadesList.find(e => e.nombre.toLowerCase().includes('aspromex')).id) : (entidadesList[0]?.id ? String(entidadesList[0].id) : ''),
+        operadora_id: entidadesList.find(e => e.nombre.toLowerCase().includes('agrokool'))?.id ? String(entidadesList.find(e => e.nombre.toLowerCase().includes('agrokool')).id) : (entidadesList[0]?.id ? String(entidadesList[0].id) : ''),
+        umbral_servicio_hrs: 300,
+        horometro_actual: 0,
+        ultimo_servicio_hr: 0
+      });
+    }
+    setShowMachineModal(true);
+  };
+
+  const handleSaveMachine = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingMachine) {
+        await api.patch(`/machines/${editingMachine.id}`, machineForm);
+      } else {
+        await api.post('/machines', machineForm);
+      }
+      setShowMachineModal(false);
+      setEditingMachine(null);
+      await loadData();
+    } catch (err) {
+      alert('Error al guardar maquinaria: ' + err.message);
+    }
+  };
+
+  const handleDeleteMachine = async (machineId, nombre) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la máquina "${nombre}" del catálogo?`)) return;
+    try {
+      await api.delete(`/machines/${machineId}`);
+      await loadData();
+    } catch (err) {
+      alert('Error al eliminar máquina: ' + err.message);
+    }
+  };
+
+  const handleServiceMachine = async (machine) => {
+    if (!window.confirm(`¿Registrar servicio preventivo de mantenimiento para "${machine.nombre || machine.codigo}"? Esto reiniciará el contador de horas.`)) return;
+    try {
+      const res = await api.post(`/machines/${machine.id}/service`);
+      alert(res.message || 'Servicio registrado correctamente.');
+      await loadData();
+    } catch (err) {
+      alert('Error al registrar servicio: ' + err.message);
     }
   };
 
@@ -1468,7 +1560,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       )}
 
       {/* ========================================================================= */}
-      {/* VISTA 4: CATÁLOGO DE PREDIOS Y FRENTES (REDDISEÑADO Y RESPONSIVO)         */}
+      {/* VISTA 4: CATÁLOGO DE PREDIOS, FRENTES Y MAQUINARIA (EDITABLE Y RESPONSIVO) */}
       {/* ========================================================================= */}
       {activeTab === 'catalogos' && (() => {
         const allObras = proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id })));
@@ -1484,6 +1576,16 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
           ob.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) || 
           ob.proyecto_nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
           ob.fase_actual?.toLowerCase().includes(catalogoSearch.toLowerCase())
+        );
+
+        const filteredMachines = machinesList.filter(m =>
+          !catalogoSearch ||
+          m.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
+          m.codigo?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
+          m.modelo?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
+          m.tipo?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
+          m.propietaria_nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
+          m.operadora_nombre?.toLowerCase().includes(catalogoSearch.toLowerCase())
         );
 
         const statusColors = {
@@ -1504,10 +1606,10 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
             <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-emerald-500" /> Catálogo Maestro de Predios & Frentes de Obra
+                  <MapPin className="w-5 h-5 text-emerald-500" /> Catálogos Operativos: Predios, Frentes & Maquinaria
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Administración integral de polígonos, hectáreas útiles y frentes operativos
+                  Administración integral de polígonos, frentes de obra y parque de maquinaria (Flota Móvil)
                 </p>
               </div>
 
@@ -1528,6 +1630,14 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Nuevo Frente</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMachineModal()}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-[#a87d13] hover:bg-[#8f690f] text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Tractor className="w-3.5 h-3.5 text-amber-200" />
+                  <span>+ Nueva Máquina</span>
                 </button>
               </div>
             </div>
@@ -1550,9 +1660,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 <span className="text-[10px] text-purple-500 font-medium block mt-0.5">En operación o habilitación</span>
               </div>
               <div className="p-3.5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Proyectos Madre</span>
-                <span className="text-xl font-black text-blue-600 dark:text-blue-400">{proyectosList.length}</span>
-                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Ciclos agrícolas vigentes</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Flota Maquinaria</span>
+                <span className="text-xl font-black text-amber-600 dark:text-amber-400">{machinesList.length}</span>
+                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Equipos móviles activos</span>
               </div>
             </div>
 
@@ -1569,7 +1679,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                   }`}
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
-                  <span>Todos ({prediosList.length + allObras.length})</span>
+                  <span>Todos ({prediosList.length + allObras.length + machinesList.length})</span>
                 </button>
                 <button
                   type="button"
@@ -1594,6 +1704,18 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 >
                   <Building className="w-3.5 h-3.5" />
                   <span>Frentes ({allObras.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCatalogoSubTab('maquinaria')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
+                    catalogoSubTab === 'maquinaria'
+                      ? 'bg-[#a87d13] text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Tractor className="w-3.5 h-3.5" />
+                  <span>Maquinaria ({machinesList.length})</span>
                 </button>
               </div>
 
@@ -1795,6 +1917,145 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN PARQUE DE MAQUINARIA (FLOTA MÓVIL) */}
+            {(catalogoSubTab === 'todos' || catalogoSubTab === 'maquinaria') && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Tractor className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Catálogo de Maquinaria (Flota Móvil) ({filteredMachines.length})</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">Mantenimiento preventivo por umbral de horas</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {filteredMachines.map((mq) => {
+                    const umbral = mq.umbral_servicio_hrs || 300;
+                    const hrsDesdeServicio = mq.horometro_actual - (mq.ultimo_servicio_hr || 0);
+                    const pct = Math.min(100, Math.round((hrsDesdeServicio / umbral) * 100));
+                    const isAlerta = mq.alerta_mantenimiento === 1 || hrsDesdeServicio >= (umbral - 20);
+
+                    return (
+                      <div
+                        key={mq.id}
+                        className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm flex flex-col justify-between hover:shadow-md hover:border-amber-400/80 transition group"
+                      >
+                        <div>
+                          {/* Header Máquina */}
+                          <div className="flex items-start justify-between gap-2 border-b border-[#e2ebd3] dark:border-[#253905]/60 pb-2.5">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                                  {mq.codigo}
+                                </span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#f4f8ed] dark:bg-[#1f3004] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] uppercase">
+                                  {mq.tipo}
+                                </span>
+                                {isAlerta && (
+                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500 text-white animate-pulse">
+                                    ALERTA {umbral}h
+                                  </span>
+                                )}
+                              </div>
+                              <h5 className="text-sm font-bold text-slate-900 dark:text-white mt-1.5 flex items-center gap-1.5">
+                                <Tractor className="w-4 h-4 text-amber-500 flex-shrink-0" /> {mq.nombre || mq.modelo}
+                              </h5>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenMachineModal(mq)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-900 transition"
+                                title="Editar máquina"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMachine(mq.id, mq.nombre || mq.codigo)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+                                title="Eliminar máquina"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Entidades Propietaria y Operadora */}
+                          <div className="py-2.5 space-y-1.5 text-xs border-b border-[#e2ebd3] dark:border-[#253905]/60">
+                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                              <span>Propietaria:</span>
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {mq.propietaria_nombre || 'Aspromex'}
+                              </strong>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                              <span>Operadora:</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {mq.operadora_nombre || 'Agrokool'}
+                              </span>
+                            </div>
+                            {mq.propietaria_nombre !== mq.operadora_nombre && (
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic">
+                                ℹ️ Maquinaria en préstamo / convenio inter-empresas
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Horómetro y Mantenimiento */}
+                          <div className="py-2.5 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-500 font-medium">Horómetro Actual:</span>
+                              <span className="font-black text-slate-900 dark:text-white font-mono">
+                                {mq.horometro_actual} hrs
+                              </span>
+                            </div>
+
+                            {/* Barra de Horómetro hacia el Umbral */}
+                            <div>
+                              <div className="flex justify-between text-[11px] mb-1">
+                                <span className="text-slate-500">
+                                  Ciclo: <strong>{hrsDesdeServicio.toFixed(1)} / {umbral} hrs</strong>
+                                </span>
+                                <span className={`font-bold ${isAlerta ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                  {pct}%
+                                </span>
+                              </div>
+                              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden border border-slate-200 dark:border-slate-700">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    isAlerta ? 'bg-amber-500' : 'bg-emerald-500'
+                                  }`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Botón de Servicio Preventivo */}
+                        <div className="pt-2.5 border-t border-[#e2ebd3] dark:border-[#253905]/60 flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-slate-500">
+                            Último serv: <strong>{mq.ultimo_servicio_hr || 0} hrs</strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleServiceMachine(mq)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                            title="Resetear contador tras servicio preventivo"
+                          >
+                            <Wrench className="w-3 h-3" />
+                            <span>Servicio {umbral}h</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -2383,7 +2644,191 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         </div>
       )}
 
-      {/* MODAL 5: CIERRE DE INCIDENCIA */}
+      {/* MODAL 5: CREAR / EDITAR MAQUINARIA (FLOTA MÓVIL) */}
+      {showMachineModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Tractor className="w-5 h-5 text-amber-500" />
+                {editingMachine ? `Editar Máquina: ${editingMachine.nombre || editingMachine.codigo}` : 'Registrar Nueva Máquina en Catálogo'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setShowMachineModal(false); setEditingMachine(null); }}
+                className="text-slate-600 dark:text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMachine} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Código Identificador *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={machineForm.codigo}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
+                    placeholder="ej. TRACTOR-PUMA-01, BULL-CAT-01"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Tipo de Maquinaria *
+                  </label>
+                  <select
+                    required
+                    value={machineForm.tipo}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, tipo: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none capitalize"
+                  >
+                    {['tractor', 'bulldozer', 'retroexcavadora', 'dron', 'sembradora', 'rastra'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Nombre Descriptivo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={machineForm.nombre}
+                  onChange={(e) => setMachineForm(prev => ({ ...prev, nombre: e.target.value }))}
+                  placeholder="ej. Puma CASE IH 155, Bulldozer Caterpillar D6"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Modelo o Especificación
+                </label>
+                <input
+                  type="text"
+                  value={machineForm.modelo}
+                  onChange={(e) => setMachineForm(prev => ({ ...prev, modelo: e.target.value }))}
+                  placeholder="ej. CASE IH Puma 155 CVX, DJI Agras T70P"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Entidad Propietaria *
+                  </label>
+                  <select
+                    value={machineForm.propietaria_id}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, propietaria_id: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                  >
+                    <option value="">Seleccionar Propietaria...</option>
+                    {entidadesList.map(ent => (
+                      <option key={ent.id} value={ent.id}>{ent.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Entidad Operadora *
+                  </label>
+                  <select
+                    value={machineForm.operadora_id}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, operadora_id: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                  >
+                    <option value="">Seleccionar Operadora...</option>
+                    {entidadesList.map(ent => (
+                      <option key={ent.id} value={ent.id}>{ent.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {machineForm.propietaria_id && machineForm.operadora_id && machineForm.propietaria_id !== machineForm.operadora_id && (
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300">
+                  ⚠️ Convenio detectado: La maquinaria pertenece a <strong>{entidadesList.find(e => String(e.id) === String(machineForm.propietaria_id))?.nombre}</strong> y es operada en préstamo por <strong>{entidadesList.find(e => String(e.id) === String(machineForm.operadora_id))?.nombre}</strong>.
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Umbral Servicio (hrs) *
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="10"
+                    required
+                    value={machineForm.umbral_servicio_hrs}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, umbral_servicio_hrs: parseFloat(e.target.value) || 300 }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500">ej. 300 hrs</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Horómetro Actual (hrs)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={machineForm.horometro_actual}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, horometro_actual: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Último Servicio (hrs)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={machineForm.ultimo_servicio_hr}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, ultimo_servicio_hr: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#e2ebd3] dark:border-[#253905]">
+                <button
+                  type="button"
+                  onClick={() => { setShowMachineModal(false); setEditingMachine(null); }}
+                  className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-[#a87d13] hover:bg-[#8f690f] text-white text-xs font-bold shadow-md shadow-amber-950/40"
+                >
+                  {editingMachine ? 'Guardar Cambios' : 'Registrar Máquina'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: CIERRE DE INCIDENCIA */}
       {selectedIssueToClose && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">

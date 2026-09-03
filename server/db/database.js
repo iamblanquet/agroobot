@@ -180,6 +180,8 @@ const DDL_SCHEMA = `
     obra_id INTEGER,
     recibido_en DATETIME DEFAULT CURRENT_TIMESTAMP,
     fecha_operativa DATE NOT NULL,
+    hora_offline TEXT,
+    creado_offline DATETIME,
     autor_nombre TEXT NOT NULL,
     texto_original TEXT,
     nota TEXT,
@@ -303,7 +305,13 @@ async function initDatabase() {
     try {
       await db.run("ALTER TABLE usuario ADD COLUMN pin TEXT");
     } catch (e) {}
-    console.log('✅ Esquema DDL de SQLite inicializado correctamente (16 tablas relacionales con soporte de fotos).');
+    try {
+      await db.run("ALTER TABLE reporte ADD COLUMN hora_offline TEXT");
+    } catch (e) {}
+    try {
+      await db.run("ALTER TABLE reporte ADD COLUMN creado_offline DATETIME");
+    } catch (e) {}
+    console.log('✅ Esquema DDL de SQLite inicializado correctamente (16 tablas relacionales con soporte de fotos y hora offline).');
   } catch (err) {
     console.error('❌ Error al inicializar esquema DDL:', err);
     throw err;

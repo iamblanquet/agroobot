@@ -1222,8 +1222,14 @@ export default function SupervisorView() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          Fecha Operativa: <strong className="text-slate-800 dark:text-slate-200">{rep.fecha_operativa}</strong> · Registrado por: <strong className="text-slate-800 dark:text-slate-200">{rep.autor_nombre}</strong>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                          <span>Fecha: <strong className="text-slate-800 dark:text-slate-200">{rep.fecha_operativa}</strong></span>
+                          {rep.hora_offline && (
+                            <span className="bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-300 dark:border-amber-700/60 flex items-center gap-1">
+                              ⏰ Captura Offline: <strong>{rep.hora_offline} hrs</strong>
+                            </span>
+                          )}
+                          <span>· Por: <strong className="text-slate-800 dark:text-slate-200">{rep.autor_nombre}</strong></span>
                         </p>
                       </div>
 

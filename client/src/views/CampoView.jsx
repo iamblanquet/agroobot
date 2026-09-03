@@ -231,8 +231,12 @@ export default function CampoView() {
     setSubmitFeedback(null);
 
     const clientUuid = `rep-local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const horaCaptura = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    const creadoOffline = now.toISOString();
 
+    const isOfflineMode = offlineSimulated || !navigator.onLine;
     const motivoFinal = motivoSinActividad === 'Otro' ? motivoPersonalizado : motivoSinActividad;
 
     const reportPayload = {
@@ -240,6 +244,9 @@ export default function CampoView() {
       obra_id: parseInt(selectedObraId, 10) || null,
       proyecto_id: parseInt(selectedProyectoId, 10) || null,
       fecha_operativa: today,
+      hora_offline: horaCaptura,
+      creado_offline: creadoOffline,
+      fue_capturado_offline: isOfflineMode ? 1 : 0,
       autor_nombre: user?.nombre || 'Operador de Campo',
       nota: nota.trim() || null,
       es_sin_actividad: esSinActividad,
@@ -280,15 +287,13 @@ export default function CampoView() {
       }))
     };
 
-    const isOfflineMode = offlineSimulated || !navigator.onLine;
-
     try {
       if (isOfflineMode) {
         // Guardar en cola offline de IndexedDB
         await saveReportOffline(reportPayload);
         setSubmitFeedback({
           type: 'offline',
-          text: `📡 Reporte guardado con ${fotos.length} foto(s) en almacenamiento local (Modo Sin Señal). Se sincronizará automáticamente al volver la red.`
+          text: `📡 Reporte guardado a las ${horaCaptura} hrs (Modo Sin Señal) con ${fotos.length} foto(s). Se sincronizará automáticamente al volver la red.`
         });
       } else {
         // Enviar a Standalone API

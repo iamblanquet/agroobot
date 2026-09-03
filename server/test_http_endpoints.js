@@ -77,6 +77,8 @@ async function testHttpEndpoints() {
           proyecto_id: 1,
           tarea_id: 1,
           fecha_operativa: '2026-08-31',
+          hora_offline: '14:45:30',
+          creado_offline: '2026-08-31T14:45:30.000Z',
           autor_nombre: 'Operador Test',
           es_sin_actividad: false,
           lineas: [{ cantidad: 5.0, unidad: 'ha', cantidad_ha: 5.0 }],
@@ -93,11 +95,11 @@ async function testHttpEndpoints() {
       }, token);
       console.log('   ✅ Re-envío duplicado detectado (Idempotente): Ignorados =', dupRes.ignoredCount);
 
-      // 6b. Verificar GET /api/reports con fotos
-      console.log('\n6b. Probando GET /api/reports (con evidencias fotográficas)...');
+      // 6b. Verificar GET /api/reports con fotos y hora_offline
+      console.log('\n6b. Probando GET /api/reports (con evidencias fotográficas y hora offline)...');
       const repListRes = await requestJson('http://localhost:3099/api/reports?limit=5', 'GET', null, token);
       const repWithFotos = repListRes.reports?.find(r => r.client_uuid === syncUUID);
-      console.log('   ✅ Reportes consultados:', repListRes.reports?.length, '| Fotos en reporte sinc:', repWithFotos?.fotos?.length);
+      console.log('   ✅ Reportes consultados:', repListRes.reports?.length, '| Fotos:', repWithFotos?.fotos?.length, '| Hora Offline:', repWithFotos?.hora_offline);
 
       // 7. Stats Dirección
       console.log('\n7. Probando GET /api/stats/direction (KPIs Dirección)...');

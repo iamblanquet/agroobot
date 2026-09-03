@@ -50,6 +50,8 @@ async function notifyReporte(reportData) {
     obraNombre,
     proyectoNombre,
     fechaOperativa,
+    horaOffline,
+    creadoOffline,
     autorNombre,
     esSinActividad,
     motivoSinActividad,
@@ -60,11 +62,14 @@ async function notifyReporte(reportData) {
     clientUuid
   } = reportData;
 
+  const horaTxt = horaOffline ? `\n⏰ *Hora Captura (Sin Internet):* \`${horaOffline} hrs\`` : '';
+
   if (esSinActividad) {
     const text = `🌧️ *DÍA SIN ACTIVIDAD REPORTADO*\n\n` +
                  `🏢 *Obra:* ${obraNombre || 'General'}\n` +
                  `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
-                 `📅 *Fecha Operativa:* \`${fechaOperativa}\`\n` +
+                 `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
+                 horaTxt + `\n` +
                  `📝 *Motivo:* ${motivoSinActividad || 'Paro operativo'}\n` +
                  `👤 *Autor:* ${autorNombre || 'Operador'}\n` +
                  `💾 _Folio:_ \`${clientUuid || 'N/A'}\``;
@@ -92,7 +97,8 @@ async function notifyReporte(reportData) {
   const text = `📋 *REPORTE DE CAMPO OFICIAL*\n\n` +
                `🏢 *Obra:* ${obraNombre || 'General'}\n` +
                `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
-               `📅 *Fecha Operativa:* \`${fechaOperativa}\`\n` +
+               `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
+               horaTxt + `\n` +
                `👤 *Autor:* ${autorNombre || 'Operador'}` +
                avanceTxt +
                cuadrillaTxt +

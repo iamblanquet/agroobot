@@ -238,6 +238,7 @@ La interfaz web (PWA) adapta su navegación y funciones según el rol del usuari
 | **Autenticación con PIN 4 Dígitos & Sesión Persistente** | ✅ Cumplido | `LoginView.jsx`, `pin-login` endpoint, `localStorage` para sesión sin re-logins innecesarios. |
 | **Parser Multi-predio con Confirmación Interactiva** | ✅ Cumplido | `server/bot/parser.js`, despiece de Cristina/Rach/Mangos, botones `[✅ Confirmar]` / `[✏️ Corregir]`. |
 | **Evidencias Fotográficas en Reportes (Cámara / Galería)** | ✅ Cumplido | `CampoView.jsx` (compresión automática a 1280px), tabla `reporte_foto`, fotos en Telegram (`sendPhoto` / `sendMediaGroup`) y bitácora con lightbox en `SupervisorView.jsx`. |
+| **Registro de Hora Exacta Offline (Sin Internet)** | ✅ Cumplido | Guarda `hora_offline` (`HH:mm:ss`) y `creado_offline` en IndexedDB/SQLite, reflejado en Telegram y bitácora de supervisión. |
 | **Cron Jobs Automatizados (4 Horarios)** | ✅ Cumplido | `server/bot/cron.js` (07:30 General Proyectos/Tareas, 08:00 Matutinas, 21:00 Reclamos, 21:30 Tablero). |
 | **4 Widgets Canónicos de Supervisión** | ✅ Cumplido | `SupervisorView.jsx` (Sin reporte, Avance vs Meta, Incidencias, Materiales bloqueados). |
 | **Cierre de Incidencias con Validación de Causa Raíz** | ✅ Cumplido | `server/routes/issues.js` (Rechaza strings $< 10$ caracteres con HTTP 400). |

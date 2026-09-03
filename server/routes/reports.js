@@ -32,6 +32,8 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         tarea_id,
         obra_id,
         fecha_operativa,
+        hora_offline,
+        creado_offline,
         autor_nombre,
         texto_original,
         nota,
@@ -58,14 +60,16 @@ router.post('/sync', authenticateJWT, async (req, res) => {
 
       const opDate = fecha_operativa || new Date().toISOString().split('T')[0];
       const author = autor_nombre || req.user.nombre || 'Operador de Campo';
+      const horaOff = hora_offline || null;
+      const creadoOff = creado_offline || null;
 
       // Insertar reporte principal
       const repRes = await db.run(
         `INSERT INTO reporte (
           client_uuid, proyecto_id, hito_id, tarea_id, obra_id,
-          recibido_en, fecha_operativa, autor_nombre, texto_original,
+          recibido_en, fecha_operativa, hora_offline, creado_offline, autor_nombre, texto_original,
           nota, estado, es_sin_actividad, motivo_sin_actividad
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, 'confirmado', ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, 'confirmado', ?, ?)`,
         [
           client_uuid,
           proyecto_id || null,
@@ -73,6 +77,8 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           tarea_id || null,
           obra_id || null,
           opDate,
+          horaOff,
+          creadoOff,
           author,
           texto_original || null,
           nota || null,
@@ -223,6 +229,8 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           obraNombre: obraObj?.nombre,
           proyectoNombre: projObj?.nombre,
           fechaOperativa: opDate,
+          horaOffline: horaOff,
+          creadoOffline: creadoOff,
           autorNombre: author,
           esSinActividad: !!es_sin_actividad,
           motivoSinActividad: motivo_sin_actividad,

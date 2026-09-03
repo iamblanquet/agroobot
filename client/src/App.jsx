@@ -42,10 +42,16 @@ export default function App() {
   // Ajustar vista predeterminada según el rol del usuario autenticado
   useEffect(() => {
     if (user?.rol) {
-      if (user.rol === 'campo') setCurrentView('campo');
-      else if (user.rol === 'supervisor') setCurrentView('supervisor');
-      else if (user.rol === 'direccion') setCurrentView('direccion');
-      else if (user.rol === 'it') setCurrentView('it');
+      if (user.rol === 'campo') {
+        setCurrentView('campo');
+      } else if (user.rol === 'supervisor') {
+        setCurrentView('supervisor');
+        setActiveSupervisorTab('tablero'); // Inicio directo en 4 Widgets Canónicos
+      } else if (user.rol === 'direccion') {
+        setCurrentView('direccion');
+      } else if (user.rol === 'it') {
+        setCurrentView('it');
+      }
     }
   }, [user]);
 
@@ -69,11 +75,12 @@ export default function App() {
   // Definición de ítems del Sidebar
   const navItems = [
     {
-      id: 'home',
-      label: 'Inicio / Módulos',
-      icon: Home,
-      view: 'home',
-      roles: ['campo', 'supervisor', 'direccion', 'it']
+      id: 'inicio_widgets',
+      label: 'Inicio (4 Widgets)',
+      icon: TrendingUp,
+      view: 'supervisor',
+      subTab: 'tablero',
+      roles: ['supervisor', 'direccion', 'it']
     },
     {
       id: 'campo',
@@ -81,14 +88,6 @@ export default function App() {
       icon: HardHat,
       view: 'campo',
       roles: ['campo', 'supervisor', 'direccion', 'it']
-    },
-    {
-      id: 'tablero',
-      label: '4 Widgets Canónicos',
-      icon: TrendingUp,
-      view: 'supervisor',
-      subTab: 'tablero',
-      roles: ['supervisor', 'direccion', 'it']
     },
     {
       id: 'proyectos',

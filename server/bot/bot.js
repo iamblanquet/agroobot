@@ -992,14 +992,14 @@ async function createObraForumTopic(obraNombre, proyectoNombre) {
       const threadId = topic.message_thread_id;
 
       // Mensaje de bienvenida fijado en el nuevo tema
-      const welcomeText = `🌾 *FRENTE OPERATIVO HABILITADO EN TELEGRAM*\n\n` +
-                          `🏢 *Frente:* ${obraNombre}\n` +
-                          `📋 *Proyecto:* ${proyectoNombre || 'General'}\n\n` +
-                          `📌 *Operación:* Cualquier reporte de jornada, horas máquina o aviso enviado en este tema será asociado automáticamente a este frente.\n\n` +
-                          `💡 _Puedes enviar texto libre con el formato de cuadrilla y avances o usar_ \`/sin_actividad\`.`;
+      const welcomeText = `🌾 <b>FRENTE OPERATIVO HABILITADO EN TELEGRAM</b>\n\n` +
+                          `🏢 <b>Frente:</b> ${obraNombre}\n` +
+                          `📋 <b>Proyecto:</b> ${proyectoNombre || 'General'}\n\n` +
+                          `📌 <b>Operación:</b> Cualquier reporte de jornada, horas máquina o aviso enviado en este tema será asociado automáticamente a este frente.\n\n` +
+                          `💡 <i>Puedes enviar texto libre con el formato de cuadrilla y avances o usar</i> <code>/sin_actividad</code>.`;
 
       const welcomeMsg = await botInstance.sendMessage(supergroupId, welcomeText, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         message_thread_id: threadId
       });
 

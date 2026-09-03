@@ -607,6 +607,14 @@ function initTelegramBot(app) {
 
     // 4. Manejador Principal de Mensajes
     botInstance.on('message', async (msg) => {
+      // Auto-registrar supergrupo si el mensaje proviene de un supergrupo o grupo
+      if (msg.chat && (msg.chat.type === 'supergroup' || msg.chat.type === 'group')) {
+        if (!process.env.TELEGRAM_SUPERGROUP_ID) {
+          process.env.TELEGRAM_SUPERGROUP_ID = String(msg.chat.id);
+          console.log(`📡 [Telegram] TELEGRAM_SUPERGROUP_ID auto-detectado y configurado: ${msg.chat.id} (${msg.chat.title})`);
+        }
+      }
+
       if (!msg.text) return;
 
       const chatId = msg.chat.id;
@@ -964,13 +972,20 @@ function initTelegramBot(app) {
  * @returns {Promise<number|null>} message_thread_id creado o null
  */
 async function createObraForumTopic(obraNombre, proyectoNombre) {
-  if (!botInstance) return null;
+  if (!botInstance) {
+    console.warn('⚠️ [createObraForumTopic] El bot de Telegram no está inicializado.');
+    return null;
+  }
 
   const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
-  if (!supergroupId) return null;
+  if (!supergroupId) {
+    console.warn(`⚠️ [createObraForumTopic] TELEGRAM_SUPERGROUP_ID no está configurado en .env ni detectado. No se puede crear el tema para "${obraNombre}".`);
+    return null;
+  }
 
   try {
     const topicTitle = `${obraNombre} · ${proyectoNombre || 'Operación'}`.substring(0, 64);
+    console.log(`📡 Intentando crear tema en Telegram: "${topicTitle}" en Supergrupo: ${supergroupId}...`);
     const topic = await botInstance.createForumTopic(supergroupId, topicTitle);
 
     if (topic && topic.message_thread_id) {
@@ -992,11 +1007,14 @@ async function createObraForumTopic(obraNombre, proyectoNombre) {
         botInstance.pinChatMessage(supergroupId, welcomeMsg.message_id).catch(() => {});
       }
 
-      console.log(`✅ Tema de Telegram creado automáticamente para "${obraNombre}" con thread_id: ${threadId}`);
+      console.log(`✅ Tema de Telegram creado exitosamente para "${obraNombre}" con thread_id: ${threadId}`);
       return threadId;
     }
   } catch (err) {
-    console.warn(`⚠️ No se pudo crear el tema en Telegram para "${obraNombre}":`, err.message);
+    console.warn(`⚠️ Error al crear el tema en Telegram para "${obraNombre}":`, err.message);
+    if (err.message && err.message.includes('not enough rights')) {
+      console.warn('👉 Asegúrate de que el bot tenga el permiso de Administrador: "Administrar Temas / Manage Topics" en el grupo de Telegram.');
+    }
   }
   return null;
 }

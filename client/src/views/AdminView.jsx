@@ -113,10 +113,10 @@ export default function AdminView() {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
       {/* Header Admin */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2ebd3] dark:border-[#253905] pb-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Shield className="w-6 h-6 text-amber-600 dark:text-amber-400" /> Administración IT & Control de Accesos
+            <Shield className="w-6 h-6 text-[#a87d13]" /> Administración IT & Control de Accesos
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 font-medium">
             Gestión centralizada de identidades con PIN de 4 dígitos, salud del servidor y disparador de alertas
@@ -135,7 +135,7 @@ export default function AdminView() {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-amber-600/30"
+            className="px-3.5 py-2 rounded-xl bg-[#a87d13] hover:bg-[#8f690f] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-amber-600/30"
           >
             <UserPlus className="w-4 h-4" />
             <span>Nuevo Usuario</span>
@@ -145,7 +145,7 @@ export default function AdminView() {
 
       {/* DIAGNÓSTICO DE SERVIDOR & AUTOMATIZACIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] flex items-center gap-3.5 shadow-sm">
           <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/40">
             <Server className="w-5 h-5" />
           </div>
@@ -158,7 +158,7 @@ export default function AdminView() {
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] flex items-center gap-3.5 shadow-sm">
           <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-700/40">
             <Activity className="w-5 h-5" />
           </div>
@@ -169,7 +169,7 @@ export default function AdminView() {
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] flex items-center gap-3.5 shadow-sm">
           <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-700/40">
             <Clock className="w-5 h-5" />
           </div>
@@ -182,7 +182,7 @@ export default function AdminView() {
       </div>
 
       {/* DISPARADORES MANUALES DE ALERTAS CRON */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
         <div>
           <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Clock className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Disparador de Alertas y Cortes Automáticos
@@ -212,7 +212,7 @@ export default function AdminView() {
             onClick={() => triggerCronTest('evening')}
             className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-slate-700 border border-amber-300 dark:border-slate-700 text-amber-900 dark:text-amber-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
           >
-            <Play className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Probar 21:00 (Obras Sin Reporte)
+            <Play className="w-3.5 h-3.5 text-[#a87d13]" /> Probar 21:00 (Obras Sin Reporte)
           </button>
           <button
             type="button"
@@ -231,18 +231,18 @@ export default function AdminView() {
       </div>
 
       {/* TABLA DE GESTIÓN DE USUARIOS Y PIN */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <Users className="w-5 h-5 text-[#a87d13]" />
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Catálogo de Usuarios & PINs de Campo</h3>
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-mono font-medium">{users.length} usuarios registrados</span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="overflow-x-auto rounded-xl border border-[#e2ebd3] dark:border-[#253905]">
           <table className="w-full text-left text-xs text-slate-800 dark:text-slate-200">
-            <thead className="bg-slate-100/80 dark:bg-slate-950/90 text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-[#f4f8ed] dark:bg-[#0e1700] text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider border-b border-[#e2ebd3] dark:border-[#253905]">
               <tr>
                 <th className="py-3.5 px-4">Usuario</th>
                 <th className="py-3.5 px-4">Nombre Completo</th>
@@ -252,7 +252,7 @@ export default function AdminView() {
                 <th className="py-3.5 px-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-[#152202]/50">
               {users.map((u) => {
                 const roleColors = {
                   campo: 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700',
@@ -273,7 +273,7 @@ export default function AdminView() {
                     <td className="py-3.5 px-4 text-center">
                       {u.pin ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-600/40 text-amber-900 dark:text-amber-300 font-mono font-black text-xs shadow-sm">
-                          <KeyRound className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> {u.pin}
+                          <KeyRound className="w-3.5 h-3.5 text-[#a87d13]" /> {u.pin}
                         </span>
                       ) : (
                         <span className="text-slate-400 italic">Sin PIN</span>
@@ -319,8 +319,8 @@ export default function AdminView() {
       {/* CATÁLOGO DE PREDIOS Y OBRAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Predios */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-3">
-          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-3">
+          <div className="flex items-center gap-2 border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
             <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Catálogo de Predios (GeoJSON)</h3>
           </div>
@@ -331,7 +331,7 @@ export default function AdminView() {
                   <p className="font-bold text-slate-900 dark:text-slate-200">{pr.nombre}</p>
                   <p className="text-[11px] text-slate-500">{pr.regimen} • Útil: {pr.superficie_util_ha} ha / Legal: {pr.superficie_legal_ha} ha</p>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-400 border border-[#e2ebd3] dark:border-[#253905]">
                   GeoJSON OK
                 </span>
               </div>
@@ -340,8 +340,8 @@ export default function AdminView() {
         </div>
 
         {/* Obras */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-3">
-          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-3">
+          <div className="flex items-center gap-2 border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
             <Building className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Catálogo de Frentes / Obras</h3>
           </div>
@@ -364,10 +364,10 @@ export default function AdminView() {
       {/* MODAL: Crear Usuario */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-200 dark:border-slate-700 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-amber-600 dark:text-amber-400" /> Crear Usuario
+                <UserPlus className="w-5 h-5 text-[#a87d13]" /> Crear Usuario
               </h3>
               <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-lg">✕</button>
             </div>
@@ -414,7 +414,7 @@ export default function AdminView() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    PIN de 4 Dígitos <span className="text-amber-600 dark:text-amber-400">*</span>
+                    PIN de 4 Dígitos <span className="text-[#a87d13]">*</span>
                   </label>
                   <input
                     type="text"
@@ -449,7 +449,7 @@ export default function AdminView() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30"
+                  className="px-4 py-2 rounded-xl bg-[#a87d13] hover:bg-[#8f690f] text-white text-xs font-bold shadow-md shadow-amber-600/30"
                 >
                   Guardar Usuario
                 </button>
@@ -462,10 +462,10 @@ export default function AdminView() {
       {/* MODAL: Editar Usuario & Asignar PIN */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-200 dark:border-slate-700 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" /> Editar: {editingUser.username}
+                <Shield className="w-5 h-5 text-[#a87d13]" /> Editar: {editingUser.username}
               </h3>
               <button type="button" onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-lg">✕</button>
             </div>
@@ -545,7 +545,7 @@ export default function AdminView() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30"
+                  className="px-4 py-2 rounded-xl bg-[#a87d13] hover:bg-[#8f690f] text-white text-xs font-bold shadow-md shadow-amber-600/30"
                 >
                   Guardar Cambios
                 </button>

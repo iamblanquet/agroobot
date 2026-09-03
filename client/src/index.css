@@ -8,9 +8,9 @@
     touch-action: manipulation;
   }
 
-  /* Tema Claro Corporativo (Por Defecto) */
+  /* Tema AGROKOOL Claro Corporativo (Por Defecto) */
   body {
-    @apply bg-slate-100 text-slate-900 antialiased selection:bg-emerald-600 selection:text-white min-h-screen transition-colors duration-200;
+    @apply bg-[#f8faf2] text-[#1c2d01] antialiased selection:bg-[#a1c62e] selection:text-[#2c4001] min-h-screen transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-tap-highlight-color: transparent;
     padding-top: env(safe-area-inset-top, 0px);
@@ -22,40 +22,48 @@
 
   /* Tema Oscuro */
   html.dark body {
-    @apply bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950;
+    @apply bg-[#0c1400] text-slate-100 selection:bg-[#a1c62e] selection:text-[#0c1400];
   }
 }
 
-/* Scrollbar estilizada y adaptable */
+/* Scrollbar estilizada con colores AGROKOOL */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(226, 232, 240, 0.6);
+  background: rgba(230, 240, 215, 0.5);
 }
 html.dark ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(14, 23, 0, 0.6);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.5);
+  background: #a1c62e;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.8);
+  background: #2c4001;
 }
 
-/* Clases de utilidad para componentes limpios en modo claro y oscuro */
+/* Clases de utilidad para componentes limpios con paleta AGROKOOL */
 .card-surface {
-  @apply bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-sm dark:shadow-xl rounded-2xl transition-colors duration-200;
+  @apply bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl rounded-2xl transition-colors duration-200;
 }
 
 .input-surface {
-  @apply bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl transition-all;
+  @apply bg-[#fbfdf7] dark:bg-[#0e1700] border border-[#d3e2be] dark:border-[#2f4509] text-[#1c2d01] dark:text-white placeholder-[#7a8a65] focus:outline-none focus:border-[#2c4001] dark:focus:border-[#a1c62e] focus:ring-1 focus:ring-[#a1c62e] rounded-xl transition-all;
 }
 
-.badge-neutral {
-  @apply bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700;
+.btn-primary {
+  @apply bg-[#2c4001] hover:bg-[#203001] text-white font-bold shadow-md shadow-[#2c4001]/20 transition-all rounded-xl;
+}
+
+.btn-lime {
+  @apply bg-[#a1c62e] hover:bg-[#8eb025] text-[#2c4001] font-black shadow-md shadow-[#a1c62e]/30 transition-all rounded-xl;
+}
+
+.btn-gold {
+  @apply bg-[#a87d13] hover:bg-[#8f690f] text-white font-bold shadow-md shadow-[#a87d13]/25 transition-all rounded-xl;
 }
 
 /* Animaciones sutiles */

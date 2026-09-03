@@ -52,10 +52,10 @@ export default function DireccionView() {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
       {/* Header Ejecutivo */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2ebd3] dark:border-[#253905] pb-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-emerald-700 dark:text-purple-400" /> Tablero de Control Ejecutivo & Dirección
+            <BarChart3 className="w-5 h-5 text-[#2c4001] dark:text-[#a1c62e]" /> Tablero de Control Ejecutivo & Dirección
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Consolidado estratégico: Hectáreas habilitadas vs sembradas, discrepancias dron y eficiencia operativa
@@ -114,10 +114,10 @@ export default function DireccionView() {
       </div>
 
       {/* SECCIÓN ANALÍTICA: COMPARATIVA DE PROYECTOS */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4">
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-600/40">
+            <div className="p-2 rounded-xl bg-[#f4f8ed] dark:bg-[#1f3004] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606]">
               <PieChart className="w-4 h-4" />
             </div>
             <div>
@@ -131,7 +131,7 @@ export default function DireccionView() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-950/80 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-[#f4f8ed] dark:bg-[#0e1700] text-[11px] font-bold text-[#2c4001] dark:text-[#a1c62e] uppercase tracking-wider border-b border-[#e2ebd3] dark:border-[#253905]">
               <tr>
                 <th className="py-3 px-4">Proyecto</th>
                 <th className="py-3 px-4">Ciclo</th>
@@ -160,7 +160,7 @@ export default function DireccionView() {
                     </td>
                     <td className="py-3 px-4 font-mono">{p.ciclo}</td>
                     <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">{meta} ha</td>
-                    <td className="py-3 px-4 text-right text-emerald-700 dark:text-emerald-400 font-black">{haCampo} ha</td>
+                    <td className="py-3 px-4 text-right text-[#2c4001] dark:text-[#a1c62e] font-black">{haCampo} ha</td>
                     <td className="py-3 px-4 text-right text-sky-700 dark:text-sky-400 font-black">
                       {haDron !== null ? `${haDron} ha` : <span className="text-slate-400 font-normal italic">Sin vuelo</span>}
                     </td>
@@ -179,7 +179,7 @@ export default function DireccionView() {
                           <span>{pct}%</span>
                         </div>
                         <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
-                          <div className="bg-purple-600 dark:bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          <div className="bg-[#a1c62e] h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     </td>

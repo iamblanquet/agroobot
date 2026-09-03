@@ -272,7 +272,7 @@ export default function CampoView() {
   return (
     <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
       {/* Banner de Modo Sin Señal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-md">
         <div className="flex items-center gap-3">
           <div className={`p-2.5 rounded-xl ${offlineSimulated ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-600/50' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600/30'}`}>
             {offlineSimulated ? <WifiOff className="w-5 h-5" /> : <HardHat className="w-5 h-5" />}
@@ -317,8 +317,8 @@ export default function CampoView() {
       {/* Formulario Principal */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* SECCIÓN 1: SELECTORES EN CASCADA */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4">
-          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">
+          <div className="flex items-center gap-2 text-[#2c4001] dark:text-[#a1c62e] font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
             <Layers className="w-4 h-4" /> 1. Jerarquía de Trabajo (Cascada)
           </div>
 
@@ -386,10 +386,10 @@ export default function CampoView() {
 
               {/* Barra de progreso de la tarea seleccionada */}
               {activeTarea && (
-                <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905]">
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-slate-600 dark:text-slate-400 font-medium">Progreso Tarea Meta:</span>
-                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                    <span className="text-[#2c4001] dark:text-[#a1c62e] font-bold">
                       {activeTarea.cantidad_acumulada} / {activeTarea.cantidad_meta} {activeTarea.unidad} ({activeProgresoPorcentaje}%)
                     </span>
                   </div>
@@ -442,7 +442,7 @@ export default function CampoView() {
         </div>
 
         {/* SECCIÓN 2: TOGGLE DE DÍA SIN ACTIVIDAD */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4">
+        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-sm">
               <CloudRain className="w-4 h-4" /> 2. Estatus Operativo de la Jornada
@@ -498,8 +498,8 @@ export default function CampoView() {
 
         {/* SECCIÓN 3: AVANCE Y CUADRILLA (Visible solo si hay actividad) */}
         {!esSinActividad && (
-          <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-5">
-            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+          <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-5">
+            <div className="flex items-center gap-2 text-[#2c4001] dark:text-[#a1c62e] font-bold text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
               <Users className="w-4 h-4" /> 3. Avance de Labor y Cuadrilla
             </div>
 
@@ -532,7 +532,7 @@ export default function CampoView() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Operadores */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between shadow-sm">
                   <div>
                     <p className="text-xs font-bold text-slate-800 dark:text-white">Operadores</p>
                     <p className="text-[10px] text-slate-500">Maquinaria pesada</p>
@@ -549,7 +549,7 @@ export default function CampoView() {
                     <button
                       type="button"
                       onClick={() => adjustCuadrilla('operadores', 1)}
-                      className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
+                      className="w-8 h-8 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -557,7 +557,7 @@ export default function CampoView() {
                 </div>
 
                 {/* Técnicos */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between shadow-sm">
                   <div>
                     <p className="text-xs font-bold text-slate-800 dark:text-white">Técnicos</p>
                     <p className="text-[10px] text-slate-500">Riego / Suelos</p>
@@ -574,7 +574,7 @@ export default function CampoView() {
                     <button
                       type="button"
                       onClick={() => adjustCuadrilla('tecnicos', 1)}
-                      className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
+                      className="w-8 h-8 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -582,7 +582,7 @@ export default function CampoView() {
                 </div>
 
                 {/* Auxiliares */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between shadow-sm">
                   <div>
                     <p className="text-xs font-bold text-slate-800 dark:text-white">Auxiliares</p>
                     <p className="text-[10px] text-slate-500">Jornaleros</p>
@@ -599,7 +599,7 @@ export default function CampoView() {
                     <button
                       type="button"
                       onClick={() => adjustCuadrilla('auxiliares', 1)}
-                      className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
+                      className="w-8 h-8 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -612,9 +612,9 @@ export default function CampoView() {
 
         {/* SECCIÓN 4: HORÓMETROS Y DIÉSEL (Visible solo si hay actividad) */}
         {!esSinActividad && (
-          <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4">
+          <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+              <div className="flex items-center gap-2 text-[#2c4001] dark:text-[#a1c62e] font-bold text-sm">
                 <Tractor className="w-4 h-4" /> 4. Horómetro & Diésel de Maquinaria
               </div>
               <label className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer font-medium">
@@ -708,7 +708,7 @@ export default function CampoView() {
         )}
 
         {/* SECCIÓN 5: NOTAS Y OBSERVACIONES */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-2">
+        <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-2">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
             Notas Adicionales / Observaciones de Campo
           </label>
@@ -728,7 +728,7 @@ export default function CampoView() {
           className={`w-full py-4 px-6 rounded-2xl font-bold text-sm transition shadow-lg flex items-center justify-center gap-2 ${
             esSinActividad
               ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
+              : 'bg-[#2c4001] hover:bg-[#203001] text-white shadow-emerald-600/30'
           }`}
         >
           <Save className="w-5 h-5" />

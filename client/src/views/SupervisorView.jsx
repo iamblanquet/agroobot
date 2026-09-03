@@ -407,7 +407,7 @@ export default function SupervisorView() {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
       {/* Header y Selector de Sub-Pestañas */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2ebd3] dark:border-[#253905] pb-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-400" /> Panel de Supervisión Operativa & Gestión
@@ -418,7 +418,7 @@ export default function SupervisorView() {
         </div>
 
         {/* Switcher de Sub-Pestaña */}
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 bg-white dark:bg-[#152202] p-1 rounded-xl border border-[#e2ebd3] dark:border-[#253905]">
           <button
             type="button"
             onClick={() => setActiveTab('tablero')}
@@ -465,7 +465,7 @@ export default function SupervisorView() {
       {activeTab === 'proyectos' && (
         <div className="space-y-6">
           {/* Barra de Acción Superior */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-emerald-400" /> Estructura de Proyectos Agrícolas
@@ -478,7 +478,7 @@ export default function SupervisorView() {
             <button
               type="button"
               onClick={() => handleOpenProjectModal()}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-950/60 self-start sm:self-auto"
+              className="px-4 py-2 rounded-lg bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-950/60 self-start sm:self-auto"
             >
               <FolderPlus className="w-4 h-4" />
               <span>+ Nuevo Proyecto</span>
@@ -498,9 +498,9 @@ export default function SupervisorView() {
                 : 0;
 
               return (
-                <div key={p.id} className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+                <div key={p.id} className="rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl overflow-hidden">
                   {/* Tarjeta de Encabezado de Proyecto */}
-                  <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 hover:bg-slate-850 transition">
+                  <div className="p-4 sm:p-5 bg-white dark:bg-[#152202] hover:bg-slate-850 transition">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       {/* Título & Meta */}
                       <div className="flex items-start gap-3">
@@ -586,7 +586,7 @@ export default function SupervisorView() {
 
                     {/* Frentes / Obras Asociadas */}
                     {p.obras?.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800/60 flex flex-wrap items-center gap-2">
+                      <div className="mt-3 pt-3 border-t border-[#e2ebd3] dark:border-[#253905]/60 flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
                         {p.obras.map(o => (
                           <span key={o.id} className="px-2 py-0.5 rounded text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100">
@@ -599,7 +599,7 @@ export default function SupervisorView() {
 
                   {/* HITOS DEL PROYECTO (Desplegable) */}
                   {isExpanded && (
-                    <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                    <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border-t border-[#e2ebd3] dark:border-[#253905] space-y-4">
                       {p.hitos?.length > 0 ? (
                         p.hitos.map((h) => {
                           const isHitoExp = !!expandedHitos[h.id];
@@ -615,9 +615,9 @@ export default function SupervisorView() {
                           };
 
                           return (
-                            <div key={h.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 overflow-hidden">
+                            <div key={h.id} className="rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905]/90 overflow-hidden">
                               {/* Fila del Hito */}
-                              <div className="p-3.5 bg-white dark:bg-slate-900/90 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div className="p-3.5 bg-white dark:bg-[#152202] flex flex-col md:flex-row md:items-center justify-between gap-3">
                                 <div className="flex items-center gap-2.5">
                                   <button
                                     type="button"
@@ -684,11 +684,11 @@ export default function SupervisorView() {
 
                               {/* TAREAS DENTRO DEL HITO */}
                               {isHitoExp && (
-                                <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800/80">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-[#e2ebd3] dark:border-[#253905]/80">
                                   {hitoTareas.length > 0 ? (
                                     <div className="overflow-x-auto">
                                       <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-                                        <thead className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                                        <thead className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-[#e2ebd3] dark:border-[#253905]">
                                           <tr>
                                             <th className="py-2 px-3">Tarea / Actividad</th>
                                             <th className="py-2 px-3">Predio</th>
@@ -843,8 +843,8 @@ export default function SupervisorView() {
           {/* 4 WIDGETS CANÓNICOS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* WIDGET 1: Obras Sin Reporte Hoy */}
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200">
                     <Clock className="w-4 h-4" />
@@ -885,8 +885,8 @@ export default function SupervisorView() {
             </div>
 
             {/* WIDGET 2: Avance Contra Meta (Campo vs Dron vs Meta) */}
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-emerald-50 dark:bg-blue-950 text-emerald-700 dark:text-blue-400 border border-emerald-200">
                     <TrendingUp className="w-4 h-4" />
@@ -900,7 +900,7 @@ export default function SupervisorView() {
 
               <div className="space-y-4 max-h-60 overflow-y-auto pr-1">
                 {avance_contra_meta.map((p) => (
-                  <div key={p.proyecto_id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                  <div key={p.proyecto_id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905]/80 space-y-2">
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold text-slate-900 dark:text-slate-100">{p.proyecto_nombre}</span>
                       <span className="text-slate-600 dark:text-slate-600 dark:text-slate-400 font-bold">Meta: {p.meta_ha} ha</span>
@@ -941,8 +941,8 @@ export default function SupervisorView() {
             </div>
 
             {/* WIDGET 3: Incidencias Abiertas */}
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200">
                     <AlertTriangle className="w-4 h-4" />
@@ -978,7 +978,7 @@ export default function SupervisorView() {
                           setCausaRaizInput('');
                           setCloseError(null);
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-sm flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center gap-1"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Cerrar</span>
@@ -995,8 +995,8 @@ export default function SupervisorView() {
             </div>
 
             {/* WIDGET 4: Bloqueado por Material */}
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200">
                     <PackageX className="w-4 h-4" />
@@ -1045,10 +1045,10 @@ export default function SupervisorView() {
           </div>
 
           {/* MONITOR DE MAQUINARIA & HORÓMETROS */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-[#2c4001] dark:text-[#a1c62e] border border-emerald-200">
                   <Tractor className="w-4 h-4" />
                 </div>
                 <div>
@@ -1069,7 +1069,7 @@ export default function SupervisorView() {
                     className={`p-4 rounded-xl border transition-all ${
                       isAlert
                         ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-600/50 shadow-sm'
-                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm'
+                        : 'bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm'
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -1113,11 +1113,11 @@ export default function SupervisorView() {
                       </div>
                     )}
 
-                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                    <div className="mt-4 pt-3 border-t border-[#e2ebd3] dark:border-[#253905] flex justify-end">
                       <button
                         type="button"
                         onClick={() => handleMachineService(maq.id, maq.codigo)}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5"
+                        className="px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5"
                       >
                         <Wrench className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Registrar Servicio 300h</span>
@@ -1138,8 +1138,8 @@ export default function SupervisorView() {
       {/* MODAL 1: PROYECTO */}
       {showProjectModal && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <FolderPlus className="w-5 h-5 text-emerald-400" />
                 {editingProject ? 'Editar Proyecto Agrícola' : 'Nuevo Proyecto Agrícola'}
@@ -1241,7 +1241,7 @@ export default function SupervisorView() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-950/50"
+                  className="px-4 py-2 rounded-lg bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold shadow-md shadow-emerald-950/50"
                 >
                   {editingProject ? 'Actualizar Proyecto' : 'Crear Proyecto'}
                 </button>
@@ -1254,8 +1254,8 @@ export default function SupervisorView() {
       {/* MODAL 2: HITO */}
       {showHitoModal && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Flag className="w-5 h-5 text-blue-400" />
                 {editingHito ? 'Editar Hito' : `Nuevo Hito: ${selectedProjectForHito?.nombre}`}
@@ -1357,8 +1357,8 @@ export default function SupervisorView() {
       {/* MODAL 3: TAREA */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-emerald-400" />
                 {editingTask ? 'Editar Tarea' : `Nueva Tarea en Hito: ${selectedHitoForTask?.nombre}`}
@@ -1477,7 +1477,7 @@ export default function SupervisorView() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-950/50"
+                  className="px-4 py-2 rounded-lg bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold shadow-md shadow-emerald-950/50"
                 >
                   {editingTask ? 'Actualizar Tarea' : 'Crear Tarea'}
                 </button>
@@ -1490,8 +1490,8 @@ export default function SupervisorView() {
       {/* MODAL 4: FRENTE / OBRA */}
       {showObraModal && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Building className="w-5 h-5 text-purple-400" />
                 Nuevo Frente de Obra: {selectedProjectForObra?.nombre}
@@ -1578,8 +1578,8 @@ export default function SupervisorView() {
       {/* MODAL 5: CIERRE DE INCIDENCIA */}
       {selectedIssueToClose && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-start border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" /> Cierre Técnico de Incidencia
@@ -1597,7 +1597,7 @@ export default function SupervisorView() {
               </button>
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] text-xs text-slate-700 dark:text-slate-300">
               <p className="text-slate-600 dark:text-slate-400 font-medium mb-1">Descripción reportada:</p>
               <p>{selectedIssueToClose.tipo}</p>
             </div>
@@ -1639,7 +1639,7 @@ export default function SupervisorView() {
                 <button
                   type="submit"
                   disabled={isClosingIssue || causaRaizInput.trim().length < 10}
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold shadow-md shadow-emerald-950/50"
+                  className="px-4 py-2 rounded-lg bg-[#2c4001] hover:bg-[#203001] disabled:opacity-50 text-white text-xs font-semibold shadow-md shadow-emerald-950/50"
                 >
                   {isClosingIssue ? 'Cerrando...' : 'Confirmar Cierre Formal'}
                 </button>

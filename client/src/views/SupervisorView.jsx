@@ -25,7 +25,10 @@ import {
   MapPin,
   Sparkles,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  LayoutGrid,
+  Search,
+  Filter
 } from 'lucide-react';
 
 export default function SupervisorView() {
@@ -36,6 +39,10 @@ export default function SupervisorView() {
   const [usersList, setUsersList] = useState([]);
   const [reportesList, setReportesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filtro y búsqueda en Catálogos
+  const [catalogoSubTab, setCatalogoSubTab] = useState('todos'); // 'todos' | 'predios' | 'frentes'
+  const [catalogoSearch, setCatalogoSearch] = useState('');
 
   // Modal Visor de Foto Ampliada
   const [activePhotoModal, setActivePhotoModal] = useState(null);
@@ -516,8 +523,8 @@ export default function SupervisorView() {
           </p>
         </div>
 
-        {/* Switcher de Sub-Pestaña */}
-        <div className="flex items-center gap-2 bg-white dark:bg-[#152202] p-1 rounded-xl border border-[#e2ebd3] dark:border-[#253905]">
+        {/* Switcher de Sub-Pestañas Responsivo */}
+        <div className="flex items-center gap-2 bg-white dark:bg-[#152202] p-1.5 rounded-2xl border border-[#e2ebd3] dark:border-[#253905] overflow-x-auto no-scrollbar w-full sm:w-auto shadow-sm">
           <button
             type="button"
             onClick={() => setActiveTab('tablero')}
@@ -1445,183 +1452,339 @@ export default function SupervisorView() {
       )}
 
       {/* ========================================================================= */}
-      {/* VISTA 4: CATÁLOGO ADMINISTRATIVO DE PREDIOS Y FRENTES DE OBRA             */}
+      {/* VISTA 4: CATÁLOGO DE PREDIOS Y FRENTES (REDDISEÑADO Y RESPONSIVO)         */}
       {/* ========================================================================= */}
-      {activeTab === 'catalogos' && (
-        <div className="space-y-8">
-          {/* SECCIÓN 1: GESTIÓN DE PREDIOS AGRÍCOLAS */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
+      {activeTab === 'catalogos' && (() => {
+        const allObras = proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id })));
+        
+        const filteredPredios = prediosList.filter(pr => 
+          !catalogoSearch || 
+          pr.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) || 
+          pr.regimen?.toLowerCase().includes(catalogoSearch.toLowerCase())
+        );
+
+        const filteredObras = allObras.filter(ob => 
+          !catalogoSearch || 
+          ob.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) || 
+          ob.proyecto_nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
+          ob.fase_actual?.toLowerCase().includes(catalogoSearch.toLowerCase())
+        );
+
+        const statusColors = {
+          operacion: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-400',
+          habilitacion: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-400',
+          prospeccion: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-400',
+          mantenimiento: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-400',
+          standby: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-400',
+          cerrada: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-400'
+        };
+
+        const totalHaLegal = prediosList.reduce((acc, p) => acc + (p.superficie_legal_ha || 0), 0);
+        const totalHaUtil = prediosList.reduce((acc, p) => acc + (p.superficie_util_ha || 0), 0);
+
+        return (
+          <div className="space-y-6">
+            {/* Header & Quick Action Bar */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-500" /> Catálogo de Predios & Polígonos Agrícolas
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-emerald-500" /> Catálogo Maestro de Predios & Frentes de Obra
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Alta, edición y control de superficie legal vs mecanizable de cada predio
+                  Administración integral de polígonos, hectáreas útiles y frentes operativos
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleOpenPredioModal()}
-                className="px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Nuevo Predio</span>
-              </button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {prediosList.map((pr) => (
-                <div
-                  key={pr.id}
-                  className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm space-y-3 relative group hover:border-[#a1c62e]/70 transition"
+              {/* Botones de Alta Rápida */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleOpenPredioModal()}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4 text-[#a1c62e]" /> {pr.nombre}
-                      </h4>
-                      <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
-                        {pr.regimen || 'Propiedad Privada'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenPredioModal(pr)}
-                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-emerald-500 transition"
-                        title="Editar predio"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePredio(pr.id, pr.nombre)}
-                        className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition"
-                        title="Eliminar predio"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60 text-xs">
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905]/60">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase">Sup. Legal</span>
-                      <p className="font-bold text-slate-800 dark:text-slate-200">{pr.superficie_legal_ha} ha</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905]/60">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase">Sup. Mecanizable</span>
-                      <p className="font-bold text-emerald-600 dark:text-emerald-400">{pr.superficie_util_ha} ha</p>
-                    </div>
-                  </div>
-
-                  {pr.obras && pr.obras.length > 0 && (
-                    <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                        Frentes en este predio ({pr.obras.length}):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {pr.obras.map(ob => (
-                          <span key={ob.id} className="text-[10px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            {ob.nombre}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SECCIÓN 2: GESTIÓN GENERAL DE FRENTES DE OBRA */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building className="w-4 h-4 text-purple-400" /> Catálogo de Frentes de Obra Operativos
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Administración de cuadrillas, fases activas y predios vinculados por frente
-                </p>
+                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>+ Nuevo Predio</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenObraModal()}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Nuevo Frente</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => handleOpenObraModal()}
-                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Nuevo Frente de Obra</span>
-              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id }))).map((ob) => {
-                const statusColors = {
-                  operacion: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-400',
-                  habilitacion: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-400',
-                  prospeccion: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-400',
-                  mantenimiento: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-400',
-                  standby: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-400',
-                  cerrada: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-400'
-                };
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Predios</span>
+                <span className="text-xl font-black text-slate-900 dark:text-white">{prediosList.length}</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block mt-0.5">Polígonos registrados</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sup. Mecanizable</span>
+                <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{totalHaUtil.toFixed(1)} ha</span>
+                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Legal: {totalHaLegal.toFixed(1)} ha</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Frentes Activos</span>
+                <span className="text-xl font-black text-purple-600 dark:text-purple-400">{allObras.length}</span>
+                <span className="text-[10px] text-purple-500 font-medium block mt-0.5">En operación o habilitación</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Proyectos Madre</span>
+                <span className="text-xl font-black text-blue-600 dark:text-blue-400">{proyectosList.length}</span>
+                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Ciclos agrícolas vigentes</span>
+              </div>
+            </div>
 
-                return (
-                  <div
-                    key={ob.id}
-                    className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm space-y-3 relative group hover:border-purple-400/60 transition"
+            {/* Sub-Tabs & Buscador Responsivo */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#152202] p-2.5 rounded-2xl border border-[#e2ebd3] dark:border-[#253905] shadow-sm">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setCatalogoSubTab('todos')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
+                    catalogoSubTab === 'todos'
+                      ? 'bg-[#2c4001] text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Todos ({prediosList.length + allObras.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCatalogoSubTab('predios')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
+                    catalogoSubTab === 'predios'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Predios ({prediosList.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCatalogoSubTab('frentes')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 ${
+                    catalogoSubTab === 'frentes'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Building className="w-3.5 h-3.5" />
+                  <span>Frentes ({allObras.length})</span>
+                </button>
+              </div>
+
+              {/* Input Buscador */}
+              <div className="relative flex-1 max-w-xs">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={catalogoSearch}
+                  onChange={(e) => setCatalogoSearch(e.target.value)}
+                  placeholder="Buscar predio o frente..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                />
+                {catalogoSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCatalogoSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-200"
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <Building className="w-4 h-4 text-purple-400" /> {ob.nombre}
-                        </h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                          Proyecto: <strong className="text-slate-700 dark:text-slate-300">{ob.proyecto_nombre}</strong>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenObraModal(null, ob)}
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-purple-400 transition"
-                          title="Editar frente de obra"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteObra(ob.id, ob.nombre)}
-                          className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition"
-                          title="Eliminar frente de obra"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusColors[ob.estado] || statusColors.operacion}`}>
-                        {ob.estado}
-                      </span>
-                      <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">
-                        Fase: <strong>{ob.fase_actual}</strong>
-                      </span>
-                    </div>
-
-                    {ob.tg_thread_id && (
-                      <p className="text-[10px] font-mono text-slate-500">
-                        Thread Telegram: #{ob.tg_thread_id}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* SECCIÓN PREDIOS AGRÍCOLAS */}
+            {(catalogoSubTab === 'todos' || catalogoSubTab === 'predios') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Predios Registrados ({filteredPredios.length})</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">Superficies legales y útiles</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {filteredPredios.map((pr) => {
+                    const prObras = pr.obras || [];
+                    return (
+                      <div
+                        key={pr.id}
+                        className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm flex flex-col justify-between hover:shadow-md hover:border-[#a1c62e]/80 transition group"
+                      >
+                        <div>
+                          {/* Card Header */}
+                          <div className="flex items-start justify-between gap-2 border-b border-[#e2ebd3] dark:border-[#253905]/60 pb-2.5">
+                            <div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#f4f8ed] dark:bg-[#1f3004] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] uppercase tracking-wider">
+                                {pr.regimen || 'Propiedad Privada'}
+                              </span>
+                              <h5 className="text-sm font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-1.5">
+                                <MapPin className="w-4 h-4 text-emerald-500" /> {pr.nombre}
+                              </h5>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPredioModal(pr)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-900 transition"
+                                title="Editar predio"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePredio(pr.id, pr.nombre)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+                                title="Eliminar predio"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Hectáreas Grid */}
+                          <div className="grid grid-cols-2 gap-2 my-3">
+                            <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850">
+                              <span className="text-[10px] text-slate-500 block font-medium">Sup. Legal</span>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{pr.superficie_legal_ha} ha</span>
+                            </div>
+                            <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40">
+                              <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block font-medium">Mecanizable</span>
+                              <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">{pr.superficie_util_ha} ha</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Frentes Asociados */}
+                        <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60 text-xs">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Frentes en este predio ({prObras.length}):
+                          </span>
+                          {prObras.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {prObras.map(ob => (
+                                <span key={ob.id} className="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-medium">
+                                  {ob.nombre}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Sin frentes asignados</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN FRENTES DE OBRA */}
+            {(catalogoSubTab === 'todos' || catalogoSubTab === 'frentes') && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Building className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Frentes de Obra Activos ({filteredObras.length})</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">Asignados a proyectos agrícolas</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {filteredObras.map((ob) => (
+                    <div
+                      key={ob.id}
+                      className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm flex flex-col justify-between hover:shadow-md hover:border-purple-400/80 transition group"
+                    >
+                      <div>
+                        {/* Header Frente */}
+                        <div className="flex items-start justify-between gap-2 border-b border-[#e2ebd3] dark:border-[#253905]/60 pb-2.5">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusColors[ob.estado] || statusColors.operacion}`}>
+                                {ob.estado}
+                              </span>
+                              {ob.tg_thread_id && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
+                                  #{ob.tg_thread_id}
+                                </span>
+                              )}
+                            </div>
+                            <h5 className="text-sm font-bold text-slate-900 dark:text-white mt-1.5 flex items-center gap-1.5">
+                              <Building className="w-4 h-4 text-purple-400" /> {ob.nombre}
+                            </h5>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenObraModal(null, ob)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition"
+                              title="Editar frente"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteObra(ob.id, ob.nombre)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+                              title="Eliminar frente"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Proyecto & Fase */}
+                        <div className="py-2.5 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                            <span>Proyecto:</span>
+                            <strong className="text-slate-800 dark:text-slate-200 text-right truncate max-w-[180px]">
+                              {ob.proyecto_nombre}
+                            </strong>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                            <span>Fase Actual:</span>
+                            <span className="font-semibold text-purple-600 dark:text-purple-400">{ob.fase_actual}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Predios Vinculados */}
+                      <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60 text-xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Predio Vinculado:
+                        </span>
+                        {ob.predios && ob.predios.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {ob.predios.map(pr => (
+                              <span key={pr.id} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                                📍 {pr.nombre} ({pr.superficie_util_ha} ha)
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">Sin predio vinculado</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* MODAL: VISOR DE FOTO LIGHTBOX                                             */}

@@ -101,6 +101,43 @@ async function testHttpEndpoints() {
       const repWithFotos = repListRes.reports?.find(r => r.client_uuid === syncUUID);
       console.log('   ✅ Reportes consultados:', repListRes.reports?.length, '| Fotos:', repWithFotos?.fotos?.length, '| Hora Offline:', repWithFotos?.hora_offline);
 
+      // 6c. CRUD de Predios
+      console.log('\n6c. Probando CRUD de Predios (/api/projects/predios)...');
+      const newPredioRes = await requestJson('http://localhost:3099/api/projects/predios', 'POST', {
+        nombre: 'Rancho Santa Fe Test',
+        superficie_legal_ha: 25.5,
+        superficie_util_ha: 20.0,
+        regimen: 'Propiedad Privada'
+      }, token);
+      console.log('   ✅ Predio Creado:', newPredioRes.predio?.nombre, '| ID:', newPredioRes.predio?.id);
+
+      const updatePredioRes = await requestJson(`http://localhost:3099/api/projects/predios/${newPredioRes.predio.id}`, 'PATCH', {
+        superficie_util_ha: 22.0
+      }, token);
+      console.log('   ✅ Predio Editado (PATCH):', updatePredioRes.predio?.superficie_util_ha, 'ha');
+
+      // 6d. CRUD de Obras / Frentes
+      console.log('\n6d. Probando CRUD de Obras / Frentes (/api/projects/obras)...');
+      const newObraRes = await requestJson('http://localhost:3099/api/projects/obras', 'POST', {
+        nombre: 'Frente Santa Fe - Drenes',
+        proyecto_id: 1,
+        fase_actual: 'Habilitación',
+        estado: 'operacion',
+        predio_ids: [newPredioRes.predio.id]
+      }, token);
+      console.log('   ✅ Frente Creado:', newObraRes.obra?.nombre, '| ID:', newObraRes.obra?.id);
+
+      const updateObraRes = await requestJson(`http://localhost:3099/api/projects/obras/${newObraRes.obra.id}`, 'PATCH', {
+        fase_actual: 'Operación'
+      }, token);
+      console.log('   ✅ Frente Editado (PATCH):', updateObraRes.obra?.fase_actual);
+
+      const delObraRes = await requestJson(`http://localhost:3099/api/projects/obras/${newObraRes.obra.id}`, 'DELETE', null, token);
+      console.log('   ✅ Frente Eliminado (DELETE):', delObraRes.success);
+
+      const delPredioRes = await requestJson(`http://localhost:3099/api/projects/predios/${newPredioRes.predio.id}`, 'DELETE', null, token);
+      console.log('   ✅ Predio Eliminado (DELETE):', delPredioRes.success);
+
       // 7. Stats Dirección
       console.log('\n7. Probando GET /api/stats/direction (KPIs Dirección)...');
       const dirStats = await requestJson('http://localhost:3099/api/stats/direction', 'GET', null, token);

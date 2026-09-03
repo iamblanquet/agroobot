@@ -225,6 +225,8 @@ La interfaz web (PWA) adapta su navegación y funciones según el rol del usuari
 | `POST` | `/api/issues/:id/close` | Supervisor / IT | Cierre con validación estricta de causa raíz ($\ge 10$ chars). |
 | `GET` | `/api/machines` | Autenticado | Catálogo de maquinaria y estado de servicio preventivo. |
 | `GET` | `/api/materials` | Autenticado | Listado de insumos con cálculo de déficit y alertas ETA. |
+| `GET, POST, PATCH, DELETE` | `/api/projects/predios` | Supervisor / IT | CRUD completo de predios y superficies útiles. |
+| `GET, POST, PATCH, DELETE` | `/api/projects/obras` | Supervisor / IT | CRUD completo de frentes de obra y asignación a proyectos. |
 | `GET` | `/uploads/:archivo` | Público | Servicio estático de evidencias fotográficas de campo. |
 | `GET` | `/api/users` | Admin IT | Catálogo de usuarios y asignación de PIN. |
 
@@ -243,7 +245,8 @@ La interfaz web (PWA) adapta su navegación y funciones según el rol del usuari
 | **4 Widgets Canónicos de Supervisión** | ✅ Cumplido | `SupervisorView.jsx` (Sin reporte, Avance vs Meta, Incidencias, Materiales bloqueados). |
 | **Cierre de Incidencias con Validación de Causa Raíz** | ✅ Cumplido | `server/routes/issues.js` (Rechaza strings $< 10$ caracteres con HTTP 400). |
 | **Auditoría Dron vs Campo & Discrepancias** | ✅ Cumplido | `DireccionView.jsx` y `server/routes/stats.js` (Cálculo de discrepancia neta en Ha y %). |
-| **Gestor de Estructura WBS (Proyectos, Hitos, Tareas)** | ✅ Cumplido | `SupervisorView.jsx` pestaña *Gestor de Proyectos & Hitos* con CRUD completo. |
+| **Gestor de Estructura WBS (Proyectos, Hitos, Tareas)** | ✅ Cumplido | `SupervisorView.jsx` pestaña *Proyectos & Hitos* con CRUD completo. |
+| **CRUD de Predios y Frentes de Obra para Supervisor** | ✅ Cumplido | `SupervisorView.jsx` pestaña *Catálogo Predios & Frentes* con alta, edición, eliminación y chips interactivos. |
 | **Idempotencia en Sincronización Offline** | ✅ Cumplido | `server/routes/reports.js` (`client_uuid` previene duplicados en re-intentos de red). |
 | **Branding Oficial AGROKOOL** | ✅ Cumplido | Paleta `#2c4001`, `#a1c62e`, `#a87d13`, logotipo transparente `AGROKOOL_BLANCO.png`. |
 | **Modo Claro Corporativo y Modo Oscuro** | ✅ Cumplido | `ThemeContext.jsx`, Tailwind `darkMode: 'class'`, alto contraste bajo el sol. |

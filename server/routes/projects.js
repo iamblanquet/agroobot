@@ -373,31 +373,286 @@ router.get('/cascade-options', authenticateJWT, async (req, res) => {
 });
 
 /**
+ * ==========================================
+ * CRUD DE PREDIOS
+ * ==========================================
+ */
+
+/**
  * GET /api/projects/predios
+ * Listar todos los predios con sus frentes/obras asociadas
  */
 router.get('/predios', authenticateJWT, async (req, res) => {
   try {
-    const predios = await db.all('SELECT * FROM predio ORDER BY nombre ASC');
+    const predios = await db.all(`
+      SELECT p.*,
+             (SELECT COUNT(*) FROM obra_predio WHERE predio_id = p.id) AS total_obras,
+             (SELECT COUNT(*) FROM tarea WHERE predio_id = p.id) AS total_tareas
+      FROM predio p
+      ORDER BY p.nombre ASC
+    `);
+
+    for (const pr of predios) {
+      pr.obras = await db.all(`
+        SELECT o.id, o.nombre, o.fase_actual, o.estado
+        FROM obra o
+        JOIN obra_predio op ON o.id = op.obra_id
+        WHERE op.predio_id = ?
+        ORDER BY o.nombre ASC
+      `, [pr.id]);
+    }
+
     return res.json({ predios });
   } catch (err) {
+    console.error('Error al obtener predios:', err);
     return res.status(500).json({ error: 'Error al obtener predios.' });
   }
 });
 
 /**
+ * POST /api/projects/predios
+ * Crear nuevo predio
+ */
+router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { nombre, superficie_legal_ha = 0, superficie_util_ha = 0, regimen = 'Propiedad Privada', poligono_geojson } = req.body;
+
+    if (!nombre || !nombre.trim()) {
+      return res.status(400).json({ error: 'El nombre del predio es obligatorio.' });
+    }
+
+    const supLegal = parseFloat(superficie_legal_ha) || 0;
+    const supUtil = parseFloat(superficie_util_ha) || supLegal;
+
+    const result = await db.run(
+      `INSERT INTO predio (nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson)
+       VALUES (?, ?, ?, ?, ?)`,
+      [nombre.trim(), supLegal, supUtil, regimen.trim(), poligono_geojson || null]
+    );
+
+    const newPredio = await db.get('SELECT * FROM predio WHERE id = ?', [result.lastID]);
+    newPredio.obras = [];
+    return res.status(201).json({ success: true, predio: newPredio });
+  } catch (err) {
+    console.error('Error al crear predio:', err);
+    return res.status(500).json({ error: 'Error al crear el predio.' });
+  }
+});
+
+/**
+ * PATCH /api/projects/predios/:id
+ * Editar predio existente
+ */
+router.patch('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson } = req.body;
+
+    const predio = await db.get('SELECT * FROM predio WHERE id = ?', [id]);
+    if (!predio) {
+      return res.status(404).json({ error: 'Predio no encontrado.' });
+    }
+
+    await db.run(
+      `UPDATE predio
+       SET nombre = ?, superficie_legal_ha = ?, superficie_util_ha = ?, regimen = ?, poligono_geojson = ?
+       WHERE id = ?`,
+      [
+        nombre !== undefined ? nombre.trim() : predio.nombre,
+        superficie_legal_ha !== undefined ? parseFloat(superficie_legal_ha) || 0 : predio.superficie_legal_ha,
+        superficie_util_ha !== undefined ? parseFloat(superficie_util_ha) || 0 : predio.superficie_util_ha,
+        regimen !== undefined ? regimen.trim() : predio.regimen,
+        poligono_geojson !== undefined ? poligono_geojson : predio.poligono_geojson,
+        id
+      ]
+    );
+
+    const updated = await db.get('SELECT * FROM predio WHERE id = ?', [id]);
+    return res.json({ success: true, predio: updated });
+  } catch (err) {
+    console.error('Error al actualizar predio:', err);
+    return res.status(500).json({ error: 'Error al actualizar el predio.' });
+  }
+});
+
+/**
+ * DELETE /api/projects/predios/:id
+ * Eliminar predio
+ */
+router.delete('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.run('DELETE FROM obra_predio WHERE predio_id = ?', [id]);
+    await db.run('UPDATE tarea SET predio_id = NULL WHERE predio_id = ?', [id]);
+    await db.run('DELETE FROM predio WHERE id = ?', [id]);
+    return res.json({ success: true, message: 'Predio eliminado correctamente.' });
+  } catch (err) {
+    console.error('Error al eliminar predio:', err);
+    return res.status(500).json({ error: 'Error al eliminar el predio.' });
+  }
+});
+
+/**
+ * ==========================================
+ * CRUD DE OBRAS Y FRENTES DE TRABAJO
+ * ==========================================
+ */
+
+/**
  * GET /api/projects/obras
+ * Listar todas las obras/frentes con proyecto y predios asociados
  */
 router.get('/obras', authenticateJWT, async (req, res) => {
   try {
     const obras = await db.all(`
-      SELECT o.*, p.nombre AS proyecto_nombre
+      SELECT o.*, p.nombre AS proyecto_nombre, p.ciclo AS proyecto_ciclo
       FROM obra o
-      JOIN proyecto p ON o.proyecto_id = p.id
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
       ORDER BY o.nombre ASC
     `);
+
+    for (const ob of obras) {
+      ob.predios = await db.all(`
+        SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
+        FROM predio pr
+        JOIN obra_predio op ON pr.id = op.predio_id
+        WHERE op.obra_id = ?
+        ORDER BY pr.nombre ASC
+      `, [ob.id]);
+    }
+
     return res.json({ obras });
   } catch (err) {
+    console.error('Error al obtener obras:', err);
     return res.status(500).json({ error: 'Error al obtener obras.' });
+  }
+});
+
+/**
+ * POST /api/projects/obras
+ * Crear nueva obra / frente (directamente o asociada a un proyecto)
+ */
+router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { nombre, proyecto_id, fase_actual = 'operacion', estado = 'operacion', tg_thread_id, predio_ids = [] } = req.body;
+
+    if (!nombre || !nombre.trim()) {
+      return res.status(400).json({ error: 'El nombre del frente u obra es obligatorio.' });
+    }
+
+    if (!proyecto_id) {
+      return res.status(400).json({ error: 'El proyecto asignado es obligatorio.' });
+    }
+
+    const result = await db.run(
+      `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [nombre.trim(), parseInt(proyecto_id, 10), fase_actual, estado, tg_thread_id || null]
+    );
+
+    const obraId = result.lastID;
+
+    // Vincular predios seleccionados
+    const pIds = Array.isArray(predio_ids) ? predio_ids : [predio_ids];
+    for (const pId of pIds) {
+      if (pId) {
+        await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [obraId, parseInt(pId, 10)]);
+      }
+    }
+
+    const newObra = await db.get(`
+      SELECT o.*, p.nombre AS proyecto_nombre
+      FROM obra o
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
+      WHERE o.id = ?
+    `, [obraId]);
+
+    newObra.predios = await db.all(`
+      SELECT pr.id, pr.nombre, pr.superficie_util_ha
+      FROM predio pr
+      JOIN obra_predio op ON pr.id = op.predio_id
+      WHERE op.obra_id = ?
+    `, [obraId]);
+
+    return res.status(201).json({ success: true, obra: newObra });
+  } catch (err) {
+    console.error('Error al crear obra:', err);
+    return res.status(500).json({ error: 'Error al crear frente u obra.' });
+  }
+});
+
+/**
+ * PATCH /api/projects/obras/:id
+ * Editar obra / frente de trabajo existente
+ */
+router.patch('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, proyecto_id, fase_actual, estado, tg_thread_id, predio_ids } = req.body;
+
+    const obra = await db.get('SELECT * FROM obra WHERE id = ?', [id]);
+    if (!obra) {
+      return res.status(404).json({ error: 'Frente u obra no encontrada.' });
+    }
+
+    await db.run(
+      `UPDATE obra
+       SET nombre = ?, proyecto_id = ?, fase_actual = ?, estado = ?, tg_thread_id = ?
+       WHERE id = ?`,
+      [
+        nombre !== undefined ? nombre.trim() : obra.nombre,
+        proyecto_id !== undefined ? parseInt(proyecto_id, 10) : obra.proyecto_id,
+        fase_actual !== undefined ? fase_actual : obra.fase_actual,
+        estado !== undefined ? estado : obra.estado,
+        tg_thread_id !== undefined ? tg_thread_id : obra.tg_thread_id,
+        id
+      ]
+    );
+
+    // Actualizar predios vinculados si se proporcionaron
+    if (predio_ids !== undefined && Array.isArray(predio_ids)) {
+      await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [id]);
+      for (const pId of predio_ids) {
+        if (pId) {
+          await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [id, parseInt(pId, 10)]);
+        }
+      }
+    }
+
+    const updated = await db.get(`
+      SELECT o.*, p.nombre AS proyecto_nombre
+      FROM obra o
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
+      WHERE o.id = ?
+    `, [id]);
+
+    updated.predios = await db.all(`
+      SELECT pr.id, pr.nombre, pr.superficie_util_ha
+      FROM predio pr
+      JOIN obra_predio op ON pr.id = op.predio_id
+      WHERE op.obra_id = ?
+    `, [id]);
+
+    return res.json({ success: true, obra: updated });
+  } catch (err) {
+    console.error('Error al actualizar obra:', err);
+    return res.status(500).json({ error: 'Error al actualizar la obra.' });
+  }
+});
+
+/**
+ * DELETE /api/projects/obras/:id
+ * Eliminar obra / frente
+ */
+router.delete('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [id]);
+    await db.run('DELETE FROM obra WHERE id = ?', [id]);
+    return res.json({ success: true, message: 'Frente u obra eliminada correctamente.' });
+  } catch (err) {
+    console.error('Error al eliminar obra:', err);
+    return res.status(500).json({ error: 'Error al eliminar la obra.' });
   }
 });
 

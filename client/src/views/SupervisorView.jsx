@@ -94,14 +94,27 @@ export default function SupervisorView() {
     responsable: ''
   });
 
-  // Modal Nueva Obra/Frente
+  // Modal Nueva/Editar Obra/Frente
   const [showObraModal, setShowObraModal] = useState(false);
   const [selectedProjectForObra, setSelectedProjectForObra] = useState(null);
+  const [editingObra, setEditingObra] = useState(null);
   const [obraForm, setObraForm] = useState({
     nombre: '',
+    proyecto_id: '',
     fase_actual: 'Operación',
     estado: 'operacion',
-    predio_id: ''
+    tg_thread_id: '',
+    predio_ids: []
+  });
+
+  // Modal Nuevo/Editar Predio
+  const [showPredioModal, setShowPredioModal] = useState(false);
+  const [editingPredio, setEditingPredio] = useState(null);
+  const [predioForm, setPredioForm] = useState({
+    nombre: '',
+    superficie_legal_ha: 10,
+    superficie_util_ha: 10,
+    regimen: 'Propiedad Privada'
   });
 
   const loadData = async () => {
@@ -333,25 +346,103 @@ export default function SupervisorView() {
   };
 
   // --- CRUD OBRAS/FRENTES ---
-  const handleOpenObraModal = (proj) => {
-    setSelectedProjectForObra(proj);
-    setObraForm({
-      nombre: `Frente ${proj.nombre} - Lote ${proj.obras?.length + 1 || 1}`,
-      fase_actual: 'Habilitación',
-      estado: 'operacion',
-      predio_id: prediosList[0]?.id ? String(prediosList[0].id) : ''
-    });
+  const handleOpenObraModal = (proj = null, obra = null) => {
+    setSelectedProjectForObra(proj || (obra?.proyecto_id ? proyectosList.find(p => p.id === obra.proyecto_id) : proyectosList[0]));
+    setEditingObra(obra);
+    if (obra) {
+      setObraForm({
+        nombre: obra.nombre,
+        proyecto_id: String(obra.proyecto_id || proj?.id || ''),
+        fase_actual: obra.fase_actual || 'Operación',
+        estado: obra.estado || 'operacion',
+        tg_thread_id: obra.tg_thread_id || '',
+        predio_ids: obra.predios ? obra.predios.map(pr => String(pr.id)) : []
+      });
+    } else {
+      const parentProj = proj || proyectosList[0];
+      setObraForm({
+        nombre: parentProj ? `Frente ${parentProj.nombre} - Lote ${parentProj.obras?.length + 1 || 1}` : 'Nuevo Frente de Obra',
+        proyecto_id: parentProj ? String(parentProj.id) : (proyectosList[0]?.id ? String(proyectosList[0].id) : ''),
+        fase_actual: 'Habilitación',
+        estado: 'operacion',
+        tg_thread_id: '',
+        predio_ids: prediosList[0]?.id ? [String(prediosList[0].id)] : []
+      });
+    }
     setShowObraModal(true);
   };
 
   const handleSaveObra = async (e) => {
     e.preventDefault();
     try {
-      await api.post(`/projects/${selectedProjectForObra.id}/obras`, obraForm);
+      if (editingObra) {
+        await api.patch(`/projects/obras/${editingObra.id}`, obraForm);
+      } else {
+        const projId = obraForm.proyecto_id || selectedProjectForObra?.id;
+        await api.post(`/projects/${projId}/obras`, obraForm);
+      }
       setShowObraModal(false);
+      setEditingObra(null);
       await loadData();
     } catch (err) {
-      alert('Error al crear frente de obra: ' + err.message);
+      alert('Error al guardar frente de obra: ' + err.message);
+    }
+  };
+
+  const handleDeleteObra = async (obraId, nombre) => {
+    if (!window.confirm(`¿Estás seguro de eliminar el frente de obra "${nombre}"?`)) return;
+    try {
+      await api.delete(`/projects/obras/${obraId}`);
+      await loadData();
+    } catch (err) {
+      alert('Error al eliminar obra: ' + err.message);
+    }
+  };
+
+  // --- CRUD PREDIOS ---
+  const handleOpenPredioModal = (predio = null) => {
+    setEditingPredio(predio);
+    if (predio) {
+      setPredioForm({
+        nombre: predio.nombre,
+        superficie_legal_ha: predio.superficie_legal_ha || 0,
+        superficie_util_ha: predio.superficie_util_ha || 0,
+        regimen: predio.regimen || 'Propiedad Privada'
+      });
+    } else {
+      setPredioForm({
+        nombre: '',
+        superficie_legal_ha: 15,
+        superficie_util_ha: 15,
+        regimen: 'Propiedad Privada'
+      });
+    }
+    setShowPredioModal(true);
+  };
+
+  const handleSavePredio = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingPredio) {
+        await api.patch(`/projects/predios/${editingPredio.id}`, predioForm);
+      } else {
+        await api.post('/projects/predios', predioForm);
+      }
+      setShowPredioModal(false);
+      setEditingPredio(null);
+      await loadData();
+    } catch (err) {
+      alert('Error al guardar predio: ' + err.message);
+    }
+  };
+
+  const handleDeletePredio = async (predioId, nombre) => {
+    if (!window.confirm(`¿Estás seguro de eliminar el predio "${nombre}"? Se desvinculará de sus obras y tareas asociadas.`)) return;
+    try {
+      await api.delete(`/projects/predios/${predioId}`);
+      await loadData();
+    } catch (err) {
+      alert('Error al eliminar predio: ' + err.message);
     }
   };
 
@@ -450,9 +541,25 @@ export default function SupervisorView() {
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Gestor de Proyectos & Hitos</span>
+            <span>Proyectos & Hitos</span>
             <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-500/50">
               {proyectosList.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('catalogos')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'catalogos'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            <span>Catálogo Predios & Frentes</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-purple-950 text-purple-300 border border-purple-500/50">
+              {prediosList.length}P / {proyectosList.reduce((acc, p) => acc + (p.obras?.length || 0), 0)}F
             </span>
           </button>
 
@@ -613,9 +720,26 @@ export default function SupervisorView() {
                       <div className="mt-3 pt-3 border-t border-[#e2ebd3] dark:border-[#253905]/60 flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
                         {p.obras.map(o => (
-                          <span key={o.id} className="px-2 py-0.5 rounded text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100">
-                            {o.nombre} ({o.fase_actual})
-                          </span>
+                          <div key={o.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs shadow-sm">
+                            <span className="font-semibold">{o.nombre}</span>
+                            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono">({o.fase_actual})</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenObraModal(p, o)}
+                              className="text-slate-400 hover:text-purple-400 ml-1"
+                              title="Editar frente de obra"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteObra(o.id, o.nombre)}
+                              className="text-slate-400 hover:text-rose-500"
+                              title="Eliminar frente de obra"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -1321,6 +1445,185 @@ export default function SupervisorView() {
       )}
 
       {/* ========================================================================= */}
+      {/* VISTA 4: CATÁLOGO ADMINISTRATIVO DE PREDIOS Y FRENTES DE OBRA             */}
+      {/* ========================================================================= */}
+      {activeTab === 'catalogos' && (
+        <div className="space-y-8">
+          {/* SECCIÓN 1: GESTIÓN DE PREDIOS AGRÍCOLAS */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-500" /> Catálogo de Predios & Polígonos Agrícolas
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Alta, edición y control de superficie legal vs mecanizable de cada predio
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenPredioModal()}
+                className="px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Nuevo Predio</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {prediosList.map((pr) => (
+                <div
+                  key={pr.id}
+                  className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm space-y-3 relative group hover:border-[#a1c62e]/70 transition"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-[#a1c62e]" /> {pr.nombre}
+                      </h4>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+                        {pr.regimen || 'Propiedad Privada'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPredioModal(pr)}
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-emerald-500 transition"
+                        title="Editar predio"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePredio(pr.id, pr.nombre)}
+                        className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition"
+                        title="Eliminar predio"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60 text-xs">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905]/60">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase">Sup. Legal</span>
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{pr.superficie_legal_ha} ha</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905]/60">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase">Sup. Mecanizable</span>
+                      <p className="font-bold text-emerald-600 dark:text-emerald-400">{pr.superficie_util_ha} ha</p>
+                    </div>
+                  </div>
+
+                  {pr.obras && pr.obras.length > 0 && (
+                    <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                        Frentes en este predio ({pr.obras.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pr.obras.map(ob => (
+                          <span key={ob.id} className="text-[10px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                            {ob.nombre}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SECCIÓN 2: GESTIÓN GENERAL DE FRENTES DE OBRA */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Building className="w-4 h-4 text-purple-400" /> Catálogo de Frentes de Obra Operativos
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Administración de cuadrillas, fases activas y predios vinculados por frente
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenObraModal()}
+                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nuevo Frente de Obra</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id }))).map((ob) => {
+                const statusColors = {
+                  operacion: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-400',
+                  habilitacion: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-400',
+                  prospeccion: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-400',
+                  mantenimiento: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-400',
+                  standby: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-400',
+                  cerrada: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-400'
+                };
+
+                return (
+                  <div
+                    key={ob.id}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm space-y-3 relative group hover:border-purple-400/60 transition"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Building className="w-4 h-4 text-purple-400" /> {ob.nombre}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                          Proyecto: <strong className="text-slate-700 dark:text-slate-300">{ob.proyecto_nombre}</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenObraModal(null, ob)}
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-purple-400 transition"
+                          title="Editar frente de obra"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteObra(ob.id, ob.nombre)}
+                          className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition"
+                          title="Eliminar frente de obra"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusColors[ob.estado] || statusColors.operacion}`}>
+                        {ob.estado}
+                      </span>
+                      <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                        Fase: <strong>{ob.fase_actual}</strong>
+                      </span>
+                    </div>
+
+                    {ob.tg_thread_id && (
+                      <p className="text-[10px] font-mono text-slate-500">
+                        Thread Telegram: #{ob.tg_thread_id}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* MODAL: VISOR DE FOTO LIGHTBOX                                             */}
       {/* ========================================================================= */}
       {activePhotoModal && (
@@ -1710,12 +2013,27 @@ export default function SupervisorView() {
             <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Building className="w-5 h-5 text-purple-400" />
-                Nuevo Frente de Obra: {selectedProjectForObra?.nombre}
+                {editingObra ? `Editar Frente: ${editingObra.nombre}` : `Nuevo Frente de Obra: ${selectedProjectForObra?.nombre || ''}`}
               </h3>
-              <button type="button" onClick={() => setShowObraModal(false)} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
+              <button type="button" onClick={() => { setShowObraModal(false); setEditingObra(null); }} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveObra} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Proyecto Asignado</label>
+                <select
+                  required
+                  value={obraForm.proyecto_id}
+                  onChange={(e) => setObraForm(prev => ({ ...prev, proyecto_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="">Selecciona un proyecto...</option>
+                  {proyectosList.map(p => (
+                    <option key={p.id} value={p.id}>{p.nombre} ({p.ciclo})</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Frente / Obra</label>
                 <input
@@ -1724,28 +2042,28 @@ export default function SupervisorView() {
                   value={obraForm.nombre}
                   onChange={(e) => setObraForm(prev => ({ ...prev, nombre: e.target.value }))}
                   placeholder="ej. Frente Norte - Desmonte y Nivelación"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fase Actual</label>
-                <input
-                  type="text"
-                  value={obraForm.fase_actual}
-                  onChange={(e) => setObraForm(prev => ({ ...prev, fase_actual: e.target.value }))}
-                  placeholder="ej. Subsoleo, Camellonado, Riego"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Fase Actual</label>
+                  <input
+                    type="text"
+                    value={obraForm.fase_actual}
+                    onChange={(e) => setObraForm(prev => ({ ...prev, fase_actual: e.target.value }))}
+                    placeholder="ej. Subsoleo, Siembra"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Estado</label>
                   <select
                     value={obraForm.estado}
                     onChange={(e) => setObraForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
                   >
                     <option value="operacion">Operación</option>
                     <option value="prospeccion">Prospección</option>
@@ -1755,26 +2073,37 @@ export default function SupervisorView() {
                     <option value="cerrada">Cerrada</option>
                   </select>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Predio Vinculado</label>
-                  <select
-                    value={obraForm.predio_id}
-                    onChange={(e) => setObraForm(prev => ({ ...prev, predio_id: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
-                  >
-                    <option value="">Sin predio</option>
-                    {prediosList.map(pr => (
-                      <option key={pr.id} value={pr.id}>{pr.nombre}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Predio Vinculado Principal</label>
+                <select
+                  value={obraForm.predio_ids?.[0] || ''}
+                  onChange={(e) => setObraForm(prev => ({ ...prev, predio_ids: e.target.value ? [e.target.value] : [] }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="">Sin predio vinculado</option>
+                  {prediosList.map(pr => (
+                    <option key={pr.id} value={pr.id}>{pr.nombre} ({pr.superficie_util_ha} ha)</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Thread / Tema de Telegram (Opcional)</label>
+                <input
+                  type="text"
+                  value={obraForm.tg_thread_id}
+                  onChange={(e) => setObraForm(prev => ({ ...prev, tg_thread_id: e.target.value }))}
+                  placeholder="ej. 101"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-purple-500 focus:outline-none"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => setShowObraModal(false)}
+                  onClick={() => { setShowObraModal(false); setEditingObra(null); }}
                   className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
@@ -1783,7 +2112,91 @@ export default function SupervisorView() {
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold"
                 >
-                  Crear Frente de Obra
+                  {editingObra ? 'Guardar Cambios' : 'Crear Frente de Obra'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: PREDIO AGRÍCOLA */}
+      {showPredioModal && (
+        <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#152202] border border-slate-300 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-[#e2ebd3] dark:border-[#253905] pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-500" />
+                {editingPredio ? `Editar Predio: ${editingPredio.nombre}` : 'Nuevo Predio Agrícola'}
+              </h3>
+              <button type="button" onClick={() => { setShowPredioModal(false); setEditingPredio(null); }} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleSavePredio} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Predio / Rancho</label>
+                <input
+                  type="text"
+                  required
+                  value={predioForm.nombre}
+                  onChange={(e) => setPredioForm(prev => ({ ...prev, nombre: e.target.value }))}
+                  placeholder="ej. Santa Teresita, San Alberto, Guayeme"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Superficie Legal (Ha)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={predioForm.superficie_legal_ha}
+                    onChange={(e) => setPredioForm(prev => ({ ...prev, superficie_legal_ha: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Superficie Útil/Mecanizable (Ha)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={predioForm.superficie_util_ha}
+                    onChange={(e) => setPredioForm(prev => ({ ...prev, superficie_util_ha: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Régimen Jurídico</label>
+                <input
+                  type="text"
+                  value={predioForm.regimen}
+                  onChange={(e) => setPredioForm(prev => ({ ...prev, regimen: e.target.value }))}
+                  placeholder="ej. Propiedad Privada, Ejidal, En trámite RPP"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowPredioModal(false); setEditingPredio(null); }}
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold shadow-md shadow-emerald-950/50"
+                >
+                  {editingPredio ? 'Guardar Cambios' : 'Crear Predio'}
                 </button>
               </div>
             </form>

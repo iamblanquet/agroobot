@@ -397,7 +397,7 @@ function initTelegramBot(app) {
           appButton,
           [{ text: '📁 Proyectos & Tareas' }, { text: '📊 Tablero Hoy' }],
           [{ text: '⚠️ Incidencias' }, { text: '🚜 Horómetro' }],
-          [{ text: '🌧️ Sin Actividad' }]
+          [{ text: '🌧️ Sin Actividad' }, { text: '🔒 Cerrar Sesión' }]
         ],
         resize_keyboard: true,
         persistent: true
@@ -612,6 +612,25 @@ function initTelegramBot(app) {
       const chatId = msg.chat.id;
       const threadId = msg.message_thread_id;
       const text = msg.text.trim();
+
+      // Botón del teclado: 🔒 Cerrar Sesión
+      if (text === '🔒 Cerrar Sesión' || text.toLowerCase() === 'cerrar sesion' || text.toLowerCase() === 'salir') {
+        const u = await getAuthUser(msg);
+        if (u) {
+          await db.run('UPDATE usuario SET tg_user_id = NULL WHERE id = ?', [u.id]);
+          return botInstance.sendMessage(
+            chatId,
+            `🔒 *Sesión finalizada para ${u.nombre}.*\nLos accesos rápidos han sido bloqueados hasta que vuelvas a iniciar sesión.`,
+            { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+          );
+        } else {
+          return botInstance.sendMessage(
+            chatId,
+            'ℹ️ No tienes ninguna sesión activa.',
+            { parse_mode: 'Markdown', message_thread_id: threadId, ...unauthKeyboard }
+          );
+        }
+      }
 
       // Botón del teclado de no autenticado: 🔐 Iniciar Sesión (PIN)
       if (text === '🔐 Iniciar Sesión (PIN)') {

@@ -47,7 +47,8 @@ async function request(endpoint, options = {}) {
 
   if (!response.ok) {
     const errorMsg = data?.error || data?.message || `Error ${response.status}: ${response.statusText}`;
-    if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/telegram')) {
+    const isAuthError = response.status === 401 || (response.status === 403 && errorMsg.toLowerCase().includes('token'));
+    if (isAuthError && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/telegram') && !endpoint.includes('/auth/pin-login')) {
       localStorage.removeItem('tesa_token');
       localStorage.removeItem('tesa_user');
       window.dispatchEvent(new CustomEvent('tesa:unauthorized'));

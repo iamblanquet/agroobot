@@ -570,10 +570,26 @@ router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccio
       return res.status(400).json({ error: 'El proyecto asignado es obligatorio.' });
     }
 
+    const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [parseInt(proyecto_id, 10)]);
+
+    // Creación automática del tema en Telegram si no se proporcionó manualmente
+    let finalThreadId = tg_thread_id || null;
+    if (!finalThreadId) {
+      try {
+        const { createObraForumTopic } = require('../bot/bot');
+        const autoThreadId = await createObraForumTopic(nombre.trim(), proj?.nombre || 'General');
+        if (autoThreadId) {
+          finalThreadId = String(autoThreadId);
+        }
+      } catch (botErr) {
+        console.warn('No se pudo generar el tema automático en Telegram:', botErr.message);
+      }
+    }
+
     const result = await db.run(
       `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
        VALUES (?, ?, ?, ?, ?)`,
-      [nombre.trim(), parseInt(proyecto_id, 10), fase_actual, estado, tg_thread_id || null]
+      [nombre.trim(), parseInt(proyecto_id, 10), fase_actual, estado, finalThreadId]
     );
 
     const obraId = result.lastID;

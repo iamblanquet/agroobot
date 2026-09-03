@@ -304,6 +304,35 @@ const DDL_SCHEMA = `
     FOREIGN KEY (reporte_id) REFERENCES reporte(id) ON DELETE CASCADE
   );
 
+  -- 17. Tabla de Activos Fijos (Monitoreo de inactividad > 30 días)
+  CREATE TABLE IF NOT EXISTS activo_fijo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL CHECK(tipo IN ('veleta', 'bomba', 'cisterna', 'bodega', 'corral', 'cerco', 'otro')),
+    ubicacion TEXT NOT NULL,
+    predio_id INTEGER,
+    obra_id INTEGER,
+    ultima_lectura_fecha DATE,
+    estado_operativo TEXT NOT NULL DEFAULT 'operativo' CHECK(estado_operativo IN ('operativo', 'mantenimiento', 'fuera_servicio', 'standby')),
+    FOREIGN KEY (predio_id) REFERENCES predio(id) ON DELETE SET NULL,
+    FOREIGN KEY (obra_id) REFERENCES obra(id) ON DELETE SET NULL
+  );
+
+  -- 18. Tabla de Lecturas de Activos Fijos
+  CREATE TABLE IF NOT EXISTS lectura_activo_fijo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activo_fijo_id INTEGER NOT NULL,
+    fecha DATE NOT NULL,
+    reporte_id INTEGER,
+    inspeccionado_por TEXT NOT NULL,
+    observaciones TEXT,
+    estado_operativo TEXT NOT NULL DEFAULT 'operativo',
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (activo_fijo_id) REFERENCES activo_fijo(id) ON DELETE CASCADE,
+    FOREIGN KEY (reporte_id) REFERENCES reporte(id) ON DELETE SET NULL
+  );
+
   -- Índices de Rendimiento
   CREATE INDEX IF NOT EXISTS idx_tarea_hito ON tarea(hito_id);
   CREATE INDEX IF NOT EXISTS idx_tarea_proyecto ON tarea(proyecto_id);
@@ -313,6 +342,7 @@ const DDL_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_incidencia_obra ON incidencia(obra_id);
   CREATE INDEX IF NOT EXISTS idx_incidencia_estado ON incidencia(estado);
   CREATE INDEX IF NOT EXISTS idx_material_obra ON material(obra_id);
+  CREATE INDEX IF NOT EXISTS idx_activo_fijo_fecha ON activo_fijo(ultima_lectura_fecha);
 `;
 
 async function initDatabase() {
@@ -373,7 +403,26 @@ async function initDatabase() {
       }
     } catch (e) {}
 
-    console.log('✅ Esquema DDL de SQLite inicializado correctamente (17 tablas relacionales con soporte de fotos, hora offline y catálogo de maquinaria).');
+    // Columnas referenciales para Odoo
+    try { await db.run("ALTER TABLE entidad ADD COLUMN odoo_company_id INTEGER"); } catch (e) {}
+    try { await db.run("ALTER TABLE predio ADD COLUMN odoo_partner_id INTEGER"); } catch (e) {}
+    try { await db.run("ALTER TABLE maquina ADD COLUMN odoo_fleet_id INTEGER"); } catch (e) {}
+    try { await db.run("ALTER TABLE material ADD COLUMN odoo_po_id INTEGER"); } catch (e) {}
+    try { await db.run("ALTER TABLE usuario ADD COLUMN odoo_user_id INTEGER"); } catch (e) {}
+
+    // Sembrar Activos Fijos Canónicos (Plan Maestro §4.4)
+    try {
+      await db.run(`
+        INSERT OR IGNORE INTO activo_fijo (codigo, nombre, tipo, ubicacion, ultima_lectura_fecha, estado_operativo)
+        VALUES
+          ('ACT-VELETA-01', 'Veleta Parque Jabin', 'veleta', 'Parque Jabin', date('now', '-35 days'), 'operativo'),
+          ('ACT-BOMBA-01', 'Bomba Sumergible Pozo San Alberto', 'bomba', 'San Alberto', date('now', '-5 days'), 'operativo'),
+          ('ACT-CISTERNA-01', 'Cisterna de Almacenamiento 10,000L', 'cisterna', 'Campamento Central', date('now', '-12 days'), 'operativo'),
+          ('ACT-CABANA-01', 'Cabaña y Bodega de Insumos', 'bodega', 'Base Operativa Guayeme', date('now', '-40 days'), 'operativo')
+      `);
+    } catch (e) {}
+
+    console.log('✅ Esquema DDL de SQLite inicializado correctamente (19 tablas relacionales con soporte de fotos, hora offline, maquinaria, activos fijos y Odoo).');
   } catch (err) {
     console.error('❌ Error al inicializar esquema DDL:', err);
     throw err;

@@ -779,10 +779,55 @@ Este bot canaliza automáticamente cada mensaje a su tema correspondiente:
   return botInstance;
 }
 
+/**
+ * Crear automáticamente un tema en Telegram para una obra / frente de trabajo
+ * @param {string} obraNombre
+ * @param {string} proyectoNombre
+ * @returns {Promise<number|null>} message_thread_id creado o null
+ */
+async function createObraForumTopic(obraNombre, proyectoNombre) {
+  if (!botInstance) return null;
+
+  const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
+  if (!supergroupId) return null;
+
+  try {
+    const topicTitle = `${obraNombre} · ${proyectoNombre || 'Operación'}`.substring(0, 64);
+    const topic = await botInstance.createForumTopic(supergroupId, topicTitle);
+
+    if (topic && topic.message_thread_id) {
+      const threadId = topic.message_thread_id;
+
+      // Mensaje de bienvenida fijado en el nuevo tema
+      const welcomeText = `🌾 *FRENTE OPERATIVO HABILITADO EN TELEGRAM*\n\n` +
+                          `🏢 *Frente:* ${obraNombre}\n` +
+                          `📋 *Proyecto:* ${proyectoNombre || 'General'}\n\n` +
+                          `📌 *Operación:* Cualquier reporte de jornada, horas máquina o aviso enviado en este tema será asociado automáticamente a este frente.\n\n` +
+                          `💡 _Puedes enviar texto libre con el formato de cuadrilla y avances o usar_ \`/sin_actividad\`.`;
+
+      const welcomeMsg = await botInstance.sendMessage(supergroupId, welcomeText, {
+        parse_mode: 'Markdown',
+        message_thread_id: threadId
+      });
+
+      if (welcomeMsg?.message_id) {
+        botInstance.pinChatMessage(supergroupId, welcomeMsg.message_id).catch(() => {});
+      }
+
+      console.log(`✅ Tema de Telegram creado automáticamente para "${obraNombre}" con thread_id: ${threadId}`);
+      return threadId;
+    }
+  } catch (err) {
+    console.warn(`⚠️ No se pudo crear el tema en Telegram para "${obraNombre}":`, err.message);
+  }
+  return null;
+}
+
 module.exports = {
   initTelegramBot,
   getBotInstance: () => botInstance,
   sendTopicMessage,
+  createObraForumTopic,
   notifyReporte,
   notifyIncidencia,
   generateTableroText,

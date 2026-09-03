@@ -9,11 +9,15 @@ async function seed() {
   const passwordHash = await bcrypt.hash('demo123', saltRounds);
 
   // Limpiar tablas para reseteo limpio en seed
+  await db.run('DELETE FROM lectura_activo_fijo');
+  await db.run('DELETE FROM activo_fijo');
+  await db.run('DELETE FROM reporte_foto');
   await db.run('DELETE FROM medicion');
   await db.run('DELETE FROM material');
   await db.run('DELETE FROM incidencia');
   await db.run('DELETE FROM lectura_maquina');
   await db.run('DELETE FROM maquina');
+  await db.run('DELETE FROM entidad');
   await db.run('DELETE FROM reporte_cuadrilla');
   await db.run('DELETE FROM reporte_linea');
   await db.run('DELETE FROM reporte');
@@ -321,7 +325,62 @@ async function seed() {
     [rep1Id, m1Id, 280.5, 288.5, 8.0, 65.0]
   );
 
-  console.log('✅ Base de datos de AGROK poblada exitosamente con el catálogo oficial.');
+  // 12. Fotos de Evidencia del Reporte (Plan Maestro y Bitácora)
+  await db.run(
+    `INSERT INTO reporte_foto (reporte_id, archivo_ruta, url, descripcion)
+     VALUES (?, ?, ?, ?)`,
+    [rep1Id, 'uploads/siembra_mangos_01.jpg', 'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?w=800', 'Siembra en línea con Case Early Riser y germinación uniforme']
+  );
+
+  // 13. Reporte de Paro Operativo por Lluvia con Hora Offline Registrada
+  const rep2 = await db.run(
+    `INSERT INTO reporte (client_uuid, proyecto_id, obra_id, recibido_en, fecha_operativa, hora_offline, autor_nombre, texto_original, nota, estado, es_sin_actividad, motivo_sin_actividad)
+     VALUES (?, ?, ?, datetime('now', '-2 days'), date('now', '-2 days'), '14:35', 'Abner Díaz', '/sin_actividad Lluvia torrencial en lote Santa Teresita', 'Paro de 2 retroexcavadoras por saturación de fango', 'confirmado', 1, 'Lluvia torrencial (precipitación 45mm)')`,
+    ['uuid-rep-paro-002', p1Id, obraMap['Desmonte Santa Teresita']]
+  );
+
+  // 14. Reporte en Borrador Antiguo para Probar Autoconfirmación de 30 minutos (Plan Maestro §1.4)
+  const repDraft = await db.run(
+    `INSERT INTO reporte (client_uuid, proyecto_id, hito_id, tarea_id, obra_id, recibido_en, fecha_operativa, autor_nombre, texto_original, nota, estado, es_sin_actividad)
+     VALUES (?, ?, ?, ?, ?, datetime('now', '-35 minutes'), date('now'), 'Abner Díaz', 'Rastreo final en predio Guayeme', 'Esperando confirmación interactiva', 'borrador', 0)`,
+    ['uuid-rep-draft-003', p1Id, hito1Id, t2Id, obraMap['Maíz Guayeme']]
+  );
+  await db.run(`INSERT INTO reporte_linea (reporte_id, predio_id, actividad_id, cantidad, unidad, cantidad_ha, fuente) VALUES (?, ?, 'rastreo', 15.0, 'ha', 15.0, 'campo')`, [repDraft.lastID, predioMap['Guayeme']]);
+
+  // 15. Activos Fijos Canónicos y Lecturas de Inspección (Plan Maestro §4.4)
+  const act1 = await db.run(
+    `INSERT INTO activo_fijo (codigo, nombre, tipo, ubicacion, predio_id, obra_id, ultima_lectura_fecha, estado_operativo)
+     VALUES (?, ?, ?, ?, ?, ?, date('now', '-35 days'), 'operativo')`,
+    ['ACT-VELETA-01', 'Veleta Parque Jabin', 'veleta', 'Parque Jabin Sector Norte', predioMap['Parque Jabin'], obraMap['Reforestación Parque Jabin']]
+  );
+
+  const act2 = await db.run(
+    `INSERT INTO activo_fijo (codigo, nombre, tipo, ubicacion, predio_id, obra_id, ultima_lectura_fecha, estado_operativo)
+     VALUES (?, ?, ?, ?, ?, ?, date('now', '-5 days'), 'operativo')`,
+    ['ACT-BOMBA-01', 'Bomba Sumergible Pozo San Alberto', 'bomba', 'San Alberto Pozo #2', predioMap['San Alberto'], obraMap['Maíz San Alberto']]
+  );
+
+  const act3 = await db.run(
+    `INSERT INTO activo_fijo (codigo, nombre, tipo, ubicacion, predio_id, obra_id, ultima_lectura_fecha, estado_operativo)
+     VALUES (?, ?, ?, ?, ?, ?, date('now', '-12 days'), 'operativo')`,
+    ['ACT-CISTERNA-01', 'Cisterna de Almacenamiento 10,000L', 'cisterna', 'Campamento Central Santa Teresita', predioMap['Santa Teresita'], obraMap['Desmonte Santa Teresita']]
+  );
+
+  const act4 = await db.run(
+    `INSERT INTO activo_fijo (codigo, nombre, tipo, ubicacion, predio_id, obra_id, ultima_lectura_fecha, estado_operativo)
+     VALUES (?, ?, ?, ?, ?, ?, date('now', '-42 days'), 'mantenimiento')`,
+    ['ACT-CABANA-01', 'Cabaña y Bodega de Insumos', 'bodega', 'Base Operativa Guayeme', predioMap['Guayeme'], obraMap['Maíz Guayeme']]
+  );
+
+  // Registro de inspección histórica para la bomba
+  await db.run(
+    `INSERT INTO lectura_activo_fijo (activo_fijo_id, fecha, inspeccionado_por, observaciones, estado_operativo)
+     VALUES (?, date('now', '-5 days'), 'Abner Díaz', 'Presión de descarga normal (45 PSI), sin fugas en cople', 'operativo')`,
+    [act2.lastID]
+  );
+
+  console.log('🏛️ 4 Activos fijos canónicos sembrados (Veleta y Cabaña con >30 días sin lectura para disparar alerta matutina).');
+  console.log('✅ Base de datos de AGROK poblada exitosamente con el catálogo oficial y suite completa de pruebas.');
 }
 
 if (require.main === module) {

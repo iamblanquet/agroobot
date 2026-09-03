@@ -43,27 +43,12 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
         <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
           {/* Logo Oficial AGROKOOL */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center min-w-0 py-0.5">
             <img
               src="/logo.png"
               alt="AGROKOOL"
-              className="h-10 sm:h-12 w-auto object-contain flex-shrink-0"
+              className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 transition-transform"
             />
-            <div className="min-w-0 hidden sm:block">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#a1c62e] text-[#2c4001] font-black uppercase tracking-wider">
-                  Operación
-                </span>
-                {isTelegram && (
-                  <span className="flex items-center gap-1 text-[9px] sm:text-[10px] bg-[#a87d13] text-white px-1.5 py-0.5 rounded font-bold flex-shrink-0 shadow-sm">
-                    <Send className="w-2.5 h-2.5" /> MiniApp
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-[#d4e6b5] font-medium leading-tight mt-0.5 truncate">
-                {user?.nombre || 'Operador Conectado'}
-              </p>
-            </div>
           </div>
 
           {/* Right Action Tools */}

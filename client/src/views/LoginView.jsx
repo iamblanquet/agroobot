@@ -109,8 +109,8 @@ export default function LoginView() {
         
         {/* Header */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white border-2 border-[#a1c62e] shadow-md shadow-[#2c4001]/10 text-2xl mb-2">
-            🌽
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-black border-2 border-[#a1c62e] shadow-lg shadow-[#2c4001]/20 overflow-hidden mb-2 p-1">
+            <img src="/logo.png" alt="AGROKOOL Logo" className="w-full h-full object-contain" />
           </div>
           <h2 className="text-xl font-black text-[#2c4001] dark:text-white tracking-wider font-serif">
             AGROKOOL

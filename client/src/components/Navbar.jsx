@@ -44,9 +44,11 @@ export default function Navbar({ currentView, onViewChange, onSyncComplete }) {
         <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
           {/* Logo & Brand Info */}
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-full bg-white border-2 border-[#a1c62e] flex items-center justify-center font-black text-lg shadow-sm flex-shrink-0">
-              🌽
-            </div>
+            <img
+              src="/logo.png"
+              alt="AGROKOOL"
+              className="w-9 h-9 rounded-full object-cover border-2 border-[#a1c62e] shadow-sm flex-shrink-0 bg-black"
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h1 className="text-sm sm:text-base font-black text-white tracking-wide leading-none truncate font-serif">

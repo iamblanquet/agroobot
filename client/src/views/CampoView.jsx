@@ -75,19 +75,27 @@ export default function CampoView() {
 
   // Manejo de carga y compresión de fotos
   const handlePhotoUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
+    const inputElement = e.target;
+    const files = Array.from(inputElement.files || []);
     if (files.length === 0) return;
 
-    // Máximo 6 fotos por reporte
-    if (fotos.length + files.length > 6) {
-      alert('Puedes adjuntar un máximo de 6 fotografías por reporte.');
+    const availableSlots = 6 - fotos.length;
+    if (availableSlots <= 0) {
+      alert('Ya has alcanzado el límite máximo de 6 fotografías por reporte.');
+      if (inputElement) inputElement.value = '';
       return;
+    }
+
+    let filesToProcess = files;
+    if (files.length > availableSlots) {
+      alert(`Solo se pueden agregar ${availableSlots} foto(s) más. Se procesarán las primeras ${availableSlots}.`);
+      filesToProcess = files.slice(0, availableSlots);
     }
 
     setIsProcessingPhoto(true);
     try {
       const compressedList = [];
-      for (const file of files) {
+      for (const file of filesToProcess) {
         const compressed = await compressImage(file, 1280, 1280, 0.75);
         compressedList.push({
           id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
@@ -102,8 +110,10 @@ export default function CampoView() {
       alert('Error al procesar fotografía: ' + err.message);
     } finally {
       setIsProcessingPhoto(false);
-      // Reset input value para permitir seleccionar el mismo archivo
-      e.target.value = '';
+      // Reset input value para permitir tomar o seleccionar otra foto inmediatamente
+      if (inputElement) {
+        inputElement.value = '';
+      }
     }
   };
 
@@ -839,7 +849,6 @@ export default function CampoView() {
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  multiple
                   onChange={handlePhotoUpload}
                   disabled={isProcessingPhoto}
                   className="hidden"

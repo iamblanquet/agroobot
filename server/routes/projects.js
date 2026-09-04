@@ -332,30 +332,78 @@ router.delete('/tareas/:id', authenticateJWT, requireRole('supervisor', 'it', 'd
 });
 
 /**
+/**
  * POST /api/projects/:id/obras
- * Crear un nuevo frente/obra en un proyecto
+ * Crear un nuevo frente/obra en un proyecto (compatible con frontend anidado)
  */
 router.post('/:id/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
     const proyecto_id = req.params.id;
-    const { nombre, fase_actual = 'operacion', estado = 'operacion', predio_id } = req.body;
+    const { nombre, fase_actual = 'operacion', estado = 'operacion', tg_thread_id, predio_id, predio_ids = [] } = req.body;
 
-    if (!nombre) {
+    if (!nombre || !nombre.trim()) {
       return res.status(400).json({ error: 'El nombre de la obra o frente es requerido.' });
     }
 
+    const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [parseInt(proyecto_id, 10)]);
+
+    // Obtener lista consolidada de predio_ids
+    let consolidatedPredioIds = Array.isArray(predio_ids) ? [...predio_ids] : (predio_ids ? [predio_ids] : []);
+    if (predio_id && !consolidatedPredioIds.includes(predio_id)) {
+      consolidatedPredioIds.push(predio_id);
+    }
+
+    // Obtener nombres de predios para incluirlos en el mensaje de bienvenida de Telegram
+    let predioNombres = [];
+    if (consolidatedPredioIds.length > 0) {
+      const placeholders = consolidatedPredioIds.map(() => '?').join(',');
+      const rows = await db.all(`SELECT nombre FROM predio WHERE id IN (${placeholders})`, consolidatedPredioIds);
+      predioNombres = rows.map(r => r.nombre);
+    }
+
+    // Creación automática del tema en Telegram si no se especificó un ID manual
+    let finalThreadId = tg_thread_id || null;
+    if (!finalThreadId) {
+      try {
+        const { createObraForumTopic } = require('../bot/bot');
+        const autoThreadId = await createObraForumTopic(nombre.trim(), proj?.nombre || 'General', predioNombres);
+        if (autoThreadId) {
+          finalThreadId = String(autoThreadId);
+        }
+      } catch (botErr) {
+        console.warn('⚠️ No se pudo generar el tema automático en Telegram:', botErr.message);
+      }
+    }
+
     const result = await db.run(
-      `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado)
-       VALUES (?, ?, ?, ?)`,
-      [nombre.trim(), proyecto_id, fase_actual, estado]
+      `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [nombre.trim(), parseInt(proyecto_id, 10), fase_actual, estado, finalThreadId]
     );
 
     const obraId = result.lastID;
-    if (predio_id) {
-      await db.run(`INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)`, [obraId, predio_id]);
+
+    // Vincular predios
+    for (const pId of consolidatedPredioIds) {
+      if (pId) {
+        await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [obraId, parseInt(pId, 10)]);
+      }
     }
 
-    const newObra = await db.get('SELECT * FROM obra WHERE id = ?', [obraId]);
+    const newObra = await db.get(`
+      SELECT o.*, p.nombre AS proyecto_nombre
+      FROM obra o
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
+      WHERE o.id = ?
+    `, [obraId]);
+
+    newObra.predios = await db.all(`
+      SELECT pr.id, pr.nombre, pr.superficie_util_ha
+      FROM predio pr
+      JOIN obra_predio op ON pr.id = op.predio_id
+      WHERE op.obra_id = ?
+    `, [obraId]);
+
     return res.status(201).json({ success: true, obra: newObra });
   } catch (err) {
     console.error('Error al crear obra:', err);
@@ -437,11 +485,19 @@ router.get('/predios', authenticateJWT, async (req, res) => {
 
 /**
  * POST /api/projects/predios
- * Crear nuevo predio
+ * Crear nuevo predio (con creación opcional/automática de Frente y Tema en Telegram)
  */
 router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
-    const { nombre, superficie_legal_ha = 0, superficie_util_ha = 0, regimen = 'Propiedad Privada', poligono_geojson } = req.body;
+    const {
+      nombre,
+      superficie_legal_ha = 0,
+      superficie_util_ha = 0,
+      regimen = 'Propiedad Privada',
+      poligono_geojson,
+      crear_frente_telegram = true,
+      proyecto_id
+    } = req.body;
 
     if (!nombre || !nombre.trim()) {
       return res.status(400).json({ error: 'El nombre del predio es obligatorio.' });
@@ -456,12 +512,60 @@ router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direcc
       [nombre.trim(), supLegal, supUtil, regimen.trim(), poligono_geojson || null]
     );
 
-    const newPredio = await db.get('SELECT * FROM predio WHERE id = ?', [result.lastID]);
+    const predioId = result.lastID;
+    const newPredio = await db.get('SELECT * FROM predio WHERE id = ?', [predioId]);
     newPredio.obras = [];
-    return res.status(201).json({ success: true, predio: newPredio });
+
+    let createdObra = null;
+    let autoThreadId = null;
+
+    // Si se solicitó crear automáticamente Frente y Tema en Telegram para este Predio
+    if (crear_frente_telegram) {
+      try {
+        let targetProjId = proyecto_id ? parseInt(proyecto_id, 10) : null;
+        let proj = null;
+        if (targetProjId) {
+          proj = await db.get('SELECT * FROM proyecto WHERE id = ?', [targetProjId]);
+        }
+        if (!proj) {
+          proj = await db.get('SELECT * FROM proyecto ORDER BY id ASC LIMIT 1');
+        }
+
+        if (proj) {
+          const obraNombre = nombre.trim();
+          const { createObraForumTopic } = require('../bot/bot');
+          autoThreadId = await createObraForumTopic(obraNombre, proj.nombre, [nombre.trim()]);
+
+          const obraResult = await db.run(
+            `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
+             VALUES (?, ?, ?, ?, ?)`,
+            [obraNombre, proj.id, 'operacion', 'operacion', autoThreadId ? String(autoThreadId) : null]
+          );
+
+          const newObraId = obraResult.lastID;
+          await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [newObraId, predioId]);
+
+          createdObra = await db.get('SELECT * FROM obra WHERE id = ?', [newObraId]);
+          createdObra.predios = [newPredio];
+          newPredio.obras = [createdObra];
+        }
+      } catch (tgErr) {
+        console.warn('⚠️ Error al auto-crear frente o tema de Telegram para el nuevo predio:', tgErr.message);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      predio: newPredio,
+      obra: createdObra,
+      tg_thread_id: autoThreadId ? String(autoThreadId) : null,
+      message: autoThreadId
+        ? `Predio registrado y Tema #${autoThreadId} creado en Telegram para el frente "${nombre.trim()}".`
+        : `Predio registrado correctamente.`
+    });
   } catch (err) {
     console.error('Error al crear predio:', err);
-    return res.status(500).json({ error: 'Error al crear el predio.' });
+    return res.status(500).json({ error: 'Error al crear el predio: ' + err.message });
   }
 });
 
@@ -572,12 +676,21 @@ router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccio
 
     const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [parseInt(proyecto_id, 10)]);
 
+    // Obtener nombres de los predios vinculados
+    const pIds = Array.isArray(predio_ids) ? predio_ids : [predio_ids];
+    let predioNombres = [];
+    if (pIds.length > 0) {
+      const placeholders = pIds.map(() => '?').join(',');
+      const rows = await db.all(`SELECT nombre FROM predio WHERE id IN (${placeholders})`, pIds);
+      predioNombres = rows.map(r => r.nombre);
+    }
+
     // Creación automática del tema en Telegram si no se proporcionó manualmente
     let finalThreadId = tg_thread_id || null;
     if (!finalThreadId) {
       try {
         const { createObraForumTopic } = require('../bot/bot');
-        const autoThreadId = await createObraForumTopic(nombre.trim(), proj?.nombre || 'General');
+        const autoThreadId = await createObraForumTopic(nombre.trim(), proj?.nombre || 'General', predioNombres);
         if (autoThreadId) {
           finalThreadId = String(autoThreadId);
         }
@@ -595,7 +708,6 @@ router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccio
     const obraId = result.lastID;
 
     // Vincular predios seleccionados
-    const pIds = Array.isArray(predio_ids) ? predio_ids : [predio_ids];
     for (const pId of pIds) {
       if (pId) {
         await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [obraId, parseInt(pId, 10)]);
@@ -620,6 +732,114 @@ router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccio
   } catch (err) {
     console.error('Error al crear obra:', err);
     return res.status(500).json({ error: 'Error al crear frente u obra.' });
+  }
+});
+
+/**
+ * POST /api/projects/obras/:id/create-telegram-topic
+ * Forzar creación o sincronización de tema en Telegram para una obra existente
+ */
+router.post('/obras/:id/create-telegram-topic', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const obra = await db.get(`
+      SELECT o.*, p.nombre AS proyecto_nombre
+      FROM obra o
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
+      WHERE o.id = ?
+    `, [id]);
+
+    if (!obra) {
+      return res.status(404).json({ error: 'Frente u obra no encontrada.' });
+    }
+
+    const predios = await db.all(`
+      SELECT pr.nombre FROM predio pr
+      JOIN obra_predio op ON pr.id = op.predio_id
+      WHERE op.obra_id = ?
+    `, [id]);
+    const predioNombres = predios.map(p => p.nombre);
+
+    const { createObraForumTopic } = require('../bot/bot');
+    const autoThreadId = await createObraForumTopic(obra.nombre, obra.proyecto_nombre, predioNombres);
+
+    if (!autoThreadId) {
+      return res.status(502).json({
+        error: 'No se pudo crear el tema en Telegram. Verifica que el bot esté en el supergrupo como Administrador con permiso "Administrar Temas".'
+      });
+    }
+
+    await db.run('UPDATE obra SET tg_thread_id = ? WHERE id = ?', [String(autoThreadId), id]);
+
+    const updatedObra = await db.get(`
+      SELECT o.*, p.nombre AS proyecto_nombre
+      FROM obra o
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
+      WHERE o.id = ?
+    `, [id]);
+    updatedObra.predios = predios;
+
+    return res.json({
+      success: true,
+      message: `Tema creado exitosamente en Telegram con ID #${autoThreadId}`,
+      tg_thread_id: String(autoThreadId),
+      obra: updatedObra
+    });
+  } catch (err) {
+    console.error('Error al crear tema de Telegram para la obra:', err);
+    return res.status(500).json({ error: 'Error al crear tema en Telegram: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/projects/sync-telegram-topics
+ * Sincronizar y crear temas de Telegram para todas las obras que no tengan un tema real
+ */
+router.post('/sync-telegram-topics', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
+  try {
+    const obras = await db.all(`
+      SELECT o.*, p.nombre AS proyecto_nombre
+      FROM obra o
+      LEFT JOIN proyecto p ON o.proyecto_id = p.id
+      WHERE o.estado = 'operacion'
+      ORDER BY o.id ASC
+    `);
+
+    const { createObraForumTopic } = require('../bot/bot');
+    const results = [];
+
+    for (const obra of obras) {
+      // Si el thread_id es nulo o corresponde a los valores de prueba semilla ("101", "102", ...)
+      const isMockOrMissing = !obra.tg_thread_id || ['101', '102', '103', '104', '105', '106', '107'].includes(String(obra.tg_thread_id));
+      
+      if (isMockOrMissing) {
+        const predios = await db.all(`
+          SELECT pr.nombre FROM predio pr
+          JOIN obra_predio op ON pr.id = op.predio_id
+          WHERE op.obra_id = ?
+        `, [obra.id]);
+        const predioNombres = predios.map(p => p.nombre);
+
+        const newThreadId = await createObraForumTopic(obra.nombre, obra.proyecto_nombre, predioNombres);
+        if (newThreadId) {
+          await db.run('UPDATE obra SET tg_thread_id = ? WHERE id = ?', [String(newThreadId), obra.id]);
+          results.push({ id: obra.id, nombre: obra.nombre, status: 'creado', tg_thread_id: newThreadId });
+        } else {
+          results.push({ id: obra.id, nombre: obra.nombre, status: 'fallido', error: 'Sin permisos o error Telegram' });
+        }
+      } else {
+        results.push({ id: obra.id, nombre: obra.nombre, status: 'omitido_existente', tg_thread_id: obra.tg_thread_id });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Sincronización de temas de Telegram completada.',
+      results
+    });
+  } catch (err) {
+    console.error('Error al sincronizar temas de Telegram:', err);
+    return res.status(500).json({ error: 'Error al sincronizar temas: ' + err.message });
   }
 });
 

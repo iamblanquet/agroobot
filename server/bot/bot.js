@@ -967,13 +967,29 @@ function initTelegramBot(app) {
 
 /**
  * Crear automáticamente un tema en Telegram para una obra / frente de trabajo
+/**
+ * Crear dinámicamente un Tema/Hilo en el Supergrupo de Telegram para un frente/obra
  * @param {string} obraNombre
  * @param {string} proyectoNombre
+ * @param {string[]} predioNombres
  * @returns {Promise<number|null>} message_thread_id creado o null
  */
-async function createObraForumTopic(obraNombre, proyectoNombre) {
+async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = []) {
   if (!botInstance) {
-    console.warn('⚠️ [createObraForumTopic] El bot de Telegram no está inicializado.');
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (token) {
+      try {
+        const TelegramBot = require('node-telegram-bot-api');
+        botInstance = new TelegramBot(token, { polling: false });
+        console.log('🤖 Bot de Telegram auto-inicializado para creación de tema.');
+      } catch (e) {
+        console.warn('⚠️ [createObraForumTopic] Error al instanciar bot:', e.message);
+      }
+    }
+  }
+
+  if (!botInstance) {
+    console.warn('⚠️ [createObraForumTopic] El bot de Telegram no está inicializado ni configurado en .env.');
     return null;
   }
 
@@ -985,16 +1001,19 @@ async function createObraForumTopic(obraNombre, proyectoNombre) {
 
   try {
     const topicTitle = `${obraNombre} · ${proyectoNombre || 'Operación'}`.substring(0, 64);
-    console.log(`📡 Intentando crear tema en Telegram: "${topicTitle}" en Supergrupo: ${supergroupId}...`);
+    console.log(`📡 [Telegram] Creando tema "${topicTitle}" en Supergrupo: ${supergroupId}...`);
     const topic = await botInstance.createForumTopic(supergroupId, topicTitle);
 
     if (topic && topic.message_thread_id) {
       const threadId = topic.message_thread_id;
+      const prediosText = predioNombres && predioNombres.length > 0
+        ? `\n🗺️ <b>Predios vinculados:</b> ${predioNombres.join(', ')}`
+        : '';
 
       // Mensaje de bienvenida fijado en el nuevo tema
       const welcomeText = `🌾 <b>FRENTE OPERATIVO HABILITADO EN TELEGRAM</b>\n\n` +
                           `🏢 <b>Frente:</b> ${obraNombre}\n` +
-                          `📋 <b>Proyecto:</b> ${proyectoNombre || 'General'}\n\n` +
+                          `📋 <b>Proyecto:</b> ${proyectoNombre || 'General'}${prediosText}\n\n` +
                           `📌 <b>Operación:</b> Cualquier reporte de jornada, horas máquina o aviso enviado en este tema será asociado automáticamente a este frente.\n\n` +
                           `💡 <i>Puedes enviar texto libre con el formato de cuadrilla y avances o usar</i> <code>/sin_actividad</code>.`;
 
@@ -1007,11 +1026,11 @@ async function createObraForumTopic(obraNombre, proyectoNombre) {
         botInstance.pinChatMessage(supergroupId, welcomeMsg.message_id).catch(() => {});
       }
 
-      console.log(`✅ Tema de Telegram creado exitosamente para "${obraNombre}" con thread_id: ${threadId}`);
+      console.log(`✅ [Telegram] Tema creado exitosamente para "${obraNombre}" con thread_id: ${threadId}`);
       return threadId;
     }
   } catch (err) {
-    console.warn(`⚠️ Error al crear el tema en Telegram para "${obraNombre}":`, err.message);
+    console.error(`❌ [Telegram] Error al crear tema para "${obraNombre}":`, err.message);
     if (err.message && err.message.includes('not enough rights')) {
       console.warn('👉 Asegúrate de que el bot tenga el permiso de Administrador: "Administrar Temas / Manage Topics" en el grupo de Telegram.');
     }

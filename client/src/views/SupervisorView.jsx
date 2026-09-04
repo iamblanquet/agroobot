@@ -28,7 +28,8 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   Search,
-  Filter
+  Filter,
+  Send
 } from 'lucide-react';
 
 export default function SupervisorView({ activeTab: externalActiveTab, onTabChange: externalOnTabChange, onRegisterMetadata }) {
@@ -139,9 +140,11 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const [editingPredio, setEditingPredio] = useState(null);
   const [predioForm, setPredioForm] = useState({
     nombre: '',
-    superficie_legal_ha: 10,
-    superficie_util_ha: 10,
-    regimen: 'Propiedad Privada'
+    superficie_legal_ha: 15,
+    superficie_util_ha: 15,
+    regimen: 'Propiedad Privada',
+    proyecto_id: '',
+    crear_frente_telegram: true
   });
 
   const loadData = async () => {
@@ -424,15 +427,21 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
     try {
       if (editingObra) {
         await api.patch(`/projects/obras/${editingObra.id}`, obraForm);
+        alert(`✅ Frente "${obraForm.nombre}" actualizado correctamente.`);
       } else {
-        const projId = obraForm.proyecto_id || selectedProjectForObra?.id;
-        await api.post(`/projects/${projId}/obras`, obraForm);
+        const res = await api.post('/projects/obras', obraForm);
+        const threadId = res.obra?.tg_thread_id || res.tg_thread_id;
+        if (threadId) {
+          alert(`✅ ¡Frente de obra creado con éxito!\n\n🏢 Frente: "${obraForm.nombre}"\n📡 Tema de Telegram generado: #${threadId}\n\nSe ha fijado el mensaje de bienvenida operativo en Telegram.`);
+        } else {
+          alert(`✅ Frente de obra "${obraForm.nombre}" creado exitosamente.`);
+        }
       }
       setShowObraModal(false);
       setEditingObra(null);
       await loadData();
     } catch (err) {
-      alert('Error al guardar frente de obra: ' + err.message);
+      alert('❌ Error al guardar frente de obra: ' + err.message);
     }
   };
 
@@ -446,6 +455,36 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
     }
   };
 
+  // --- SINCRONIZACIÓN Y CREACIÓN DINÁMICA DE TEMAS EN TELEGRAM ---
+  const [syncingTelegram, setSyncingTelegram] = useState(false);
+
+  const handleCreateTelegramTopic = async (obraId, obraNombre) => {
+    try {
+      const res = await api.post(`/projects/obras/${obraId}/create-telegram-topic`);
+      alert(`✅ ${res.message || 'Tema creado en Telegram exitosamente'}`);
+      await loadData();
+    } catch (err) {
+      alert(`❌ Error al crear tema en Telegram para "${obraNombre}": ${err.message}`);
+    }
+  };
+
+  const handleSyncAllTelegramTopics = async () => {
+    if (!window.confirm('¿Deseas crear y sincronizar automáticamente los temas en el Supergrupo de Telegram para todos los frentes y predios activos?')) return;
+    setSyncingTelegram(true);
+    try {
+      const res = await api.post('/projects/sync-telegram-topics');
+      const created = res.results?.filter(r => r.status === 'creado').length || 0;
+      const skipped = res.results?.filter(r => r.status === 'omitido_existente').length || 0;
+      const failed = res.results?.filter(r => r.status === 'fallido').length || 0;
+      alert(`✅ Sincronización de Temas Telegram completada:\n• ${created} tema(s) creado(s) con éxito en Telegram\n• ${skipped} ya contaban con tema asociado\n• ${failed} fallido(s)`);
+      await loadData();
+    } catch (err) {
+      alert(`❌ Error al sincronizar temas con Telegram: ${err.message}`);
+    } finally {
+      setSyncingTelegram(false);
+    }
+  };
+
   // --- CRUD PREDIOS ---
   const handleOpenPredioModal = (predio = null) => {
     setEditingPredio(predio);
@@ -454,14 +493,18 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         nombre: predio.nombre,
         superficie_legal_ha: predio.superficie_legal_ha || 0,
         superficie_util_ha: predio.superficie_util_ha || 0,
-        regimen: predio.regimen || 'Propiedad Privada'
+        regimen: predio.regimen || 'Propiedad Privada',
+        proyecto_id: '',
+        crear_frente_telegram: false
       });
     } else {
       setPredioForm({
         nombre: '',
         superficie_legal_ha: 15,
         superficie_util_ha: 15,
-        regimen: 'Propiedad Privada'
+        regimen: 'Propiedad Privada',
+        proyecto_id: proyectosList[0]?.id ? String(proyectosList[0].id) : '',
+        crear_frente_telegram: true
       });
     }
     setShowPredioModal(true);
@@ -472,14 +515,20 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
     try {
       if (editingPredio) {
         await api.patch(`/projects/predios/${editingPredio.id}`, predioForm);
+        alert('✅ Predio actualizado correctamente');
       } else {
-        await api.post('/projects/predios', predioForm);
+        const res = await api.post('/projects/predios', predioForm);
+        if (res.tg_thread_id) {
+          alert(`✅ ¡Predio registrado con éxito!\n\n🏢 Frente operativo creado: "${predioForm.nombre}"\n📡 Tema de Telegram generado en el Supergrupo: #${res.tg_thread_id}\n\nLas cuadrillas ya pueden enviar reportes en este tema.`);
+        } else {
+          alert(`✅ ${res.message || 'Predio registrado correctamente'}`);
+        }
       }
       setShowPredioModal(false);
       setEditingPredio(null);
       await loadData();
     } catch (err) {
-      alert('Error al guardar predio: ' + err.message);
+      alert('❌ Error al guardar predio: ' + err.message);
     }
   };
 
@@ -1617,6 +1666,16 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
+                  onClick={handleSyncAllTelegramTopics}
+                  disabled={syncingTelegram}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                  title="Crear y sincronizar temas en el Supergrupo de Telegram para todas las obras"
+                >
+                  <Send className={`w-3.5 h-3.5 ${syncingTelegram ? 'animate-spin' : ''}`} />
+                  <span>{syncingTelegram ? 'Sincronizando...' : 'Sincronizar Temas Telegram'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleOpenPredioModal()}
                   className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
                 >
@@ -1840,7 +1899,11 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {filteredObras.map((ob) => (
+                  {filteredObras.map((ob) => {
+                    const isMockThread = ['101', '102', '103', '104', '105', '106', '107'].includes(String(ob.tg_thread_id));
+                    const hasRealThread = ob.tg_thread_id && !isMockThread;
+
+                    return (
                     <div
                       key={ob.id}
                       className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm flex flex-col justify-between hover:shadow-md hover:border-purple-400/80 transition group"
@@ -1853,9 +1916,13 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusColors[ob.estado] || statusColors.operacion}`}>
                                 {ob.estado}
                               </span>
-                              {ob.tg_thread_id && (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400">
-                                  #{ob.tg_thread_id}
+                              {ob.tg_thread_id ? (
+                                <span className={`text-[10px] font-mono px-2 py-0.5 rounded flex items-center gap-1 font-bold ${hasRealThread ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'}`}>
+                                  <Send className="w-2.5 h-2.5 text-sky-500" /> #{ob.tg_thread_id}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 font-semibold">
+                                  Sin Tema TG
                                 </span>
                               )}
                             </div>
@@ -1864,6 +1931,14 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                             </h5>
                           </div>
                           <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleCreateTelegramTopic(ob.id, ob.nombre)}
+                              className="p-1.5 rounded-lg text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950/60 transition"
+                              title={hasRealThread ? 'Recrear o actualizar tema en Telegram' : 'Crear tema en Telegram para este frente'}
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleOpenObraModal(null, ob)}
@@ -1898,25 +1973,39 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                         </div>
                       </div>
 
-                      {/* Predios Vinculados */}
-                      <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60 text-xs">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Predio Vinculado:
-                        </span>
-                        {ob.predios && ob.predios.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {ob.predios.map(pr => (
-                              <span key={pr.id} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
-                                📍 {pr.nombre} ({pr.superficie_util_ha} ha)
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Sin predio vinculado</span>
+                      {/* Predios Vinculados & Botón Tema */}
+                      <div className="pt-2 border-t border-[#e2ebd3] dark:border-[#253905]/60 text-xs space-y-2">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Predio(s) Vinculado(s):
+                          </span>
+                          {ob.predios && ob.predios.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {ob.predios.map(pr => (
+                                <span key={pr.id} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                                  📍 {pr.nombre} ({pr.superficie_util_ha} ha)
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Sin predio vinculado</span>
+                          )}
+                        </div>
+
+                        {(!hasRealThread) && (
+                          <button
+                            type="button"
+                            onClick={() => handleCreateTelegramTopic(ob.id, ob.nombre)}
+                            className="w-full py-1 px-2 rounded-lg bg-sky-50 dark:bg-sky-950/80 hover:bg-sky-100 dark:hover:bg-sky-900 border border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 transition"
+                          >
+                            <Send className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                            <span>Crear Tema en Telegram</span>
+                          </button>
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -2535,9 +2624,12 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                   type="text"
                   value={obraForm.tg_thread_id}
                   onChange={(e) => setObraForm(prev => ({ ...prev, tg_thread_id: e.target.value }))}
-                  placeholder="ej. 101"
+                  placeholder="ej. Dejar vacío para creación automática"
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-purple-500 focus:outline-none"
                 />
+                <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
+                  💡 Si se deja vacío, el bot creará automáticamente el tema en el Supergrupo de Telegram.
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-3">
@@ -2623,6 +2715,41 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
+
+              {!editingPredio && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={predioForm.crear_frente_telegram}
+                      onChange={(e) => setPredioForm(prev => ({ ...prev, crear_frente_telegram: e.target.checked }))}
+                      className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                    />
+                    <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                      Crear Frente y Tema en Telegram automáticamente
+                    </span>
+                  </label>
+                  {predioForm.crear_frente_telegram && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 mb-1">
+                        Asignar al Proyecto:
+                      </label>
+                      <select
+                        value={predioForm.proyecto_id}
+                        onChange={(e) => setPredioForm(prev => ({ ...prev, proyecto_id: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-emerald-300 dark:border-emerald-800 text-xs text-slate-900 dark:text-white focus:outline-none"
+                      >
+                        {proyectosList.map(p => (
+                          <option key={p.id} value={p.id}>{p.nombre} ({p.ciclo})</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1">
+                        📡 El bot creará el tema en el Supergrupo de Telegram para captura de reportes.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-3">
                 <button

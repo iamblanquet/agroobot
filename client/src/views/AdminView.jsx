@@ -14,7 +14,8 @@ import {
   Activity,
   Clock,
   Play,
-  Check
+  Check,
+  Send
 } from 'lucide-react';
 
 export default function AdminView() {
@@ -107,6 +108,20 @@ export default function AdminView() {
       setTimeout(() => setCronTriggerStatus(null), 5000);
     } catch (err) {
       setCronTriggerStatus(`❌ Error: ${err.message}`);
+    }
+  };
+
+  const handleSyncTelegramTopics = async () => {
+    if (!window.confirm('¿Deseas crear y sincronizar temas en Telegram para todas las obras activas?')) return;
+    setCronTriggerStatus('Sincronizando temas en Telegram...');
+    try {
+      const res = await api.post('/projects/sync-telegram-topics');
+      const created = res.results?.filter(r => r.status === 'creado').length || 0;
+      setCronTriggerStatus(`✅ Temas sincronizados (${created} creados)`);
+      await loadAll();
+      setTimeout(() => setCronTriggerStatus(null), 5000);
+    } catch (err) {
+      setCronTriggerStatus(`❌ Error Telegram: ${err.message}`);
     }
   };
 
@@ -220,6 +235,14 @@ export default function AdminView() {
             className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 border border-sky-300 dark:border-slate-700 text-sky-900 dark:text-sky-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
           >
             <Play className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Probar 21:30 (Corte Tablero)
+          </button>
+          <button
+            type="button"
+            onClick={handleSyncTelegramTopics}
+            className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+            title="Crear y sincronizar temas en Telegram para todas las obras"
+          >
+            <Send className="w-3.5 h-3.5" /> Sincronizar Temas Telegram
           </button>
         </div>
 

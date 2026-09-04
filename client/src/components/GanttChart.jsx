@@ -61,7 +61,7 @@ function addDays(date, days) {
 }
 
 /**
- * Componente Principal GanttChart
+ * Componente Principal GanttChart con Soporte Completo de Impresión & Exportación PDF
  */
 export default function GanttChart({
   projects = [],
@@ -180,9 +180,9 @@ export default function GanttChart({
       });
     });
 
-    // Añadir margen de 10 días al inicio y al final
-    earliest.setDate(earliest.getDate() - 7);
-    latest.setDate(latest.getDate() + 14);
+    // Añadir margen al inicio y al final
+    earliest.setDate(earliest.getDate() - 5);
+    latest.setDate(latest.getDate() + 10);
 
     const days = Math.max(30, getDaysBetween(earliest, latest));
     const todayOffset = getDaysBetween(earliest, today);
@@ -195,21 +195,20 @@ export default function GanttChart({
     };
   }, [projects]);
 
-  // Ancho de columna por escala en píxeles
+  // Ancho de columna por escala en píxeles (modo pantalla)
   const dayWidth = useMemo(() => {
-    if (timeScale === 'dias') return 36;
+    if (timeScale === 'dias') return 34;
     if (timeScale === 'semanas') return 12;
     return 4.5; // 'meses'
   }, [timeScale]);
 
-  const timelineTotalWidth = Math.max(800, totalDays * dayWidth);
+  const timelineTotalWidth = Math.max(900, totalDays * dayWidth);
 
-  // Generar columnas del encabezado de la línea de tiempo
+  // Generar columnas del encabezado de la línea de tiempo con porcentajes de ancho
   const timelineHeaders = useMemo(() => {
     const months = [];
     const subUnits = []; // Días o Semanas
 
-    let current = new Date(minDate);
     let currentMonth = null;
     let monthStartDay = 0;
 
@@ -220,13 +219,15 @@ export default function GanttChart({
       if (!currentMonth || currentMonth.key !== monthKey) {
         if (currentMonth) {
           currentMonth.widthDays = dayIdx - monthStartDay;
+          currentMonth.widthPct = (currentMonth.widthDays / totalDays) * 100;
           months.push(currentMonth);
         }
         currentMonth = {
           key: monthKey,
           label: date.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
           startDay: dayIdx,
-          widthDays: 0
+          widthDays: 0,
+          widthPct: 0
         };
         monthStartDay = dayIdx;
       }
@@ -241,16 +242,22 @@ export default function GanttChart({
           subLabel: ['D', 'L', 'M', 'M', 'J', 'V', 'S'][date.getDay()],
           isWeekend,
           isToday,
-          left: dayIdx * dayWidth,
-          width: dayWidth
+          startDay: dayIdx,
+          widthDays: 1,
+          leftPct: (dayIdx / totalDays) * 100,
+          widthPct: (1 / totalDays) * 100
         });
       } else if (timeScale === 'semanas') {
-        if (date.getDay() === 1 || dayIdx === 0) { // Lunes o primer día
+        if (date.getDay() === 1 || dayIdx === 0) { // Lunes o inicio
+          const remaining = totalDays - dayIdx;
+          const wDays = Math.min(7, remaining);
           subUnits.push({
             key: `w-${dayIdx}`,
             label: `Sem ${Math.ceil((date.getDate() + 6 - date.getDay()) / 7)} (${date.getDate()} ${date.toLocaleDateString('es-MX', { month: 'short' })})`,
-            left: dayIdx * dayWidth,
-            width: 7 * dayWidth
+            startDay: dayIdx,
+            widthDays: wDays,
+            leftPct: (dayIdx / totalDays) * 100,
+            widthPct: (wDays / totalDays) * 100
           });
         }
       }
@@ -258,16 +265,17 @@ export default function GanttChart({
 
     if (currentMonth) {
       currentMonth.widthDays = totalDays - monthStartDay;
+      currentMonth.widthPct = (currentMonth.widthDays / totalDays) * 100;
       months.push(currentMonth);
     }
 
     return { months, subUnits };
-  }, [minDate, totalDays, timeScale, dayWidth, todayOffsetDays]);
+  }, [minDate, totalDays, timeScale, todayOffsetDays]);
 
   // Centrar en el día de hoy
   const handleScrollToToday = () => {
     if (timelineScrollRef.current && todayOffsetDays >= 0) {
-      const scrollPos = Math.max(0, todayOffsetDays * dayWidth - 250);
+      const scrollPos = Math.max(0, (todayOffsetDays / totalDays) * timelineTotalWidth - 250);
       timelineScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
     }
   };
@@ -300,7 +308,11 @@ export default function GanttChart({
 
   // Imprimir / PDF
   const handlePrint = () => {
-    window.print();
+    // Expandir todo para que todas las labores salgan completas en la impresión
+    handleToggleExpandAll(true);
+    setTimeout(() => {
+      window.print();
+    }, 200);
   };
 
   // Calcular métricas del proyecto o consolidado
@@ -339,16 +351,66 @@ export default function GanttChart({
     };
   }, [filteredProjects]);
 
+  const activeProjectObj = projects.find((p) => String(p.id) === String(activeProjectFilter));
+
   return (
     <div
-      className={`flex flex-col bg-[#f8faf2] dark:bg-[#0c1400] text-slate-900 dark:text-slate-100 ${
+      className={`gantt-root flex flex-col bg-[#f8faf2] dark:bg-[#0c1400] text-slate-900 dark:text-slate-100 ${
         isFullscreen ? 'fixed inset-0 z-50 overflow-hidden' : 'w-full rounded-2xl border border-[#e2ebd3] dark:border-[#253905] shadow-lg'
       }`}
     >
       {/* ========================================================================= */}
-      {/* 1. ENCABEZADO SUPERIOR & BARRA DE HERRAMIENTAS EJECUTIVA                  */}
+      {/* ENCABEZADO EXCLUSIVO PARA IMPRESIÓN OFICIAL (PDF & PAPEL LANDSCAPE)       */}
       {/* ========================================================================= */}
-      <div className="bg-[#2c4001] text-white p-4 sm:p-5 border-b border-[#3e5606] space-y-4">
+      <div className="hidden print:block p-4 mb-2 border-b-2 border-slate-900 bg-white text-slate-900">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="AGROKOOL" className="h-10 w-auto object-contain" />
+            <div>
+              <h1 className="text-base font-black uppercase tracking-tight text-slate-950">
+                AGROKOOL · DIAGRAMA DE GANTT DE PLANEACIÓN & EJECUCIÓN
+              </h1>
+              <p className="text-[11px] text-slate-700 font-semibold">
+                Control Operativo Temporal: Ciclos Agrícolas, Frentes de Obra, Hitos y Tareas
+              </p>
+            </div>
+          </div>
+          <div className="text-right text-[10px] text-slate-700 leading-tight">
+            <div><strong>Fecha de Emisión:</strong> {new Date().toLocaleDateString('es-MX', { dateStyle: 'full' })}</div>
+            <div><strong>Proyecto:</strong> {activeProjectFilter === 'all' ? 'Consolidado General Multi-Proyecto' : `${activeProjectObj?.nombre || ''} (${activeProjectObj?.ciclo || ''})`}</div>
+            <div><strong>Gerente Asignado:</strong> {activeProjectObj?.gerente_nombre || 'Dirección de Operaciones'}</div>
+          </div>
+        </div>
+
+        {/* Resumen de Métricas Oficiales en Impresión */}
+        <div className="grid grid-cols-5 gap-2 mt-3 pt-2 border-t border-slate-300 text-center text-xs">
+          <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
+            <span className="text-[9px] font-bold text-slate-600 uppercase block">Proyectos</span>
+            <span className="text-xs font-black text-slate-900">{metrics.totalProyectos} activos</span>
+          </div>
+          <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
+            <span className="text-[9px] font-bold text-slate-600 uppercase block">Superficie Meta</span>
+            <span className="text-xs font-black text-[#2c4001]">{metrics.totalMetaHa} ha</span>
+          </div>
+          <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
+            <span className="text-[9px] font-bold text-slate-600 uppercase block">Avance Acumulado</span>
+            <span className="text-xs font-black text-emerald-800">{metrics.totalAcumHa} ha ({metrics.pctGlobal}%)</span>
+          </div>
+          <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
+            <span className="text-[9px] font-bold text-slate-600 uppercase block">Hitos</span>
+            <span className="text-xs font-black text-blue-800">{metrics.hitosCompletados} / {metrics.totalHitos} completados</span>
+          </div>
+          <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
+            <span className="text-[9px] font-bold text-slate-600 uppercase block">Tareas</span>
+            <span className="text-xs font-black text-purple-800">{metrics.tareasCompletadas} / {metrics.totalTareas} listas</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 1. ENCABEZADO SUPERIOR & BARRA DE HERRAMIENTAS EJECUTIVA (SOLO PANTALLA)  */}
+      {/* ========================================================================= */}
+      <div className="no-print print:hidden bg-[#2c4001] text-white p-4 sm:p-5 border-b border-[#3e5606] space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
@@ -412,11 +474,11 @@ export default function GanttChart({
             <button
               type="button"
               onClick={handlePrint}
-              className="px-3 py-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#d4e6b5] hover:text-white border border-[#3e5606] text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
-              title="Imprimir o Exportar PDF"
+              className="px-3 py-1.5 rounded-xl bg-[#a1c62e] hover:bg-[#8eb025] text-[#2c4001] font-black text-xs transition flex items-center gap-1.5 shadow-md shadow-[#a1c62e]/30"
+              title="Imprimir o Guardar como PDF"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Imprimir</span>
+              <span>Imprimir / PDF</span>
             </button>
 
             {/* Pantalla Completa */}
@@ -442,7 +504,7 @@ export default function GanttChart({
         </div>
 
         {/* ======================================================================= */}
-        {/* 2. FILTROS & SELECTOR DE PROYECTO                                       */}
+        {/* 2. FILTROS & SELECTOR DE PROYECTO (SOLO PANTALLA)                       */}
         {/* ======================================================================= */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-[#3e5606]">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -513,9 +575,9 @@ export default function GanttChart({
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. KPIS RESUMEN SUPERIOR (METAS, AVANCES Y SALUD)                         */}
+      {/* 3. KPIS RESUMEN SUPERIOR (SOLO PANTALLA)                                  */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-3 sm:p-4 bg-[#f4f8ed] dark:bg-[#121c02] border-b border-[#e2ebd3] dark:border-[#253905]">
+      <div className="no-print print:hidden grid grid-cols-2 lg:grid-cols-5 gap-3 p-3 sm:p-4 bg-[#f4f8ed] dark:bg-[#121c02] border-b border-[#e2ebd3] dark:border-[#253905]">
         <div className="p-3 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905]">
           <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 block">Proyectos Activos</span>
           <div className="flex items-center gap-1.5 mt-0.5">
@@ -563,22 +625,22 @@ export default function GanttChart({
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. CUADRÍCULA INTERACTIVA DEL GANTT (TABLA WBS + LÍNEA DE TIEMPO)         */}
+      {/* 4. CUADRÍCULA INTERACTIVA & IMPRIMIBLE DEL GANTT (WBS + LÍNEA DE TIEMPO)  */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden min-h-[500px]">
+      <div className="gantt-flex-wrapper flex-1 flex overflow-hidden min-h-[500px]">
         {/* PANEL IZQUIERDO: ESTRUCTURA DESGLOSADA DE TRABAJO (WBS) */}
-        <div className="w-80 sm:w-96 flex-shrink-0 border-r border-[#e2ebd3] dark:border-[#253905] bg-white dark:bg-[#152202] flex flex-col select-none">
+        <div className="gantt-wbs-panel w-80 sm:w-96 flex-shrink-0 border-r border-[#e2ebd3] dark:border-[#253905] bg-white dark:bg-[#152202] flex flex-col select-none">
           {/* Encabezado WBS */}
-          <div className="h-20 border-b border-[#e2ebd3] dark:border-[#253905] px-4 flex items-center justify-between bg-[#f4f8ed] dark:bg-[#0e1700]">
-            <span className="text-xs font-black uppercase text-[#2c4001] dark:text-[#a1c62e] tracking-wider flex items-center gap-2">
-              <Layers className="w-4 h-4" />
+          <div className="h-16 border-b border-[#e2ebd3] dark:border-[#253905] px-3 sm:px-4 flex items-center justify-between bg-[#f4f8ed] dark:bg-[#0e1700]">
+            <span className="text-xs font-black uppercase text-[#2c4001] dark:text-[#a1c62e] tracking-wider flex items-center gap-1.5">
+              <Layers className="w-4 h-4 no-print" />
               Estructura (WBS) / Tarea
             </span>
             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Meta / Avance</span>
           </div>
 
           {/* Filas WBS */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[#f0f4ea] dark:divide-[#253905]/40 no-scrollbar">
+          <div className="gantt-wbs-list flex-1 overflow-y-auto divide-y divide-[#f0f4ea] dark:divide-[#253905]/40 no-scrollbar">
             {filteredProjects.map((p) => {
               const isProjExp = !!expandedProjects[p.id];
               const pTotalHa = parseFloat(p.superficie_meta_ha) || 0;
@@ -587,24 +649,24 @@ export default function GanttChart({
               const pPct = pTotalHa > 0 ? Math.min(100, Math.round((pAcumHa / pTotalHa) * 100)) : 0;
 
               return (
-                <div key={`wbs-p-${p.id}`} className="group">
+                <div key={`wbs-p-${p.id}`} className="gantt-row group">
                   {/* Fila del Proyecto */}
-                  <div className="h-14 px-3 flex items-center justify-between bg-[#f8faf2] dark:bg-[#1a2803] hover:bg-[#eef5e4] dark:hover:bg-[#203004] transition">
+                  <div className="h-12 px-3 flex items-center justify-between bg-[#f8faf2] dark:bg-[#1a2803] hover:bg-[#eef5e4] dark:hover:bg-[#203004] transition">
                     <div className="flex items-center gap-2 min-w-0 pr-2">
                       <button
                         type="button"
                         onClick={() =>
                           setExpandedProjects((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
                         }
-                        className="p-1 rounded-md bg-[#2c4001] text-white hover:bg-[#1e2d01]"
+                        className="no-print p-0.5 rounded-md bg-[#2c4001] text-white hover:bg-[#1e2d01]"
                       >
-                        {isProjExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        {isProjExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                       </button>
                       <div className="min-w-0">
                         <h4 className="text-xs font-black text-slate-900 dark:text-white truncate" title={p.nombre}>
                           {p.nombre}
                         </h4>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
                           {p.tipo} · {p.ciclo}
                         </p>
                       </div>
@@ -620,13 +682,13 @@ export default function GanttChart({
 
                   {/* Frentes de Obra Chips */}
                   {isProjExp && p.obras && p.obras.length > 0 && (
-                    <div className="px-6 py-1.5 bg-[#fbfdf8] dark:bg-[#121c02] border-t border-[#f0f4ea] dark:border-[#253905]/40 flex flex-wrap gap-1">
+                    <div className="px-6 py-1 bg-[#fbfdf8] dark:bg-[#121c02] border-t border-[#f0f4ea] dark:border-[#253905]/40 flex flex-wrap gap-1">
                       {p.obras.map((o) => (
                         <span
                           key={o.id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-[#dfb75c]/20 text-[#5c4015] dark:text-[#dfb75c] border border-[#dfb75c]/40"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[8px] font-bold bg-[#dfb75c]/20 text-[#5c4015] dark:text-[#dfb75c] border border-[#dfb75c]/40"
                         >
-                          <Building className="w-2.5 h-2.5" />
+                          <Building className="w-2.5 h-2.5 no-print" />
                           {o.nombre}
                         </span>
                       ))}
@@ -642,37 +704,37 @@ export default function GanttChart({
                       const hPct = hMetaHa > 0 ? Math.min(100, Math.round((hAcumHa / hMetaHa) * 100)) : 0;
 
                       return (
-                        <div key={`wbs-h-${h.id}`}>
+                        <div key={`wbs-h-${h.id}`} className="gantt-row">
                           {/* Fila del Hito */}
-                          <div className="h-12 pl-6 pr-3 flex items-center justify-between bg-white dark:bg-[#152202] hover:bg-[#f4f8ed] dark:hover:bg-[#1d2b05] border-t border-[#f0f4ea] dark:border-[#253905]/30 transition">
-                            <div className="flex items-center gap-2 min-w-0 pr-2">
+                          <div className="h-10 pl-5 pr-3 flex items-center justify-between bg-white dark:bg-[#152202] hover:bg-[#f4f8ed] dark:hover:bg-[#1d2b05] border-t border-[#f0f4ea] dark:border-[#253905]/30 transition">
+                            <div className="flex items-center gap-1.5 min-w-0 pr-2">
                               <button
                                 type="button"
                                 onClick={() =>
                                   setExpandedHitos((prev) => ({ ...prev, [h.id]: !prev[h.id] }))
                                 }
-                                className="p-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                                className="no-print p-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                               >
-                                {isHitoExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                {isHitoExp ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
                               </button>
-                              <div className="w-4 h-4 rounded-full bg-[#2c4001] text-[#a1c62e] text-[9px] font-black flex items-center justify-center flex-shrink-0">
+                              <div className="w-4 h-4 rounded-full bg-[#2c4001] text-[#a1c62e] text-[8px] font-black flex items-center justify-center flex-shrink-0">
                                 {h.orden}
                               </div>
                               <div className="min-w-0">
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block" title={h.nombre}>
+                                <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate block" title={h.nombre}>
                                   {h.nombre}
                                 </span>
-                                <span className="text-[9px] text-slate-500 dark:text-slate-400">
+                                <span className="text-[8px] text-slate-500 dark:text-slate-400">
                                   Meta: {formatDisplayDate(h.fecha_meta)}
                                 </span>
                               </div>
                             </div>
 
                             <div className="text-right flex-shrink-0">
-                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
                                 {hMetaHa} ha
                               </span>
-                              <span className={`text-[9px] font-semibold ${h.estado === 'completado' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                              <span className={`text-[8px] font-semibold ${h.estado === 'completado' ? 'text-emerald-600' : 'text-slate-500'}`}>
                                 {h.estado}
                               </span>
                             </div>
@@ -688,19 +750,19 @@ export default function GanttChart({
                               return (
                                 <div
                                   key={`wbs-t-${t.id}`}
-                                  className="h-10 pl-11 pr-3 flex items-center justify-between bg-[#fbfdf8] dark:bg-[#101901] hover:bg-[#f0f6e8] dark:hover:bg-[#182403] border-t border-[#f0f4ea] dark:border-[#253905]/20 text-xs"
+                                  className="gantt-row h-9 pl-9 pr-3 flex items-center justify-between bg-[#fbfdf8] dark:bg-[#101901] hover:bg-[#f0f6e8] dark:hover:bg-[#182403] border-t border-[#f0f4ea] dark:border-[#253905]/20 text-xs"
                                 >
                                   <div className="min-w-0 pr-2">
-                                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate block" title={t.nombre}>
+                                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 truncate block" title={t.nombre}>
                                       • {t.nombre}
                                     </span>
-                                    <div className="flex items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400">
+                                    <div className="flex items-center gap-1.5 text-[8px] text-slate-500 dark:text-slate-400">
                                       {t.responsable && <span>👤 {t.responsable}</span>}
                                       {t.predio_nombre && <span>📍 {t.predio_nombre}</span>}
                                     </div>
                                   </div>
 
-                                  <div className="text-right flex-shrink-0 font-mono text-[10px]">
+                                  <div className="text-right flex-shrink-0 font-mono text-[9px]">
                                     <span className="font-bold text-slate-800 dark:text-slate-200">
                                       {tAcum}/{tMeta} {t.unidad || 'ha'}
                                     </span>
@@ -717,21 +779,21 @@ export default function GanttChart({
           </div>
         </div>
 
-        {/* PANEL DERECHO: LÍNEA DE TIEMPO DEL GANTT (HORIZONTAL CANVAS) */}
+        {/* PANEL DERECHO: LÍNEA DE TIEMPO DEL GANTT (CANVAS HORIZONTAL CON PORCENTAJES) */}
         <div
           ref={timelineScrollRef}
-          className="flex-1 overflow-x-auto overflow-y-auto relative bg-white dark:bg-[#0d1501] select-none"
+          className="gantt-timeline-panel flex-1 overflow-x-auto overflow-y-auto relative bg-white dark:bg-[#0d1501] select-none"
         >
-          <div style={{ width: `${timelineTotalWidth}px` }} className="relative min-h-full">
-            {/* 1. ENCABEZADO DE LA LÍNEA DE TIEMPO (MESES Y DÍAS/SEMANAS) */}
+          <div style={{ width: `${timelineTotalWidth}px` }} className="gantt-timeline-canvas relative min-h-full">
+            {/* 1. ENCABEZADO DE LA LÍNEA DE TIEMPO (MESES Y SUB-UNIDADES) */}
             <div className="sticky top-0 z-20 bg-[#f4f8ed] dark:bg-[#0e1700] border-b border-[#e2ebd3] dark:border-[#253905] shadow-xs">
               {/* Fila de Meses */}
-              <div className="h-10 flex border-b border-[#e2ebd3] dark:border-[#253905]">
+              <div className="h-8 flex border-b border-[#e2ebd3] dark:border-[#253905]">
                 {timelineHeaders.months.map((m) => (
                   <div
                     key={m.key}
-                    style={{ width: `${m.widthDays * dayWidth}px` }}
-                    className="h-full px-2 border-r border-[#e2ebd3] dark:border-[#253905] flex items-center justify-center font-bold text-xs uppercase text-[#2c4001] dark:text-[#a1c62e] tracking-wide truncate bg-[#edf5e3] dark:bg-[#121c02]"
+                    style={{ width: `${m.widthPct}%` }}
+                    className="h-full px-1 border-r border-[#e2ebd3] dark:border-[#253905] flex items-center justify-center font-bold text-[10px] uppercase text-[#2c4001] dark:text-[#a1c62e] tracking-wide truncate bg-[#edf5e3] dark:bg-[#121c02]"
                   >
                     {m.label}
                   </div>
@@ -739,12 +801,12 @@ export default function GanttChart({
               </div>
 
               {/* Fila de Días / Semanas */}
-              <div className="h-10 flex">
+              <div className="h-8 flex">
                 {timelineHeaders.subUnits.map((sub) => (
                   <div
                     key={sub.key}
-                    style={{ width: `${sub.width}px` }}
-                    className={`h-full border-r border-[#e2ebd3] dark:border-[#253905]/50 flex flex-col items-center justify-center text-[10px] ${
+                    style={{ width: `${sub.widthPct}%` }}
+                    className={`h-full border-r border-[#e2ebd3] dark:border-[#253905]/50 flex flex-col items-center justify-center text-[9px] ${
                       sub.isToday
                         ? 'bg-red-500/20 text-red-600 dark:text-red-400 font-black'
                         : sub.isWeekend
@@ -752,8 +814,8 @@ export default function GanttChart({
                         : 'text-slate-600 dark:text-slate-400 font-medium'
                     }`}
                   >
-                    <span>{sub.label}</span>
-                    {sub.subLabel && <span className="text-[8px] font-bold opacity-75">{sub.subLabel}</span>}
+                    <span className="truncate px-0.5">{sub.label}</span>
+                    {sub.subLabel && <span className="text-[7px] font-bold opacity-75">{sub.subLabel}</span>}
                   </div>
                 ))}
               </div>
@@ -762,31 +824,16 @@ export default function GanttChart({
             {/* 2. LÍNEA VERTICAL DE "HOY" */}
             {todayOffsetDays >= 0 && todayOffsetDays <= totalDays && (
               <div
-                style={{ left: `${todayOffsetDays * dayWidth}px` }}
-                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none shadow-sm flex flex-col items-center"
+                style={{ left: `${(todayOffsetDays / totalDays) * 100}%` }}
+                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none shadow-sm flex flex-col items-center no-print"
               >
-                <div className="sticky top-20 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-md uppercase tracking-wider">
+                <div className="sticky top-16 bg-red-600 text-white text-[8px] font-black px-1 py-0.2 rounded shadow-md uppercase tracking-wider">
                   Hoy
                 </div>
               </div>
             )}
 
-            {/* 3. LÍNEAS DE FONDO DE LA CUADRÍCULA */}
-            <div className="absolute inset-0 top-20 pointer-events-none flex">
-              {Array.from({ length: totalDays }).map((_, idx) => (
-                <div
-                  key={`grid-${idx}`}
-                  style={{ width: `${dayWidth}px` }}
-                  className={`h-full border-r ${
-                    idx % 7 === 0
-                      ? 'border-[#e2ebd3] dark:border-[#253905]'
-                      : 'border-[#f0f4ea] dark:border-[#253905]/20'
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* 4. BARRAS GANTT CORRESPONDIENTES A CADA FILA */}
+            {/* 3. BARRAS GANTT CORRESPONDIENTES A CADA FILA */}
             <div className="pt-0 divide-y divide-[#f0f4ea] dark:divide-[#253905]/40">
               {filteredProjects.map((p) => {
                 const isProjExp = !!expandedProjects[p.id];
@@ -795,8 +842,8 @@ export default function GanttChart({
 
                 const projStartDay = Math.max(0, getDaysBetween(minDate, pStart));
                 const projDurationDays = Math.max(7, getDaysBetween(pStart, pEnd));
-                const projLeft = projStartDay * dayWidth;
-                const projWidth = Math.max(40, projDurationDays * dayWidth);
+                const projLeftPct = (projStartDay / totalDays) * 100;
+                const projWidthPct = Math.max(3, (projDurationDays / totalDays) * 100);
 
                 const pTotalHa = parseFloat(p.superficie_meta_ha) || 0;
                 const pAcumHa = p.hitos?.reduce((acc, h) =>
@@ -804,12 +851,12 @@ export default function GanttChart({
                 const pPct = pTotalHa > 0 ? Math.min(100, Math.round((pAcumHa / pTotalHa) * 100)) : 0;
 
                 return (
-                  <div key={`bars-p-${p.id}`}>
+                  <div key={`bars-p-${p.id}`} className="gantt-row">
                     {/* Barra del Proyecto */}
-                    <div className="h-14 relative flex items-center bg-[#f8faf2]/50 dark:bg-[#1a2803]/30">
+                    <div className="h-12 relative flex items-center bg-[#f8faf2]/50 dark:bg-[#1a2803]/30">
                       <div
-                        style={{ left: `${projLeft}px`, width: `${projWidth}px` }}
-                        className="absolute h-8 rounded-xl bg-gradient-to-r from-[#2c4001] to-[#456306] border border-[#a1c62e]/50 shadow-md flex items-center px-3 text-white overflow-hidden group cursor-pointer hover:ring-2 hover:ring-[#a1c62e] transition"
+                        style={{ left: `${projLeftPct}%`, width: `${projWidthPct}%` }}
+                        className="absolute h-7 rounded-lg bg-gradient-to-r from-[#2c4001] to-[#456306] border border-[#a1c62e]/50 shadow-md flex items-center px-2 text-white overflow-hidden group cursor-pointer hover:ring-2 hover:ring-[#a1c62e] transition"
                         onMouseEnter={(e) => {
                           setTooltipData({
                             title: p.nombre,
@@ -824,13 +871,12 @@ export default function GanttChart({
                         }}
                         onMouseLeave={() => setTooltipData(null)}
                       >
-                        {/* Progreso Relleno */}
                         <div
                           style={{ width: `${pPct}%` }}
                           className="absolute left-0 top-0 bottom-0 bg-[#a1c62e]/40"
                         />
-                        <span className="relative z-10 text-xs font-black truncate drop-shadow-sm flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-[#a1c62e]" />
+                        <span className="relative z-10 text-[10px] font-black truncate drop-shadow-sm flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-[#a1c62e] no-print" />
                           {p.nombre} ({pPct}%)
                         </span>
                       </div>
@@ -838,7 +884,7 @@ export default function GanttChart({
 
                     {/* Espacio para Obras Chips */}
                     {isProjExp && p.obras && p.obras.length > 0 && (
-                      <div className="h-[29px] bg-[#fbfdf8]/40 dark:bg-[#121c02]/20" />
+                      <div className="h-[25px] bg-[#fbfdf8]/40 dark:bg-[#121c02]/20" />
                     )}
 
                     {/* Barras de Hitos */}
@@ -846,16 +892,16 @@ export default function GanttChart({
                       p.hitos?.map((h, hIdx) => {
                         const isHitoExp = !!expandedHitos[h.id];
 
-                        // Calcular fechas estimadas del hito
+                        // Fechas del hito
                         const prevHito = hIdx > 0 ? p.hitos[hIdx - 1] : null;
                         const hStart = prevHito?.fecha_meta ? parseDate(prevHito.fecha_meta) : pStart;
                         const hMeta = parseDate(h.fecha_meta) || addDays(hStart, 20);
 
                         const hStartDay = Math.max(0, getDaysBetween(minDate, hStart));
-                        const hDurationDays = Math.max(5, getDaysBetween(hStart, hMeta));
-                        const hLeft = hStartDay * dayWidth;
-                        const hWidth = Math.max(30, hDurationDays * dayWidth);
-                        const milestonePos = Math.max(0, getDaysBetween(minDate, hMeta)) * dayWidth;
+                        const hDurationDays = Math.max(4, getDaysBetween(hStart, hMeta));
+                        const hLeftPct = (hStartDay / totalDays) * 100;
+                        const hWidthPct = Math.max(2.5, (hDurationDays / totalDays) * 100);
+                        const milestonePosPct = (Math.max(0, getDaysBetween(minDate, hMeta)) / totalDays) * 100;
 
                         const hMetaHa = parseFloat(h.superficie_meta_ha) || 0;
                         const hAcumHa = h.tareas?.reduce((acc, t) => acc + (t.cantidad_acumulada || 0), 0) || 0;
@@ -869,15 +915,15 @@ export default function GanttChart({
                         };
 
                         return (
-                          <div key={`bars-h-${h.id}`}>
+                          <div key={`bars-h-${h.id}`} className="gantt-row">
                             {/* Barra del Hito */}
-                            <div className="h-12 relative flex items-center bg-white/40 dark:bg-[#152202]/20">
+                            <div className="h-10 relative flex items-center bg-white/40 dark:bg-[#152202]/20">
                               {/* Barra de duración del hito */}
                               <div
-                                style={{ left: `${hLeft}px`, width: `${hWidth}px` }}
-                                className={`absolute h-6 rounded-lg bg-gradient-to-r ${
+                                style={{ left: `${hLeftPct}%`, width: `${hWidthPct}%` }}
+                                className={`absolute h-5 rounded-md bg-gradient-to-r ${
                                   barColors[h.estado] || barColors.pendiente
-                                } border shadow-sm flex items-center px-2 text-white overflow-hidden cursor-pointer hover:scale-[1.02] transition`}
+                                } border shadow-xs flex items-center px-1.5 text-white overflow-hidden cursor-pointer hover:scale-[1.02] transition`}
                                 onMouseEnter={(e) => {
                                   setTooltipData({
                                     title: `Hito #${h.orden}: ${h.nombre}`,
@@ -896,15 +942,15 @@ export default function GanttChart({
                                   style={{ width: `${hPct}%` }}
                                   className="absolute left-0 top-0 bottom-0 bg-white/30"
                                 />
-                                <span className="relative z-10 text-[10px] font-bold truncate">
+                                <span className="relative z-10 text-[9px] font-bold truncate">
                                   #{h.orden} {h.nombre}
                                 </span>
                               </div>
 
-                              {/* Diamante de Hito (Fecha Meta Clave) */}
+                              {/* Diamante de Hito (Fecha Meta) */}
                               <div
-                                style={{ left: `${milestonePos - 8}px` }}
-                                className="absolute w-4 h-4 rotate-45 bg-[#dfb75c] border-2 border-white dark:border-[#152202] shadow-md z-10 cursor-pointer"
+                                style={{ left: `calc(${milestonePosPct}% - 6px)` }}
+                                className="absolute w-3.5 h-3.5 rotate-45 bg-[#dfb75c] border-2 border-white dark:border-[#152202] shadow-sm z-10 cursor-pointer"
                                 title={`Hito Meta: ${formatDisplayDate(h.fecha_meta)}`}
                               />
                             </div>
@@ -918,9 +964,9 @@ export default function GanttChart({
                                 const tEnd = addDays(tStart, taskStepDays);
 
                                 const tStartDay = Math.max(0, getDaysBetween(minDate, tStart));
-                                const tDurationDays = Math.max(3, getDaysBetween(tStart, tEnd));
-                                const tLeft = tStartDay * dayWidth;
-                                const tWidth = Math.max(24, tDurationDays * dayWidth);
+                                const tDurationDays = Math.max(2, getDaysBetween(tStart, tEnd));
+                                const tLeftPct = (tStartDay / totalDays) * 100;
+                                const tWidthPct = Math.max(2, (tDurationDays / totalDays) * 100);
 
                                 const tMeta = parseFloat(t.cantidad_meta) || 1;
                                 const tAcum = parseFloat(t.cantidad_acumulada) || 0;
@@ -938,11 +984,11 @@ export default function GanttChart({
                                 return (
                                   <div
                                     key={`bars-t-${t.id}`}
-                                    className="h-10 relative flex items-center bg-[#fbfdf8]/20 dark:bg-[#101901]/20"
+                                    className="gantt-row h-9 relative flex items-center bg-[#fbfdf8]/20 dark:bg-[#101901]/20"
                                   >
                                     <div
-                                      style={{ left: `${tLeft}px`, width: `${tWidth}px` }}
-                                      className={`absolute h-4 rounded-md ${taskColor} text-white shadow-xs flex items-center px-1.5 overflow-hidden cursor-pointer hover:h-5 transition-all`}
+                                      style={{ left: `${tLeftPct}%`, width: `${tWidthPct}%` }}
+                                      className={`absolute h-3.5 rounded-sm ${taskColor} text-white shadow-xs flex items-center px-1 overflow-hidden cursor-pointer hover:h-4.5 transition-all`}
                                       onMouseEnter={(e) => {
                                         setTooltipData({
                                           title: `Tarea: ${t.nombre}`,
@@ -962,7 +1008,7 @@ export default function GanttChart({
                                         style={{ width: `${tPct}%` }}
                                         className="absolute left-0 top-0 bottom-0 bg-black/20"
                                       />
-                                      <span className="relative z-10 text-[9px] font-bold truncate">
+                                      <span className="relative z-10 text-[8px] font-bold truncate">
                                         {t.nombre}
                                       </span>
                                     </div>
@@ -981,7 +1027,7 @@ export default function GanttChart({
       </div>
 
       {/* ========================================================================= */}
-      {/* 5. TOOLTIP FLOTANTE INTERACTIVO                                           */}
+      {/* 5. TOOLTIP FLOTANTE INTERACTIVO (SOLO PANTALLA)                           */}
       {/* ========================================================================= */}
       {tooltipData && (
         <div
@@ -990,7 +1036,7 @@ export default function GanttChart({
             left: `${Math.min(window.innerWidth - 300, tooltipData.x + 15)}px`,
             top: `${Math.min(window.innerHeight - 200, tooltipData.y + 15)}px`
           }}
-          className="z-50 p-3 rounded-2xl bg-slate-900/95 text-white border border-slate-700 shadow-2xl backdrop-blur-md w-72 pointer-events-none space-y-1.5 animate-in fade-in duration-150"
+          className="no-print z-50 p-3 rounded-2xl bg-slate-900/95 text-white border border-slate-700 shadow-2xl backdrop-blur-md w-72 pointer-events-none space-y-1.5 animate-in fade-in duration-150"
         >
           <div className="flex items-center justify-between border-b border-slate-700 pb-1.5">
             <span className="text-[10px] font-black text-[#a1c62e] uppercase tracking-wider">
@@ -1020,7 +1066,7 @@ export default function GanttChart({
       {/* 6. PIE DE PÁGINA CON LEYENDA CANÓNICA                                     */}
       {/* ========================================================================= */}
       <div className="p-3 sm:p-4 bg-[#f4f8ed] dark:bg-[#121c02] border-t border-[#e2ebd3] dark:border-[#253905] flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Leyenda:</span>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded bg-[#2c4001] border border-[#a1c62e]" />

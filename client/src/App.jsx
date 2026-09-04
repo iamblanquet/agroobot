@@ -242,7 +242,7 @@ export default function App() {
       {/* ========================================================================= */}
       {/* 1. TOP NAVBAR SUPERIOR (ESTILO THESSA: HEADER OSCURO / VERDE AGROKOOL)     */}
       {/* ========================================================================= */}
-      <header className="bg-[#2c4001] text-white border-b border-[#3e5606] sticky top-0 z-40 shadow-md h-14 sm:h-16 flex items-center px-3 sm:px-6 justify-between gap-3">
+      <header className="no-print print:hidden bg-[#2c4001] text-white border-b border-[#3e5606] sticky top-0 z-40 shadow-md h-14 sm:h-16 flex items-center px-3 sm:px-6 justify-between gap-3">
         <div className="flex items-center min-w-0">
           {/* Logo Oficial AGROKOOL Simple */}
           <button
@@ -302,10 +302,10 @@ export default function App() {
       {/* ========================================================================= */}
       {/* 2. BODY CON SIDEBAR LATERAL IZQUIERDO Y CONTENIDO PRINCIPAL               */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative print:overflow-visible">
         {/* SIDEBAR LATERAL (DESKTOP) */}
         <aside
-          className={`hidden md:flex flex-col bg-[#243302] border-r border-[#3e5606] text-slate-200 transition-all duration-300 z-30 flex-shrink-0 select-none ${
+          className={`no-print print:hidden hidden md:flex flex-col bg-[#243302] border-r border-[#3e5606] text-slate-200 transition-all duration-300 z-30 flex-shrink-0 select-none ${
             sidebarOpen ? 'w-60' : 'w-16'
           }`}
         >
@@ -411,7 +411,7 @@ export default function App() {
 
         {/* DRAWER LATERAL (MÓVILES) */}
         {mobileDrawerOpen && (
-          <div className="fixed inset-0 z-50 md:hidden flex">
+          <div className="no-print print:hidden fixed inset-0 z-50 md:hidden flex">
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setMobileDrawerOpen(false)} />
             <div className="relative w-72 max-w-[80vw] bg-[#243302] border-r border-[#3e5606] text-slate-200 h-full flex flex-col shadow-2xl z-10 animate-in slide-in-from-left duration-200">
               <div className="p-4 border-b border-[#3e5606] flex items-center justify-between">

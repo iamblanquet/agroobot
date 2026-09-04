@@ -75,3 +75,138 @@ html.dark ::-webkit-scrollbar-track {
 .animate-pulse-subtle {
   animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* ========================================================================= */
+/* ESTILOS DE IMPRESIÓN OFICIALES (DIAGRAMA DE GANTT & REPORTES AGROKOOL)   */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: landscape;
+    margin: 6mm 8mm;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11px !important;
+  }
+
+  /* Ocultar elementos de navegación y controles interactivos al imprimir */
+  header:not(.print-header),
+  aside,
+  #sidebar,
+  #mobile-drawer,
+  nav,
+  .no-print,
+  button,
+  select,
+  input,
+  [role="tooltip"] {
+    display: none !important;
+  }
+
+  /* Desbloquear contenedores padres para que no haya scroll interno ni recorte */
+  #root,
+  main,
+  .max-w-7xl,
+  div[class*="max-w-"] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Quitar backdrop oscurecido y posición fija si se imprime desde un modal */
+  .fixed.inset-0 {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+  }
+
+  /* Estructura del Gantt en impresión */
+  .gantt-root {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }
+
+  .gantt-flex-wrapper {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  .gantt-wbs-panel {
+    width: 38% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+    border-right: 1.5px solid #cbd5e1 !important;
+  }
+
+  .gantt-wbs-list {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .gantt-timeline-panel {
+    width: 62% !important;
+    flex: 1 1 0% !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .gantt-timeline-canvas {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .gantt-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+}

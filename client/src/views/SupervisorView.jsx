@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import StatCard from '../components/StatCard';
+import GanttChart from '../components/GanttChart';
 import {
   AlertTriangle,
   Clock,
@@ -29,7 +30,8 @@ import {
   LayoutGrid,
   Search,
   Filter,
-  Send
+  Send,
+  ExternalLink
 } from 'lucide-react';
 
 export default function SupervisorView({ activeTab: externalActiveTab, onTabChange: externalOnTabChange, onRegisterMetadata }) {
@@ -46,6 +48,10 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const [usersList, setUsersList] = useState([]);
   const [reportesList, setReportesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Modal Diagrama de Gantt
+  const [showGanttModal, setShowGanttModal] = useState(false);
+  const [selectedGanttProject, setSelectedGanttProject] = useState('all');
 
   // Filtro y búsqueda en Catálogos
   const [catalogoSubTab, setCatalogoSubTab] = useState('todos'); // 'todos' | 'predios' | 'frentes' | 'maquinaria'
@@ -774,14 +780,43 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleOpenProjectModal()}
-              className="px-4 py-2 rounded-lg bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-950/60 self-start sm:self-auto"
-            >
-              <FolderPlus className="w-4 h-4" />
-              <span>+ Nuevo Proyecto</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              {/* Botón Diagrama de Gantt */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedGanttProject('all');
+                  setShowGanttModal(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#a1c62e]" />
+                <span>Diagrama de Gantt</span>
+              </button>
+
+              {/* Botón Abrir en Nueva Ventana */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.open('/index.html#gantt', 'AgrokoolGantt', 'width=1380,height=850,resizable=yes,scrollbars=yes');
+                }}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-[#3e5606] text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
+                title="Abrir Gantt en Ventana Independiente"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
+                <span className="hidden md:inline">Nueva Ventana</span>
+              </button>
+
+              {/* Botón Nuevo Proyecto */}
+              <button
+                type="button"
+                onClick={() => handleOpenProjectModal()}
+                className="px-4 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-950/60"
+              >
+                <FolderPlus className="w-4 h-4" />
+                <span>+ Nuevo Proyecto</span>
+              </button>
+            </div>
           </div>
 
           {/* Lista de Proyectos Expandibles */}
@@ -841,7 +876,21 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Botón Gantt Individual de Proyecto */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedGanttProject(p.id);
+                              setShowGanttModal(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] dark:bg-[#1f3004] hover:bg-[#e6f0d8] dark:hover:bg-[#253905] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1 shadow-xs transition"
+                            title="Ver Diagrama de Gantt de este proyecto"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Gantt</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => handleOpenHitoModal(p)}
@@ -3061,6 +3110,22 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FULLSCREEN / VENTANA DE GANTT */}
+      {showGanttModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-[1550px] max-h-[96vh] flex flex-col bg-[#f8faf2] dark:bg-[#0c1400] rounded-2xl overflow-hidden border border-[#e2ebd3] dark:border-[#253905] shadow-2xl">
+            <GanttChart
+              projects={proyectosList}
+              selectedProjectId={selectedGanttProject}
+              onProjectChange={setSelectedGanttProject}
+              onRefresh={loadData}
+              isModal={true}
+              onCloseModal={() => setShowGanttModal(false)}
+            />
           </div>
         </div>
       )}

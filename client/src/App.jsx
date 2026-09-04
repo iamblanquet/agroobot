@@ -7,6 +7,7 @@ import CampoView from './views/CampoView';
 import SupervisorView from './views/SupervisorView';
 import DireccionView from './views/DireccionView';
 import AdminView from './views/AdminView';
+import GanttView from './views/GanttView';
 import {
   Menu,
   X,
@@ -18,6 +19,7 @@ import {
   Camera,
   BarChart3,
   Shield,
+  Calendar,
   LogOut,
   Sun,
   Moon,
@@ -39,8 +41,14 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  // Ajustar vista predeterminada según el rol del usuario autenticado
+  // Ajustar vista predeterminada según el rol del usuario autenticado o hash URL
   useEffect(() => {
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#gantt')) {
+      setCurrentView('gantt');
+      return;
+    }
+
     if (user?.rol) {
       if (user.rol === 'campo') {
         setCurrentView('campo');
@@ -54,6 +62,18 @@ export default function App() {
       }
     }
   }, [user]);
+
+  // Listener para cambios dinámicos en hash
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash || '';
+      if (hash.startsWith('#gantt')) {
+        setCurrentView('gantt');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   if (isLoading) {
     return (
@@ -96,6 +116,13 @@ export default function App() {
       view: 'supervisor',
       subTab: 'proyectos',
       badge: supervisorMetadata?.proyectos,
+      roles: ['supervisor', 'direccion', 'it']
+    },
+    {
+      id: 'gantt',
+      label: 'Diagrama de Gantt',
+      icon: Calendar,
+      view: 'gantt',
       roles: ['supervisor', 'direccion', 'it']
     },
     {
@@ -166,6 +193,14 @@ export default function App() {
       icon: Layers,
       color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
       action: () => { setCurrentView('supervisor'); setActiveSupervisorTab('proyectos'); },
+      roles: ['supervisor', 'direccion', 'it']
+    },
+    {
+      title: 'Diagrama de Gantt Agrícola',
+      desc: 'Línea de tiempo interactiva con barras de avance, hitos críticos, fechas límite y vistas Días/Semanas/Meses.',
+      icon: Calendar,
+      color: 'bg-[#2c4001]/20 text-[#2c4001] dark:text-[#a1c62e] border-[#a1c62e]/40',
+      action: () => setCurrentView('gantt'),
       roles: ['supervisor', 'direccion', 'it']
     },
     {
@@ -539,6 +574,11 @@ export default function App() {
               activeTab={activeSupervisorTab}
               onTabChange={setActiveSupervisorTab}
               onRegisterMetadata={setSupervisorMetadata}
+            />
+          )}
+          {currentView === 'gantt' && (
+            <GanttView
+              onNavigateBack={() => setCurrentView(user?.rol === 'direccion' ? 'direccion' : 'supervisor')}
             />
           )}
           {currentView === 'direccion' && <DireccionView />}

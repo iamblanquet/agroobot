@@ -30,7 +30,7 @@ async function runTests() {
   assert.strictEqual(parsed1.es_sin_actividad, false);
   assert.strictEqual(parsed1.obra_nombre, 'Frente Norte');
   assert.strictEqual(parsed1.avance_ha, 8.5);
-  assert.strictEqual(parsed1.cuadrilla_count, 4);
+  assert.strictEqual(parsed1.cuadrilla[0]?.headcount, 4);
 
   const textParo = 'Sin actividad: Lluvia torrencial en la zona del Bajío';
   const parsedParo = parseFreeTextReport(textParo);
@@ -94,9 +94,9 @@ async function runTests() {
 
   // Test 5: Regla de Alerta de Mantenimiento Preventivo (>= 280 hrs)
   console.log('\nTest 5: Regla de Mantenimiento Preventivo (>= 280 hrs)...');
-  // Consultar CAT-D6T-01 con 285h (seed)
-  const maqD6 = await db.get('SELECT * FROM maquina WHERE codigo = "CAT-D6T-01"');
-  assert(maqD6, 'Máquina CAT-D6T-01 debe existir');
+  // Consultar TRACTOR-PUMA-01 con 288.5h (seed)
+  const maqD6 = await db.get('SELECT * FROM maquina WHERE codigo = "TRACTOR-PUMA-01"');
+  assert(maqD6, 'Máquina TRACTOR-PUMA-01 debe existir');
   const hrsUso = maqD6.horometro_actual - maqD6.ultimo_servicio_hr;
   assert(hrsUso >= 280, 'Horas de uso deben ser >= 280');
   assert.strictEqual(maqD6.alerta_mantenimiento, 1, 'alerta_mantenimiento debe ser 1');

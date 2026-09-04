@@ -214,7 +214,7 @@ function parseFreeTextReport(text, messageDate = new Date()) {
   }
 
   // 7. Extraer Maquinaria / Horómetro
-  const maqRegex = /(?:maq|m[aá]quina|hor[oó]metro|diesel)\s*[:=-]?\s*([A-Za-z0-9_-]+)?(?:\s+([\d.,]+)\s+([\d.,]+))?(?:\s+([\d.,]+)\s*(?:l|litros)?)?/i;
+  const maqRegex = /(?:maquinaria|m[aá]quina|maq|hor[oó]metro|diesel)\s*[:=-]?\s*([A-Za-z0-9_-]+)?(?:\s+([\d.,]+)\s+([\d.,]+))?(?:\s+([\d.,]+)\s*(?:l|litros)?)?/i;
   const maqMatch = raw.match(maqRegex);
   let maquinariaData = null;
 

@@ -163,78 +163,7 @@ async function runDailyGeneralReport() {
 }
 
 /**
- * 5. Autoconfirmación a los 30 Minutos (Plan Maestro §1.4 y §3.3)
- * Si un reporte en estado 'borrador' supera los 30 minutos desde su recepción en el servidor,
- * se confirma automáticamente con la marca 'auto' y se notifica al tema #Reportes.
- */
-async function runAutoConfirmDrafts() {
-  try {
-    const expiredDrafts = await db.all(`
-      SELECT r.*, o.nombre AS obra_nombre, p.nombre AS proyecto_nombre
-      FROM reporte r
-      LEFT JOIN obra o ON r.obra_id = o.id
-      LEFT JOIN proyecto p ON r.proyecto_id = p.id
-      WHERE r.estado = 'borrador'
-        AND r.recibido_en <= datetime('now', '-30 minutes')
-    `);
-
-    if (expiredDrafts.length === 0) return { confirmed: 0 };
-
-    console.log(`⏰ Autoconfirmando ${expiredDrafts.length} reporte(s) en borrador con más de 30 minutos...`);
-
-    for (const draft of expiredDrafts) {
-      // 1. Actualizar estado a confirmado con nota de autoconfirmación
-      await db.run(`
-        UPDATE reporte
-        SET estado = 'confirmado',
-            nota = COALESCE(nota, '') || ' [Autoconfirmado automáticamente por sistema tras 30 min (marca auto)]'
-        WHERE id = ?
-      `, [draft.id]);
-
-      // 2. Obtener líneas, cuadrilla y fotos para notificar al tema #Reportes
-      const lineas = await db.all(`
-        SELECT rl.*, pr.nombre AS predio_nombre
-        FROM reporte_linea rl
-        LEFT JOIN predio pr ON rl.predio_id = pr.id
-        WHERE rl.reporte_id = ?
-      `, [draft.id]);
-
-      const cuadrilla = await db.all(`
-        SELECT * FROM reporte_cuadrilla WHERE reporte_id = ?
-      `, [draft.id]);
-
-      const maquinaria = await db.all(`
-        SELECT lm.*, m.codigo, m.modelo
-        FROM lectura_maquina lm
-        JOIN maquina m ON lm.maquina_id = m.id
-        WHERE lm.reporte_id = ?
-      `, [draft.id]);
-
-      const { notifyReporte } = require('./bot');
-      await notifyReporte({
-        obraNombre: draft.obra_nombre,
-        proyectoNombre: draft.proyecto_nombre,
-        fechaOperativa: draft.fecha_operativa,
-        horaOffline: draft.hora_offline,
-        autorNombre: `${draft.autor_nombre} (auto)`,
-        esSinActividad: draft.es_sin_actividad === 1,
-        motivoSinActividad: draft.motivo_sin_actividad,
-        lineas,
-        cuadrilla,
-        maquinaria,
-        clientUuid: draft.client_uuid
-      });
-    }
-
-    return { confirmed: expiredDrafts.length };
-  } catch (err) {
-    console.error('Error en runAutoConfirmDrafts:', err);
-    return { error: err.message };
-  }
-}
-
-/**
- * Inicializar todos los Cron Jobs programados
+ * Inicializar todos los Cron Jobs programados (Alertas y cortes)
  */
 function initScheduler() {
   console.log(`🕒 Inicializando planificador de tareas Cron (Zona horaria: ${TIMEZONE})...`);
@@ -259,12 +188,7 @@ function initScheduler() {
     runNightlyTablero();
   }, { timezone: TIMEZONE });
 
-  // 5. Verificación de autoconfirmación de reportes cada 5 minutos (Plan Maestro §1.4)
-  cron.schedule('*/5 * * * *', () => {
-    runAutoConfirmDrafts();
-  }, { timezone: TIMEZONE });
-
-  console.log('✅ Programador Cron activo: [07:30 General] · [08:00 Alertas Matutinas] · [21:00 Reclamos] · [21:30 Tablero] · [*/5 Autoconfirm 30m]');
+  console.log('✅ Programador Cron activo: [07:30 General] · [08:00 Alertas Matutinas] · [21:00 Reclamos] · [21:30 Tablero]');
 }
 
 module.exports = {
@@ -272,6 +196,5 @@ module.exports = {
   runEveningCheck,
   runNightlyTablero,
   runMorningAlerts,
-  runDailyGeneralReport,
-  runAutoConfirmDrafts
+  runDailyGeneralReport
 };

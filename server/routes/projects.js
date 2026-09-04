@@ -30,6 +30,15 @@ router.get('/', authenticateJWT, async (req, res) => {
         `, [h.id]);
       }
       p.obras = await db.all('SELECT * FROM obra WHERE proyecto_id = ? ORDER BY id ASC', [p.id]);
+      for (const ob of p.obras) {
+        ob.predios = await db.all(`
+          SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
+          FROM predio pr
+          JOIN obra_predio op ON pr.id = op.predio_id
+          WHERE op.obra_id = ?
+          ORDER BY pr.nombre ASC
+        `, [ob.id]);
+      }
       p.mediciones = await db.all('SELECT * FROM medicion WHERE proyecto_id = ? ORDER BY fecha DESC', [p.id]);
     }
 
@@ -857,6 +866,38 @@ router.patch('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'dir
       return res.status(404).json({ error: 'Frente u obra no encontrada.' });
     }
 
+    // Actualizar predios vinculados si se proporcionaron
+    if (predio_ids !== undefined) {
+      const pIds = Array.isArray(predio_ids) ? predio_ids : [predio_ids];
+      await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [id]);
+      for (const pId of pIds) {
+        if (pId) {
+          await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [id, parseInt(pId, 10)]);
+        }
+      }
+    }
+
+    let finalThreadId = tg_thread_id !== undefined ? (tg_thread_id ? String(tg_thread_id).trim() : null) : obra.tg_thread_id;
+    const isMockOrMissing = !finalThreadId || ['101', '102', '103', '104', '105', '106', '107'].includes(String(finalThreadId));
+
+    // Si aún no tiene un tema real en Telegram, crearlo automáticamente
+    if (isMockOrMissing) {
+      try {
+        const projId = proyecto_id !== undefined ? parseInt(proyecto_id, 10) : obra.proyecto_id;
+        const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [projId]);
+        const predios = await db.all('SELECT pr.nombre FROM predio pr JOIN obra_predio op ON pr.id = op.predio_id WHERE op.obra_id = ?', [id]);
+        const predioNombres = predios.map(p => p.nombre);
+
+        const { createObraForumTopic } = require('../bot/bot');
+        const autoThreadId = await createObraForumTopic(nombre !== undefined ? nombre.trim() : obra.nombre, proj?.nombre || 'General', predioNombres);
+        if (autoThreadId) {
+          finalThreadId = String(autoThreadId);
+        }
+      } catch (tgErr) {
+        console.warn('⚠️ No se pudo auto-crear tema en Telegram durante PATCH obra:', tgErr.message);
+      }
+    }
+
     await db.run(
       `UPDATE obra
        SET nombre = ?, proyecto_id = ?, fase_actual = ?, estado = ?, tg_thread_id = ?
@@ -866,20 +907,10 @@ router.patch('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'dir
         proyecto_id !== undefined ? parseInt(proyecto_id, 10) : obra.proyecto_id,
         fase_actual !== undefined ? fase_actual : obra.fase_actual,
         estado !== undefined ? estado : obra.estado,
-        tg_thread_id !== undefined ? tg_thread_id : obra.tg_thread_id,
+        finalThreadId,
         id
       ]
     );
-
-    // Actualizar predios vinculados si se proporcionaron
-    if (predio_ids !== undefined && Array.isArray(predio_ids)) {
-      await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [id]);
-      for (const pId of predio_ids) {
-        if (pId) {
-          await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [id, parseInt(pId, 10)]);
-        }
-      }
-    }
 
     const updated = await db.get(`
       SELECT o.*, p.nombre AS proyecto_nombre
@@ -889,7 +920,7 @@ router.patch('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'dir
     `, [id]);
 
     updated.predios = await db.all(`
-      SELECT pr.id, pr.nombre, pr.superficie_util_ha
+      SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
       FROM predio pr
       JOIN obra_predio op ON pr.id = op.predio_id
       WHERE op.obra_id = ?
@@ -898,7 +929,7 @@ router.patch('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'dir
     return res.json({ success: true, obra: updated });
   } catch (err) {
     console.error('Error al actualizar obra:', err);
-    return res.status(500).json({ error: 'Error al actualizar la obra.' });
+    return res.status(500).json({ error: 'Error al actualizar la obra: ' + err.message });
   }
 });
 

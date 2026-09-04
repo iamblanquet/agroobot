@@ -40,6 +40,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const [stats, setStats] = useState(null);
   const [proyectosList, setProyectosList] = useState([]);
   const [prediosList, setPrediosList] = useState([]);
+  const [obrasList, setObrasList] = useState([]);
   const [machinesList, setMachinesList] = useState([]);
   const [entidadesList, setEntidadesList] = useState([]);
   const [usersList, setUsersList] = useState([]);
@@ -150,13 +151,14 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [statsData, projData, predData, repData, machData, entData] = await Promise.all([
+      const [statsData, projData, predData, repData, machData, entData, obrasData] = await Promise.all([
         api.get('/stats/supervisor'),
         api.get('/projects'),
         api.get('/projects/predios'),
         api.get('/reports?limit=50'),
         api.get('/machines'),
-        api.get('/machines/entidades')
+        api.get('/machines/entidades'),
+        api.get('/projects/obras')
       ]);
 
       setStats(statsData);
@@ -165,17 +167,19 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       const rpList = repData.reports || [];
       const mcList = machData.machines || [];
       const etList = entData.entidades || [];
+      const obList = obrasData.obras || [];
       setProyectosList(prList);
       setPrediosList(pdList);
       setReportesList(rpList);
       setMachinesList(mcList);
       setEntidadesList(etList);
+      setObrasList(obList);
 
       if (onRegisterMetadata) {
         onRegisterMetadata({
           proyectos: prList.length,
           predios: pdList.length,
-          obras: prList.reduce((acc, p) => acc + (p.obras?.length || 0), 0),
+          obras: obList.length || prList.reduce((acc, p) => acc + (p.obras?.length || 0), 0),
           reportes: rpList.length,
           maquinas: mcList.length,
           reloadFn: loadData
@@ -1612,7 +1616,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       {/* VISTA 4: CATÁLOGO DE PREDIOS, FRENTES Y MAQUINARIA (EDITABLE Y RESPONSIVO) */}
       {/* ========================================================================= */}
       {activeTab === 'catalogos' && (() => {
-        const allObras = proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id })));
+        const allObras = obrasList.length > 0 ? obrasList : proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id })));
         
         const filteredPredios = prediosList.filter(pr => 
           !catalogoSearch || 
@@ -2605,17 +2609,49 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Predio Vinculado Principal</label>
-                <select
-                  value={obraForm.predio_ids?.[0] || ''}
-                  onChange={(e) => setObraForm(prev => ({ ...prev, predio_ids: e.target.value ? [e.target.value] : [] }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="">Sin predio vinculado</option>
-                  {prediosList.map(pr => (
-                    <option key={pr.id} value={pr.id}>{pr.nombre} ({pr.superficie_util_ha} ha)</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span>Predios Vinculados ({obraForm.predio_ids?.length || 0})</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Selecciona 1 o varios predios</span>
+                </label>
+                <div className="max-h-36 overflow-y-auto rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-2 space-y-1">
+                  {prediosList.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic p-1">No hay predios registrados aún.</p>
+                  ) : (
+                    prediosList.map(pr => {
+                      const isSelected = obraForm.predio_ids?.map(String).includes(String(pr.id));
+                      return (
+                        <label
+                          key={pr.id}
+                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition ${
+                            isSelected
+                              ? 'bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 font-bold'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                setObraForm(prev => {
+                                  const current = (prev.predio_ids || []).map(String);
+                                  const prIdStr = String(pr.id);
+                                  const next = current.includes(prIdStr)
+                                    ? current.filter(id => id !== prIdStr)
+                                    : [...current, prIdStr];
+                                  return { ...prev, predio_ids: next };
+                                });
+                              }}
+                              className="w-3.5 h-3.5 text-emerald-600 rounded focus:ring-emerald-500"
+                            />
+                            <span>📍 {pr.nombre}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono font-normal">{pr.superficie_util_ha} ha</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               <div>
@@ -2628,7 +2664,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-purple-500 focus:outline-none"
                 />
                 <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
-                  💡 Si se deja vacío, el bot creará automáticamente el tema en el Supergrupo de Telegram.
+                  💡 Si se deja vacío, el bot creará automáticamente el tema en el Supergrupo de Telegram con los predios seleccionados.
                 </p>
               </div>
 

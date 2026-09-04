@@ -43,7 +43,7 @@ async function runEveningCheck() {
     if (sinReporte.length > 0) {
       let repMsg = `🔴 *CORTE 21:00 · FRENTES SIN REPORTE HOY (${sinReporte.length}):*\n\n`;
       sinReporte.forEach(o => repMsg += `• *${o.nombre}*\n`);
-      repMsg += `\n_Se requiere reporte de jornada o declaración de /sin_actividad._`;
+      repMsg += `\n_Se requiere reporte de jornada o declaración de_ \`/sin_actividad\`.`;
       await sendTopicMessage('reportes', repMsg);
     }
 

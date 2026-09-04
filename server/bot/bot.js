@@ -28,27 +28,63 @@ async function sendTopicMessage(topicKey, text, extraOptions = {}) {
     threadId = parseInt(process.env.TELEGRAM_THREAD_GENERAL, 10);
   }
 
-  const sendOptions = {
-    parse_mode: 'Markdown',
-    ...(threadId ? { message_thread_id: threadId } : {}),
-    ...extraOptions
-  };
-
-  try {
-    return await botInstance.sendMessage(supergroupId, text, sendOptions);
-  } catch (err) {
-    console.warn(`⚠️ Error al enviar mensaje al tema [${topicKey}]:`, err.message);
-    return null;
+  // Dividir en fragmentos si excede 4000 caracteres
+  const CHUNK_SIZE = 3800;
+  const chunks = [];
+  if (text.length > CHUNK_SIZE) {
+    let remaining = text;
+    while (remaining.length > 0) {
+      if (remaining.length <= CHUNK_SIZE) {
+        chunks.push(remaining);
+        break;
+      }
+      let splitIdx = remaining.lastIndexOf('\n\n', CHUNK_SIZE);
+      if (splitIdx === -1 || splitIdx < 1000) {
+        splitIdx = remaining.lastIndexOf('\n', CHUNK_SIZE);
+      }
+      if (splitIdx === -1 || splitIdx < 1000) {
+        splitIdx = CHUNK_SIZE;
+      }
+      chunks.push(remaining.substring(0, splitIdx));
+      remaining = remaining.substring(splitIdx).trimStart();
+    }
+  } else {
+    chunks.push(text);
   }
+
+  let lastSentMsg = null;
+  for (const chunk of chunks) {
+    const sendOptions = {
+      parse_mode: 'Markdown',
+      ...(threadId ? { message_thread_id: threadId } : {}),
+      ...extraOptions
+    };
+
+    try {
+      lastSentMsg = await botInstance.sendMessage(supergroupId, chunk, sendOptions);
+    } catch (err) {
+      // Si falló por error de parsing Markdown, intentar sin parse_mode
+      try {
+        const plainOptions = { ...(threadId ? { message_thread_id: threadId } : {}), ...extraOptions };
+        delete plainOptions.parse_mode;
+        lastSentMsg = await botInstance.sendMessage(supergroupId, chunk, plainOptions);
+      } catch (retryErr) {
+        console.warn(`⚠️ Error al enviar mensaje al tema [${topicKey}]:`, retryErr.message);
+      }
+    }
+  }
+
+  return lastSentMsg;
 }
 
 /**
- * Notificar un nuevo reporte al tema #Reportes
+ * Notificar un nuevo reporte al tema del frente correspondiente o #Reportes
  */
 async function notifyReporte(reportData) {
-  const {
+  let {
     obraNombre,
     proyectoNombre,
+    obraThreadId,
     fechaOperativa,
     horaOffline,
     creadoOffline,
@@ -62,64 +98,74 @@ async function notifyReporte(reportData) {
     clientUuid
   } = reportData;
 
+  // Si no se proporcionó explícitamente obraThreadId, buscarlo por nombre de obra
+  if (!obraThreadId && obraNombre) {
+    try {
+      const o = await db.get('SELECT tg_thread_id FROM obra WHERE nombre = ? LIMIT 1', [obraNombre]);
+      if (o && o.tg_thread_id) {
+        obraThreadId = o.tg_thread_id;
+      }
+    } catch (e) {}
+  }
+
   const horaTxt = horaOffline ? `\n⏰ *Hora Captura (Sin Internet):* \`${horaOffline} hrs\`` : '';
 
+  let text = '';
   if (esSinActividad) {
-    const text = `🌧️ *DÍA SIN ACTIVIDAD REPORTADO*\n\n` +
-                 `🏢 *Obra:* ${obraNombre || 'General'}\n` +
-                 `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
-                 `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
-                 horaTxt + `\n` +
-                 `📝 *Motivo:* ${motivoSinActividad || 'Paro operativo'}\n` +
-                 `👤 *Autor:* ${autorNombre || 'Operador'}\n` +
-                 `💾 _Folio:_ \`${clientUuid || 'N/A'}\``;
-    return sendTopicMessage('reportes', text);
+    text = `🌧️ *DÍA SIN ACTIVIDAD REPORTADO*\n\n` +
+           `🏢 *Obra:* ${obraNombre || 'General'}\n` +
+           `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
+           `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
+           horaTxt + `\n` +
+           `📝 *Motivo:* ${motivoSinActividad || 'Paro operativo'}\n` +
+           `👤 *Autor:* ${autorNombre || 'Operador'}\n` +
+           `💾 _Folio:_ \`${clientUuid || 'N/A'}\``;
+  } else {
+    let avanceTxt = '';
+    if (lineas.length > 0) {
+      avanceTxt = `\n📊 *Avance:* ` + lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha || l.cantidad} ${l.unidad || 'ha'} (${l.actividad_id || 'Labor'})`).join(' · ');
+    }
+
+    let cuadrillaTxt = '';
+    if (cuadrilla.length > 0) {
+      cuadrillaTxt = `\n👥 *Cuadrilla:* ` + cuadrilla.map(c => `${c.role_text || c.rol_id}: ${c.headcount}`).join(' · ');
+    }
+
+    let maqTxt = '';
+    if (maquinaria && (Array.isArray(maquinaria) ? maquinaria.length > 0 : (typeof maquinaria === 'object' && maquinaria.codigo))) {
+      const maqs = Array.isArray(maquinaria) ? maquinaria : [maquinaria];
+      maqTxt = `\n🚜 *Maquinaria:* ` + maqs.map(m => `${m.codigo || 'Máquina'}: ${m.horas_trabajadas || 0} hrs (${m.litros_diesel || 0} L)`).join(', ');
+    }
+
+    const fotosTxt = fotos.length > 0 ? `\n📷 *Evidencias fotográficas:* ${fotos.length} adjunta(s)` : '';
+
+    text = `📋 *REPORTE DE CAMPO OFICIAL*\n\n` +
+           `🏢 *Obra:* ${obraNombre || 'General'}\n` +
+           `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
+           `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
+           horaTxt + `\n` +
+           `👤 *Autor:* ${autorNombre || 'Operador'}` +
+           avanceTxt +
+           cuadrillaTxt +
+           maqTxt +
+           fotosTxt +
+           `\n\n💾 _Folio:_ \`${clientUuid || 'N/A'}\``;
   }
 
-  let avanceTxt = '';
-  if (lineas.length > 0) {
-    avanceTxt = `\n📊 *Avance:* ` + lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha || l.cantidad} ${l.unidad || 'ha'} (${l.actividad_id || 'Labor'})`).join(' · ');
-  }
+  const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
+  const targetThreadId = obraThreadId ? parseInt(obraThreadId, 10) : (process.env.TELEGRAM_THREAD_REPORTES ? parseInt(process.env.TELEGRAM_THREAD_REPORTES, 10) : null);
 
-  let cuadrillaTxt = '';
-  if (cuadrilla.length > 0) {
-    cuadrillaTxt = `\n👥 *Cuadrilla:* ` + cuadrilla.map(c => `${c.role_text || c.rol_id}: ${c.headcount}`).join(' · ');
-  }
-
-  let maqTxt = '';
-  if (maquinaria && (maquinaria.length > 0 || maquinaria.codigo)) {
-    const maqs = Array.isArray(maquinaria) ? maquinaria : [maquinaria];
-    maqTxt = `\n🚜 *Maquinaria:* ` + maqs.map(m => `${m.codigo || 'Máquina'}: ${m.horas_trabajadas || 0} hrs (${m.litros_diesel || 0} L)`).join(', ');
-  }
-
-  const fotosTxt = fotos.length > 0 ? `\n📷 *Evidencias fotográficas:* ${fotos.length} adjunta(s)` : '';
-
-  const text = `📋 *REPORTE DE CAMPO OFICIAL*\n\n` +
-               `🏢 *Obra:* ${obraNombre || 'General'}\n` +
-               `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
-               `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
-               horaTxt + `\n` +
-               `👤 *Autor:* ${autorNombre || 'Operador'}` +
-               avanceTxt +
-               cuadrillaTxt +
-               maqTxt +
-               fotosTxt +
-               `\n\n💾 _Folio:_ \`${clientUuid || 'N/A'}\``;
-
-  // Si hay bot y fotos en disco, enviar las fotos adjuntas
-  if (botInstance && process.env.TELEGRAM_SUPERGROUP_ID && fotos && fotos.length > 0) {
-    const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
-    let threadId = process.env.TELEGRAM_THREAD_REPORTES ? parseInt(process.env.TELEGRAM_THREAD_REPORTES, 10) : null;
+  // Si hay bot y supergrupo configurado, enviar al tema específico de la obra
+  if (botInstance && supergroupId) {
     const fs = require('fs');
-
-    const validFiles = fotos.filter(f => f.filePath && fs.existsSync(f.filePath));
+    const validFiles = (fotos || []).filter(f => f.filePath && fs.existsSync(f.filePath));
     if (validFiles.length > 0) {
       try {
         if (validFiles.length === 1) {
           return await botInstance.sendPhoto(supergroupId, validFiles[0].filePath, {
             caption: text,
             parse_mode: 'Markdown',
-            ...(threadId ? { message_thread_id: threadId } : {})
+            ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
           });
         } else {
           // Grupo de fotos (álbum)
@@ -130,12 +176,21 @@ async function notifyReporte(reportData) {
             parse_mode: 'Markdown'
           }));
           return await botInstance.sendMediaGroup(supergroupId, mediaGroup, {
-            ...(threadId ? { message_thread_id: threadId } : {})
+            ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
           });
         }
       } catch (err) {
         console.warn('⚠️ Error al enviar fotos a Telegram, enviando texto alternativo:', err.message);
       }
+    }
+
+    try {
+      return await botInstance.sendMessage(supergroupId, text, {
+        parse_mode: 'Markdown',
+        ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
+      });
+    } catch (err) {
+      console.warn(`⚠️ Error al enviar reporte al tema del frente [thread_id: ${targetThreadId}]:`, err.message);
     }
   }
 
@@ -143,10 +198,19 @@ async function notifyReporte(reportData) {
 }
 
 /**
- * Notificar una nueva incidencia al tema #Incidencias
+ * Notificar una nueva incidencia al tema del frente o #Incidencias
  */
 async function notifyIncidencia(issueData) {
-  const { folio, tipo, obraNombre, descripcion, estado } = issueData;
+  let { folio, tipo, obraNombre, obraThreadId, descripcion, estado } = issueData;
+
+  if (!obraThreadId && obraNombre) {
+    try {
+      const o = await db.get('SELECT tg_thread_id FROM obra WHERE nombre = ? LIMIT 1', [obraNombre]);
+      if (o && o.tg_thread_id) {
+        obraThreadId = o.tg_thread_id;
+      }
+    } catch (e) {}
+  }
 
   const text = `⚠️ *ALERTA DE INCIDENCIA EN CAMPO*\n\n` +
                `📌 *Folio:* \`${folio}\` [${(estado || 'ABIERTA').toUpperCase()}]\n` +
@@ -155,6 +219,20 @@ async function notifyIncidencia(issueData) {
                `📝 *Detalle:* ${descripcion || 'Sin descripción adicional'}\n\n` +
                `💬 _Responde (reply) a este mensaje dentro del tema para agregar seguimiento a la bitácora._\n` +
                `✅ _Para cerrar:_ \`/cerrar ${folio} [causa_raiz]\``;
+
+  const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
+  const targetThreadId = obraThreadId ? parseInt(obraThreadId, 10) : (process.env.TELEGRAM_THREAD_INCIDENCIAS ? parseInt(process.env.TELEGRAM_THREAD_INCIDENCIAS, 10) : null);
+
+  if (botInstance && supergroupId && targetThreadId) {
+    try {
+      return await botInstance.sendMessage(supergroupId, text, {
+        parse_mode: 'Markdown',
+        message_thread_id: targetThreadId
+      });
+    } catch (err) {
+      console.warn(`⚠️ Error al enviar incidencia al tema [thread_id: ${targetThreadId}]:`, err.message);
+    }
+  }
 
   return sendTopicMessage('incidencias', text);
 }

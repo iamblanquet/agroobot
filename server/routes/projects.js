@@ -555,8 +555,8 @@ router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direcc
           await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [newObraId, predioId]);
 
           createdObra = await db.get('SELECT * FROM obra WHERE id = ?', [newObraId]);
-          createdObra.predios = [newPredio];
-          newPredio.obras = [createdObra];
+          createdObra.predios = [{ id: newPredio.id, nombre: newPredio.nombre, superficie_util_ha: newPredio.superficie_util_ha }];
+          newPredio.obras = [{ id: createdObra.id, nombre: createdObra.nombre, estado: createdObra.estado, tg_thread_id: createdObra.tg_thread_id }];
         }
       } catch (tgErr) {
         console.warn('⚠️ Error al auto-crear frente o tema de Telegram para el nuevo predio:', tgErr.message);

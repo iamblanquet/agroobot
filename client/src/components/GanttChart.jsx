@@ -23,7 +23,11 @@ import {
   Sparkles,
   ArrowRight,
   ArrowLeft,
-  Building
+  Building,
+  List,
+  BarChart2,
+  X,
+  ChevronLeft
 } from 'lucide-react';
 
 /**
@@ -60,10 +64,8 @@ function addDays(date, days) {
   return result;
 }
 
-const WBS_WIDTH = 360;
-
 /**
- * Componente Principal GanttChart con Diseño Moderno Unificado
+ * Componente Principal GanttChart con Diseño Senior Responsive y Colores de Marca AGROKOOL
  */
 export default function GanttChart({
   projects = [],
@@ -80,9 +82,14 @@ export default function GanttChart({
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'en_progreso' | 'completado' | 'pendiente' | 'bloqueado'
   const [expandedProjects, setExpandedProjects] = useState({});
   const [expandedHitos, setExpandedHitos] = useState({});
-  const [tooltipData, setTooltipData] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMetrics, setShowMetrics] = useState(true);
+
+  // Estados responsivos móviles (Senior UX)
+  const [mobileTab, setMobileTab] = useState('gantt'); // 'gantt' | 'lista'
+  const [wbsCollapsedMobile, setWbsCollapsedMobile] = useState(false);
+  const [selectedItemDetail, setSelectedItemDetail] = useState(null); // Para Bottom Sheet Modal táctil
+  const [hoverTooltip, setHoverTooltip] = useState(null); // Para desktop tooltip
 
   const timelineScrollRef = useRef(null);
 
@@ -93,7 +100,7 @@ export default function GanttChart({
     }
   }, [selectedProjectId]);
 
-  // Expandir proyectos e hitos al cargar
+  // Expandir proyectos al cargar
   useEffect(() => {
     if (projects.length > 0) {
       const expProj = {};
@@ -206,11 +213,11 @@ export default function GanttChart({
     };
   }, [projects]);
 
-  // Escala en píxeles
+  // Escala en píxeles por día
   const dayWidth = useMemo(() => {
-    if (timeScale === 'dias') return 34;
-    if (timeScale === 'semanas') return 12;
-    return 4.5;
+    if (timeScale === 'dias') return 36;
+    if (timeScale === 'semanas') return 14;
+    return 5;
   }, [timeScale]);
 
   const timelineTotalWidth = Math.max(900, totalDays * dayWidth);
@@ -263,7 +270,7 @@ export default function GanttChart({
           const wDays = Math.min(7, remaining);
           subUnits.push({
             key: `w-${dayIdx}`,
-            label: `Sem ${Math.ceil((date.getDate() + 6 - date.getDay()) / 7)} (${date.getDate()} ${date.toLocaleDateString('es-MX', { month: 'short' })})`,
+            label: `S${Math.ceil((date.getDate() + 6 - date.getDay()) / 7)} (${date.getDate()} ${date.toLocaleDateString('es-MX', { month: 'short' })})`,
             startDay: dayIdx,
             widthDays: wDays,
             leftPct: (dayIdx / totalDays) * 100,
@@ -285,8 +292,21 @@ export default function GanttChart({
   // Centrar en el día de hoy
   const handleScrollToToday = () => {
     if (timelineScrollRef.current && todayOffsetDays >= 0) {
-      const scrollPos = Math.max(0, (todayOffsetDays / totalDays) * timelineTotalWidth - 150);
+      const scrollPos = Math.max(0, (todayOffsetDays / totalDays) * timelineTotalWidth - 120);
       timelineScrollRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+    }
+  };
+
+  // Scroll a un rango de fecha específico (usado desde la vista lista móvil)
+  const handleScrollToDate = (targetDateStr) => {
+    const d = parseDate(targetDateStr);
+    if (d && timelineScrollRef.current) {
+      const offsetDays = getDaysBetween(minDate, d);
+      const scrollPos = Math.max(0, (offsetDays / totalDays) * timelineTotalWidth - 100);
+      setMobileTab('gantt');
+      setTimeout(() => {
+        timelineScrollRef.current?.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      }, 100);
     }
   };
 
@@ -354,7 +374,7 @@ export default function GanttChart({
 
   const activeProjectObj = projects.find((p) => String(p.id) === String(activeProjectFilter));
 
-  // Filas para impresión
+  // Filas para impresión oficial
   const printRows = useMemo(() => {
     const rows = [];
     const taskColors = {
@@ -428,9 +448,14 @@ export default function GanttChart({
     return rows;
   }, [filteredProjects, minDate, totalDays]);
 
+  // Manejo de clic en elementos del Gantt (Abre Bottom Sheet en móvil / modal en desktop)
+  const handleItemClick = (itemData) => {
+    setSelectedItemDetail(itemData);
+  };
+
   return (
     <div
-      className={`gantt-root flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 ${
+      className={`gantt-root flex flex-col bg-[#fdfdfc] dark:bg-[#0e1700] text-slate-900 dark:text-slate-100 ${
         isFullscreen
           ? 'fixed inset-0 z-50 overflow-hidden'
           : isModal
@@ -439,18 +464,18 @@ export default function GanttChart({
       }`}
     >
       {/* ========================================================================= */}
-      {/* ENCABEZADO EXCLUSIVO PARA IMPRESIÓN OFICIAL (PDF & PAPEL LANDSCAPE)       */}
+      {/* ENCABEZADO EXCLUSIVO PARA IMPRESIÓN OFICIAL                                */}
       {/* ========================================================================= */}
       <div className="hidden print:block p-4 mb-2 border-b-2 border-slate-900 bg-white text-slate-900">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="AGROKOOL" className="h-10 w-auto object-contain" />
             <div>
-              <h1 className="text-base font-black uppercase tracking-tight text-slate-950">
-                AGROKOOL · DIAGRAMA DE GANTT DE PLANEACIÓN & EJECUCIÓN
+              <h1 className="text-base font-black uppercase tracking-tight text-[#2c4001]">
+                AGROKOOL · CRONOGRAMA MAESTRO DE GANTT
               </h1>
               <p className="text-[11px] text-slate-700 font-semibold">
-                Control Operativo Temporal: Ciclos Agrícolas, Frentes de Obra, Hitos y Tareas
+                Supervisión de Ciclos Agrícolas, Frentes de Obra, Hitos y Tareas de Campo
               </p>
             </div>
           </div>
@@ -465,7 +490,7 @@ export default function GanttChart({
                 : `${activeProjectObj?.nombre || ''} (${activeProjectObj?.ciclo || ''})`}
             </div>
             <div>
-              <strong>Gerente Asignado:</strong> {activeProjectObj?.gerente_nombre || 'Dirección de Operaciones'}
+              <strong>Responsable:</strong> {activeProjectObj?.gerente_nombre || 'Dirección de Operaciones'}
             </div>
           </div>
         </div>
@@ -477,7 +502,7 @@ export default function GanttChart({
           </div>
           <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
             <span className="text-[9px] font-bold text-slate-600 uppercase block">Superficie Meta</span>
-            <span className="text-xs font-black text-emerald-800">{metrics.totalMetaHa} ha</span>
+            <span className="text-xs font-black text-[#2c4001]">{metrics.totalMetaHa} ha</span>
           </div>
           <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
             <span className="text-[9px] font-bold text-slate-600 uppercase block">Avance Acumulado</span>
@@ -546,46 +571,154 @@ export default function GanttChart({
             </div>
           ))}
         </div>
-        <div className="mt-2 text-[8px] text-slate-600 flex items-center justify-between border-t border-slate-300 pt-1.5">
-          <span>
-            Escala: {formatDisplayDate(formatDate(minDate))} a {formatDisplayDate(formatDate(maxDate))}
-          </span>
-          <span>AGROKOOL · Reporte operativo</span>
-        </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 1. TOOLBAR MODERNA Y ELEGANTE (CLICKUP / LINEAR STYLE)                     */}
+      {/* 1. TOOLBAR PRINCIPAL RESPONSIVA CON LOGO Y COLORES OFICIALES AGROKOOL      */}
       {/* ========================================================================= */}
-      <header className="no-print print:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 flex-shrink-0 z-30">
-        {/* Grupo Izquierdo: Volver + Título + Selector Proyecto */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {onNavigateBack && (
-            <button
-              type="button"
-              onClick={onNavigateBack}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
-              title="Volver"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Volver</span>
-            </button>
-          )}
+      <header className="no-print print:hidden bg-[#243302] text-white border-b border-[#3e5606] px-3 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-2 flex-shrink-0 z-30 shadow-md">
+        {/* Fila 1: Logo + Botón Volver + Título + Selector Modo Móvil + Controles */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {/* Lado Izquierdo: Volver + Logo Oficial + Título */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onNavigateBack && (
+              <button
+                type="button"
+                onClick={onNavigateBack}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#a1c62e] border border-[#3e5606] text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
+                title="Volver"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Volver</span>
+              </button>
+            )}
 
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                Diagrama de Gantt
-              </h2>
-              <span className="text-[10px] text-slate-400 hidden md:inline">Planeación & Ejecución</span>
+            {/* Logo Oficial AGROKOOL */}
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="AGROKOOL" className="h-7 sm:h-8 w-auto object-contain shrink-0" />
+              <div className="hidden sm:block">
+                <h1 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
+                  <span>Diagrama de Gantt</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#1e2d01] text-[#a1c62e] border border-[#3e5606] font-mono">
+                    v7
+                  </span>
+                </h1>
+                <p className="text-[10px] text-[#d4e6b5] font-medium mt-0.5">Planeación & Ejecución Agrícola</p>
+              </div>
             </div>
           </div>
 
-          <div className="h-5 w-[1px] bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+          {/* Selector de Modo en Móvil (Gantt vs Lista) */}
+          <div className="flex md:hidden items-center bg-[#1e2d01] rounded-xl p-0.5 border border-[#3e5606]">
+            <button
+              type="button"
+              onClick={() => setMobileTab('gantt')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                mobileTab === 'gantt'
+                  ? 'bg-[#a1c62e] text-[#2c4001] shadow-xs'
+                  : 'text-[#d4e6b5] hover:text-white'
+              }`}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Gantt</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('lista')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                mobileTab === 'lista'
+                  ? 'bg-[#a1c62e] text-[#2c4001] shadow-xs'
+                  : 'text-[#d4e6b5] hover:text-white'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Lista</span>
+            </button>
+          </div>
 
+          {/* Lado Derecho: Controles Rápidos */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Escala Temporal (Días / Semanas / Meses) */}
+            <div className="hidden sm:flex items-center bg-[#1e2d01] rounded-xl p-0.5 border border-[#3e5606]">
+              {['dias', 'semanas', 'meses'].map((scale) => (
+                <button
+                  key={scale}
+                  type="button"
+                  onClick={() => setTimeScale(scale)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition ${
+                    timeScale === scale
+                      ? 'bg-[#a1c62e] text-[#2c4001] shadow-xs'
+                      : 'text-[#d4e6b5] hover:text-white'
+                  }`}
+                >
+                  {scale}
+                </button>
+              ))}
+            </div>
+
+            {/* Botón Hoy */}
+            <button
+              type="button"
+              onClick={handleScrollToToday}
+              className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#a1c62e] border border-[#3e5606] text-xs font-bold flex items-center gap-1 transition shadow-xs"
+              title="Centrar línea de tiempo en el día actual"
+            >
+              <Clock className="w-3.5 h-3.5 text-[#a1c62e]" />
+              <span className="hidden xs:inline">Hoy</span>
+            </button>
+
+            {/* Alternar Métricas */}
+            <button
+              type="button"
+              onClick={() => setShowMetrics(!showMetrics)}
+              className={`p-1.5 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition shadow-xs ${
+                showMetrics
+                  ? 'bg-[#a1c62e] text-[#2c4001] border-[#a1c62e]'
+                  : 'bg-[#1e2d01] text-[#d4e6b5] border-[#3e5606] hover:text-white'
+              }`}
+              title="Mostrar / Ocultar cinta de métricas"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Métricas</span>
+            </button>
+
+            {/* Expandir / Colapsar Todo */}
+            <button
+              type="button"
+              onClick={() => {
+                const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
+                handleToggleExpandAll(anyCollapsed);
+              }}
+              className="p-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#d4e6b5] hover:text-white border border-[#3e5606] transition"
+              title="Expandir / Colapsar todos los proyectos"
+            >
+              <Sliders className="w-3.5 h-3.5 text-[#a1c62e]" />
+            </button>
+
+            {/* Pantalla Completa */}
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="p-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#d4e6b5] hover:text-white border border-[#3e5606] transition"
+              title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+
+            {isModal && onCloseModal && (
+              <button
+                type="button"
+                onClick={onCloseModal}
+                className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition ml-1"
+              >
+                Cerrar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Fila 2: Selectores de Proyecto, Estado y Buscador (Adaptativo a Móvil) */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap pt-1 border-t border-[#3e5606]/80 text-xs">
           {/* Selector de Proyecto */}
           <select
             value={activeProjectFilter}
@@ -593,12 +726,12 @@ export default function GanttChart({
               setActiveProjectFilter(e.target.value);
               if (onProjectChange) onProjectChange(e.target.value);
             }}
-            className="text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[190px] sm:max-w-[260px] truncate"
+            className="flex-1 sm:flex-initial sm:min-w-[200px] max-w-full sm:max-w-xs px-2.5 py-1.5 rounded-xl bg-[#1e2d01] border border-[#3e5606] text-xs font-bold text-white focus:outline-none focus:border-[#a1c62e] truncate"
           >
             <option value="all">📁 Todos los Proyectos ({projects.length})</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.nombre} ({p.ciclo})
+                {p.nombre} ({p.ciclo}) · {p.superficie_meta_ha} ha
               </option>
             ))}
           </select>
@@ -607,50 +740,26 @@ export default function GanttChart({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 hidden xl:block"
+            className="hidden sm:block px-2.5 py-1.5 rounded-xl bg-[#1e2d01] border border-[#3e5606] text-xs font-semibold text-[#d4e6b5] focus:outline-none focus:border-[#a1c62e]"
           >
-            <option value="all">Todos los estados</option>
+            <option value="all">Todos los Estados</option>
             <option value="en_progreso">🔵 En Proceso</option>
             <option value="completado">🟢 Completados</option>
             <option value="pendiente">⚪ Pendientes</option>
             <option value="bloqueado">🔴 Con Bloqueo</option>
           </select>
-        </div>
 
-        {/* Grupo Derecho: Buscador + Escala + Acciones */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap ml-auto">
-          {/* Buscador */}
-          <div className="relative w-32 sm:w-44">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-6 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Escala Temporal */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+          {/* Escala en móvil si la barra superior se ocultó */}
+          <div className="flex sm:hidden items-center bg-[#1e2d01] rounded-xl p-0.5 border border-[#3e5606]">
             {['dias', 'semanas', 'meses'].map((scale) => (
               <button
                 key={scale}
                 type="button"
                 onClick={() => setTimeScale(scale)}
-                className={`px-2 py-1 rounded-md text-[11px] font-semibold capitalize transition ${
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold capitalize transition ${
                   timeScale === scale
-                    ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-2xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#a1c62e] text-[#2c4001]'
+                    : 'text-[#d4e6b5]'
                 }`}
               >
                 {scale}
@@ -658,114 +767,66 @@ export default function GanttChart({
             ))}
           </div>
 
-          {/* Botón Hoy */}
-          <button
-            type="button"
-            onClick={handleScrollToToday}
-            className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold inline-flex items-center gap-1 transition"
-            title="Centrar en el día de hoy"
-          >
-            <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden sm:inline">Hoy</span>
-          </button>
-
-          {/* Botón Alternar Métricas */}
-          <button
-            type="button"
-            onClick={() => setShowMetrics(!showMetrics)}
-            className={`px-2 py-1 rounded-lg border text-xs font-semibold inline-flex items-center gap-1 transition ${
-              showMetrics
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-            }`}
-            title="Mostrar / Ocultar KPIs"
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Métricas</span>
-          </button>
-
-          {/* Expandir / Colapsar */}
-          <button
-            type="button"
-            onClick={() => {
-              const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
-              handleToggleExpandAll(anyCollapsed);
-            }}
-            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            title="Expandir / Colapsar Todo"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Nueva Ventana */}
-          <button
-            type="button"
-            onClick={handleOpenPopoutWindow}
-            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            title="Abrir en ventana emergente"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Pantalla Completa */}
-          <button
-            type="button"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-
-          {isModal && onCloseModal && (
-            <button
-              type="button"
-              onClick={onCloseModal}
-              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition ml-1"
-            >
-              Cerrar
-            </button>
-          )}
+          {/* Buscador */}
+          <div className="relative flex-1 sm:w-56 sm:ml-auto">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar hito, tarea..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-6 py-1.5 rounded-xl bg-[#1e2d01] border border-[#3e5606] text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#a1c62e]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. BARRA DE MÉTRICAS COMPACTA (UNA SOLA LÍNEA, SIN QUITAR ESPACIO)       */}
+      {/* 2. CINTA DE MÉTRICAS COMPACTA CON COLORES CORPORATIVOS                    */}
       {/* ========================================================================= */}
       {showMetrics && (
-        <div className="no-print print:hidden bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-between gap-4 text-xs overflow-x-auto no-scrollbar flex-shrink-0 animate-in fade-in duration-150">
-          <div className="flex items-center gap-5 divide-x divide-slate-200 dark:divide-slate-800">
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Proyectos:</span>
-              <span className="font-bold text-slate-900 dark:text-white">{metrics.totalProyectos} activos</span>
+        <div className="no-print print:hidden bg-[#f4f8ed] dark:bg-[#152202] border-b border-[#e2ebd3] dark:border-[#253905] px-3 sm:px-4 py-1.5 flex items-center justify-between gap-4 text-xs overflow-x-auto no-scrollbar flex-shrink-0 animate-in fade-in duration-150">
+          <div className="flex items-center gap-4 sm:gap-6 divide-x divide-[#d4e6b5] dark:divide-[#3e5606]/60">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase">Proyectos:</span>
+              <span className="font-black text-[#2c4001] dark:text-[#a1c62e]">{metrics.totalProyectos}</span>
             </div>
-            <div className="pl-5 flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Meta:</span>
-              <span className="font-bold text-slate-900 dark:text-white">{metrics.totalMetaHa.toLocaleString('es-MX')} ha</span>
+            <div className="pl-4 sm:pl-6 flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase">Meta:</span>
+              <span className="font-black text-[#2c4001] dark:text-white">{metrics.totalMetaHa.toLocaleString('es-MX')} ha</span>
             </div>
-            <div className="pl-5 flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Avance:</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">{metrics.totalAcumHa.toLocaleString('es-MX')} ha</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold text-[10px]">
+            <div className="pl-4 sm:pl-6 flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase">Avance:</span>
+              <span className="font-black text-emerald-700 dark:text-emerald-400">{metrics.totalAcumHa.toLocaleString('es-MX')} ha</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-[#a1c62e] text-[#2c4001] font-black text-[10px] shadow-xs">
                 {metrics.pctGlobal}%
               </span>
             </div>
-            <div className="pl-5 flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Hitos Clave:</span>
-              <span className="font-bold text-blue-600 dark:text-blue-400">
-                {metrics.hitosCompletados} / {metrics.totalHitos}
+            <div className="pl-4 sm:pl-6 flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase">Hitos:</span>
+              <span className="font-black text-blue-700 dark:text-blue-400">
+                {metrics.hitosCompletados}/{metrics.totalHitos}
               </span>
             </div>
-            <div className="pl-5 flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Tareas Operativas:</span>
-              <span className="font-bold text-purple-600 dark:text-purple-400">
-                {metrics.tareasCompletadas} / {metrics.totalTareas}
+            <div className="pl-4 sm:pl-6 flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase">Tareas:</span>
+              <span className="font-black text-purple-700 dark:text-purple-300">
+                {metrics.tareasCompletadas}/{metrics.totalTareas}
               </span>
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 text-slate-400 text-[11px]">
-            <Sparkles className="w-3 h-3 text-amber-500" />
+          <div className="hidden xl:flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">
+            <span className="w-2 h-2 rounded-full bg-[#a1c62e] animate-pulse" />
             <span>
               {formatDisplayDate(formatDate(minDate))} al {formatDisplayDate(formatDate(maxDate))}
             </span>
@@ -774,38 +835,249 @@ export default function GanttChart({
       )}
 
       {/* ========================================================================= */}
-      {/* 3. GRILLA UNIFICADA CON SCROLL SINCRONIZADO NATIVO (STICKY WBS COLUMN)   */}
+      {/* 3. VISTA MÓVIL: MODO LISTA TÁCTIL (TARJETAS WBS)                          */}
+      {/* ========================================================================= */}
+      {mobileTab === 'lista' && (
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 md:hidden no-scrollbar bg-[#f8faf4] dark:bg-[#0c1400]">
+          {filteredProjects.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              <Calendar className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
+              <p className="font-bold text-xs">No se encontraron proyectos.</p>
+            </div>
+          ) : (
+            filteredProjects.map((p) => {
+              const isProjExp = !!expandedProjects[p.id];
+              const pTotalHa = parseFloat(p.superficie_meta_ha) || 0;
+              const pAcumHa =
+                p.hitos?.reduce(
+                  (acc, h) =>
+                    acc + (h.tareas?.reduce((tAcc, t) => tAcc + (parseFloat(t.cantidad_acumulada) || 0), 0) || 0),
+                  0
+                ) || 0;
+              const pPct = pTotalHa > 0 ? Math.min(100, Math.round((pAcumHa / pTotalHa) * 100)) : 0;
+
+              return (
+                <div
+                  key={`mobile-p-${p.id}`}
+                  className="rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-xs overflow-hidden"
+                >
+                  {/* Cabecera de Proyecto */}
+                  <div
+                    onClick={() =>
+                      setExpandedProjects((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
+                    }
+                    className="p-3.5 flex items-center justify-between cursor-pointer bg-[#f4f8ed] dark:bg-[#1a2b03] border-b border-[#e2ebd3] dark:border-[#253905]"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <div className="p-1.5 rounded-lg bg-[#2c4001] text-[#a1c62e]">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate">{p.nombre}</h3>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {p.tipo} · Ciclo {p.ciclo}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right font-mono text-[10px]">
+                        <span className="font-bold text-[#2c4001] dark:text-[#a1c62e] block">
+                          {pAcumHa}/{pTotalHa} ha
+                        </span>
+                        <span className="text-slate-500 font-bold">{pPct}%</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${
+                          isProjExp ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Acciones Rápidas del Proyecto */}
+                  <div className="px-3.5 py-2 bg-white dark:bg-[#152202] flex items-center justify-between border-b border-[#f0f4ea] dark:border-[#253905]/40 text-[11px]">
+                    <span className="text-slate-400 text-[10px]">
+                      📅 {formatDisplayDate(p.fecha_inicio)} al {formatDisplayDate(p.fecha_fin)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleScrollToDate(p.fecha_inicio);
+                      }}
+                      className="text-[#2c4001] dark:text-[#a1c62e] font-bold flex items-center gap-1 hover:underline"
+                    >
+                      <span>Ver en Cronograma</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {/* Lista de Hitos del Proyecto */}
+                  {isProjExp && (
+                    <div className="divide-y divide-[#f0f4ea] dark:divide-[#253905]/40">
+                      {p.hitos?.map((h) => {
+                        const isHitoExp = !!expandedHitos[h.id];
+                        const hMetaHa = parseFloat(h.superficie_meta_ha) || 0;
+                        const hAcumHa =
+                          h.tareas?.reduce((acc, t) => acc + (parseFloat(t.cantidad_acumulada) || 0), 0) || 0;
+                        const hPct = hMetaHa > 0 ? Math.min(100, Math.round((hAcumHa / hMetaHa) * 100)) : 0;
+
+                        return (
+                          <div key={`mobile-h-${h.id}`} className="p-3 bg-white dark:bg-[#121c02]">
+                            <div
+                              onClick={() =>
+                                setExpandedHitos((prev) => ({ ...prev, [h.id]: !prev[h.id] }))
+                              }
+                              className="flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                                <span className="w-5 h-5 rounded-full bg-[#dfb75c] text-[#2c4001] text-[10px] font-black flex items-center justify-center shrink-0 shadow-xs">
+                                  {h.orden}
+                                </span>
+                                <div className="min-w-0">
+                                  <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                    {h.nombre}
+                                  </h4>
+                                  <p className="text-[10px] text-slate-400">
+                                    Meta: {formatDisplayDate(h.fecha_meta)} · {h.estado?.replace('_', ' ')}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                  {hMetaHa} ha ({hPct}%)
+                                </span>
+                                <ChevronDown
+                                  className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                                    isHitoExp ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Tareas del Hito */}
+                            {isHitoExp && (
+                              <div className="mt-2.5 pl-7 space-y-1.5 border-l-2 border-[#e2ebd3] dark:border-[#253905]">
+                                {h.tareas?.map((t) => {
+                                  const tMeta = parseFloat(t.cantidad_meta) || 1;
+                                  const tAcum = parseFloat(t.cantidad_acumulada) || 0;
+                                  const tPct = Math.min(100, Math.round((tAcum / tMeta) * 100));
+
+                                  return (
+                                    <div
+                                      key={`mobile-t-${t.id}`}
+                                      onClick={() =>
+                                        handleItemClick({
+                                          title: t.nombre,
+                                          type: 'Tarea Operativa',
+                                          subtitle: `Hito: ${h.nombre}`,
+                                          responsable: t.responsable,
+                                          predio: t.predio_nombre,
+                                          progress: `${tAcum} / ${tMeta} ${t.unidad || 'ha'} (${tPct}%)`,
+                                          estado: t.estado,
+                                          dates: `Meta Hito: ${formatDisplayDate(h.fecha_meta)}`
+                                        })
+                                      }
+                                      className="p-2 rounded-xl bg-slate-50 dark:bg-[#1a2903]/40 border border-slate-200/70 dark:border-[#253905] flex items-center justify-between text-xs"
+                                    >
+                                      <div className="min-w-0 pr-2">
+                                        <span className="font-medium text-slate-800 dark:text-slate-200 truncate block">
+                                          {t.nombre}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400">
+                                          {t.responsable || 'Sin asignar'} · {t.predio_nombre || 'General'}
+                                        </span>
+                                      </div>
+                                      <div className="text-right font-mono text-[10px] shrink-0">
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                                          {tAcum}/{tMeta} {t.unidad || 'ha'}
+                                        </span>
+                                        <span className="text-[#2c4001] dark:text-[#a1c62e] font-bold block">{tPct}%</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. GRILLA PRINCIPAL GANTT CON STICKY WBS & SCROLL SINCRONIZADO NATIVO     */}
       {/* ========================================================================= */}
       <div
         ref={timelineScrollRef}
-        className="flex-1 overflow-auto bg-white dark:bg-slate-950 relative no-print select-none"
+        className={`flex-1 overflow-auto bg-white dark:bg-[#0c1400] relative no-print select-none touch-pan-x touch-pan-y ${
+          mobileTab === 'lista' ? 'hidden md:block' : 'block'
+        }`}
       >
-        <div style={{ width: `${WBS_WIDTH + timelineTotalWidth}px`, minWidth: '100%' }} className="relative">
+        <div
+          style={{
+            width: `${(wbsCollapsedMobile ? 60 : 340) + timelineTotalWidth}px`,
+            minWidth: '100%'
+          }}
+          className="relative"
+        >
           {/* ================= ENCABEZADO DE TABLA (STICKY TOP) ================= */}
-          <div className="sticky top-0 z-30 flex bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-2xs">
+          <div className="sticky top-0 z-30 flex bg-[#edf5e3] dark:bg-[#142002] border-b border-[#d3e2be] dark:border-[#253905] shadow-xs">
             {/* Esquina Superior Izquierda (Sticky Left + Top) */}
             <div
-              style={{ width: `${WBS_WIDTH}px` }}
-              className="sticky left-0 z-40 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-between flex-shrink-0 shadow-xs"
+              style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
+              className="sticky left-0 z-40 bg-[#edf5e3] dark:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] px-2 sm:px-3 py-2 flex items-center justify-between flex-shrink-0 shadow-xs transition-all"
             >
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                Estructura (WBS) / Tarea
-              </span>
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                Meta / Avance
-              </span>
+              {!wbsCollapsedMobile ? (
+                <>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#2c4001] dark:text-[#a1c62e] flex items-center gap-1.5 truncate">
+                    <Layers className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
+                    <span>Estructura / Tareas</span>
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">
+                      Meta / Avance
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setWbsCollapsedMobile(!wbsCollapsedMobile)}
+                      className="p-1 rounded text-slate-500 hover:text-[#2c4001] dark:hover:text-[#a1c62e] md:hidden"
+                      title="Ocultar columna para ampliar cronograma"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setWbsCollapsedMobile(false)}
+                  className="w-full py-1 text-center font-bold text-[10px] text-[#2c4001] dark:text-[#a1c62e] flex items-center justify-center gap-1"
+                  title="Expandir columna"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                  <span className="text-[9px]">WBS</span>
+                </button>
+              )}
             </div>
 
             {/* Pista del Encabezado Temporal (Meses y Sub-unidades) */}
             <div style={{ width: `${timelineTotalWidth}px` }} className="flex-1 flex flex-col flex-shrink-0">
               {/* Fila 1: Meses */}
-              <div className="h-6 flex border-b border-slate-200 dark:border-slate-800 bg-slate-200/50 dark:bg-slate-850">
+              <div className="h-6 flex border-b border-[#d3e2be] dark:border-[#253905] bg-[#e6f0d7] dark:bg-[#101901]">
                 {timelineHeaders.months.map((m) => (
                   <div
                     key={m.key}
                     style={{ width: `${m.widthPct}%` }}
-                    className="h-full px-2 border-r border-slate-200 dark:border-slate-700/60 flex items-center justify-center font-bold text-[10px] uppercase text-slate-700 dark:text-slate-200 tracking-wider truncate"
+                    className="h-full px-2 border-r border-[#d3e2be] dark:border-[#253905] flex items-center justify-center font-black text-[10px] uppercase text-[#2c4001] dark:text-[#a1c62e] tracking-wider truncate"
                   >
                     {m.label}
                   </div>
@@ -813,17 +1085,17 @@ export default function GanttChart({
               </div>
 
               {/* Fila 2: Sub-unidades (Semanas o Días) */}
-              <div className="h-6 flex bg-slate-100 dark:bg-slate-900">
+              <div className="h-6 flex bg-[#edf5e3] dark:bg-[#142002]">
                 {timelineHeaders.subUnits.map((sub) => (
                   <div
                     key={sub.key}
                     style={{ width: `${sub.widthPct}%` }}
-                    className={`h-full border-r border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-[9px] ${
+                    className={`h-full border-r border-[#e2ebd3] dark:border-[#253905]/70 flex items-center justify-center text-[9px] ${
                       sub.isToday
-                        ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold'
+                        ? 'bg-red-500/20 text-red-600 dark:text-red-400 font-black'
                         : sub.isWeekend
-                        ? 'bg-slate-200/40 dark:bg-slate-800/40 text-slate-400'
-                        : 'text-slate-600 dark:text-slate-400 font-medium'
+                        ? 'bg-[#e2ebd3]/40 dark:bg-[#101901] text-slate-400'
+                        : 'text-[#2c4001] dark:text-[#d4e6b5] font-semibold'
                     }`}
                   >
                     <span className="truncate px-0.5">{sub.label}</span>
@@ -835,8 +1107,11 @@ export default function GanttChart({
 
           {/* ================= LÍNEAS DE GUÍA VERTICALES & LÍNEA DE HOY ================= */}
           <div
-            style={{ left: `${WBS_WIDTH}px`, width: `${timelineTotalWidth}px` }}
-            className="absolute top-12 bottom-0 pointer-events-none flex"
+            style={{
+              left: `${wbsCollapsedMobile ? 60 : 340}px`,
+              width: `${timelineTotalWidth}px`
+            }}
+            className="absolute top-12 bottom-0 pointer-events-none flex transition-all"
           >
             {timelineHeaders.subUnits.map((sub) => (
               <div
@@ -844,8 +1119,8 @@ export default function GanttChart({
                 style={{ width: `${sub.widthPct}%` }}
                 className={`h-full border-r ${
                   sub.isWeekend
-                    ? 'border-slate-100 dark:border-slate-900/60 bg-slate-50/40 dark:bg-slate-900/20'
-                    : 'border-slate-100 dark:border-slate-900/40'
+                    ? 'border-[#eef3e6] dark:border-[#1c2903]/40 bg-[#f8faf4]/30 dark:bg-[#0c1400]/20'
+                    : 'border-[#f0f4ea] dark:border-[#1a2903]/30'
                 }`}
               />
             ))}
@@ -856,7 +1131,7 @@ export default function GanttChart({
                 style={{ left: `${(todayOffsetDays / totalDays) * 100}%` }}
                 className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none shadow-xs"
               >
-                <div className="sticky top-14 -translate-x-1/2 bg-red-600 text-white text-[8px] font-bold px-1.5 py-0.2 rounded shadow-xs uppercase tracking-wider whitespace-nowrap">
+                <div className="sticky top-14 -translate-x-1/2 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded shadow-xs uppercase tracking-wider whitespace-nowrap">
                   Hoy
                 </div>
               </div>
@@ -864,7 +1139,7 @@ export default function GanttChart({
           </div>
 
           {/* ================= FILAS DE CONTENIDO UNIFICADAS ================= */}
-          <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+          <div className="divide-y divide-[#edf3e4] dark:divide-[#1c2903]/50">
             {filteredProjects.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <Calendar className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
@@ -897,48 +1172,53 @@ export default function GanttChart({
                 return (
                   <React.Fragment key={`proj-group-${p.id}`}>
                     {/* FILA DE PROYECTO */}
-                    <div className="h-11 flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-900/60 transition-colors group">
-                      {/* Celda Izquierda (Sticky Left) */}
+                    <div className="h-11 flex items-stretch hover:bg-[#f4f8ed] dark:hover:bg-[#1a2b03] transition-colors group">
+                      {/* Celda Izquierda WBS (Sticky Left) */}
                       <div
-                        style={{ width: `${WBS_WIDTH}px` }}
-                        className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100/80 dark:group-hover:bg-slate-850 border-r border-slate-200 dark:border-slate-800 px-3 flex items-center justify-between flex-shrink-0 transition-colors"
+                        style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
+                        className="sticky left-0 z-20 bg-[#f8faf4] dark:bg-[#142002] group-hover:bg-[#eef5e4] dark:group-hover:bg-[#1a2903] border-r border-[#d3e2be] dark:border-[#253905] px-2 sm:px-3 flex items-center justify-between flex-shrink-0 transition-all shadow-2xs"
                       >
-                        <div className="flex items-center gap-2 min-w-0 pr-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedProjects((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
-                            }
-                            className="p-1 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition"
-                          >
-                            {isProjExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                          </button>
-                          <div className="min-w-0">
-                            <h4
-                              className="text-xs font-bold text-slate-900 dark:text-white truncate"
-                              title={p.nombre}
-                            >
-                              {p.nombre}
-                            </h4>
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                              <span>{p.tipo}</span>
-                              <span>•</span>
-                              <span>{p.ciclo}</span>
-                              {p.obras && p.obras.length > 0 && (
-                                <span className="text-[9px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/70 px-1 rounded">
-                                  {p.obras.length} frentes
-                                </span>
-                              )}
+                        {!wbsCollapsedMobile ? (
+                          <>
+                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 pr-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedProjects((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
+                                }
+                                className="p-1 rounded bg-[#2c4001] text-[#a1c62e] hover:bg-[#1e2d01] transition shrink-0"
+                              >
+                                {isProjExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                              </button>
+                              <div className="min-w-0">
+                                <h4
+                                  className="text-xs font-black text-[#2c4001] dark:text-white truncate"
+                                  title={p.nombre}
+                                >
+                                  {p.nombre}
+                                </h4>
+                                <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                  <span className="font-semibold">{p.tipo}</span>
+                                  <span>•</span>
+                                  <span>{p.ciclo}</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
 
-                        <div className="text-right flex-shrink-0 font-mono text-[10px]">
-                          <span className="font-bold text-slate-900 dark:text-white block">
-                            {pAcumHa}/{pTotalHa} ha
-                          </span>
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">{pPct}%</span>
-                        </div>
+                            <div className="text-right flex-shrink-0 font-mono text-[10px]">
+                              <span className="font-black text-[#2c4001] dark:text-[#a1c62e] block">
+                                {pAcumHa}/{pTotalHa} ha
+                              </span>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">{pPct}%</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full text-center">
+                            <span className="text-[10px] font-black text-[#2c4001] dark:text-[#a1c62e] block">
+                              {pPct}%
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Pista Derecha de la Fila (Timeline Track) */}
@@ -948,12 +1228,21 @@ export default function GanttChart({
                       >
                         <div
                           style={{ left: `${projLeftPct}%`, width: `${projWidthPct}%` }}
-                          className="absolute h-7 rounded-md bg-gradient-to-r from-emerald-700 to-emerald-800 dark:from-emerald-600 dark:to-emerald-700 border border-emerald-600 dark:border-emerald-500 text-white shadow-xs flex items-center px-2 overflow-hidden cursor-pointer hover:brightness-110 transition group/bar"
-                          onMouseEnter={(e) => {
-                            setTooltipData({
+                          onClick={() =>
+                            handleItemClick({
                               title: p.nombre,
                               type: 'Proyecto Agrícola',
-                              subtitle: `${p.tipo} · ${p.ciclo}`,
+                              subtitle: `${p.tipo} · Ciclo ${p.ciclo}`,
+                              dates: `${formatDisplayDate(p.fecha_inicio)} al ${formatDisplayDate(p.fecha_fin)}`,
+                              progress: `${pPct}% (${pAcumHa} / ${pTotalHa} ha)`,
+                              fase: p.fase_catalogo
+                            })
+                          }
+                          onMouseEnter={(e) => {
+                            setHoverTooltip({
+                              title: p.nombre,
+                              type: 'Proyecto Agrícola',
+                              subtitle: `${p.tipo} · Ciclo ${p.ciclo}`,
                               dates: `${formatDisplayDate(p.fecha_inicio)} al ${formatDisplayDate(p.fecha_fin)}`,
                               progress: `${pPct}% (${pAcumHa} / ${pTotalHa} ha)`,
                               fase: p.fase_catalogo,
@@ -961,15 +1250,17 @@ export default function GanttChart({
                               y: e.clientY
                             });
                           }}
-                          onMouseLeave={() => setTooltipData(null)}
+                          onMouseLeave={() => setHoverTooltip(null)}
+                          className="absolute h-7 rounded-lg bg-gradient-to-r from-[#2c4001] to-[#456306] border border-[#a1c62e]/60 text-white shadow-sm flex items-center px-2 overflow-hidden cursor-pointer hover:brightness-110 active:scale-98 transition group/bar"
                         >
                           <div
                             style={{ width: `${pPct}%` }}
-                            className="absolute left-0 top-0 bottom-0 bg-white/20 rounded-l-md"
+                            className="absolute left-0 top-0 bottom-0 bg-[#a1c62e]/35 rounded-l-lg"
                           />
-                          <span className="relative z-10 text-[10px] font-bold truncate flex items-center gap-1.5 drop-shadow-xs">
-                            <Layers className="w-3 h-3 text-emerald-200" />
-                            {p.nombre} ({pPct}%)
+                          <span className="relative z-10 text-[10px] font-black truncate flex items-center gap-1.5 drop-shadow-xs">
+                            <Layers className="w-3 h-3 text-[#a1c62e] shrink-0" />
+                            <span>{p.nombre}</span>
+                            <span className="text-[#a1c62e]">({pPct}%)</span>
                           </span>
                         </div>
                       </div>
@@ -1002,65 +1293,73 @@ export default function GanttChart({
                         };
 
                         const hitoBarStyles = {
-                          completado: 'from-emerald-600 to-emerald-700 border-emerald-500',
-                          en_proceso: 'from-blue-600 to-blue-700 border-blue-500',
+                          completado: 'from-emerald-600 to-emerald-700 border-emerald-400',
+                          en_proceso: 'from-blue-600 to-blue-700 border-blue-400',
                           pendiente: 'from-slate-500 to-slate-600 border-slate-400',
-                          bloqueado: 'from-rose-600 to-rose-700 border-rose-500'
+                          bloqueado: 'from-rose-600 to-rose-700 border-rose-400'
                         };
 
                         return (
                           <React.Fragment key={`hito-group-${h.id}`}>
                             {/* Fila del Hito */}
-                            <div className="h-10 flex items-stretch hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors group">
-                              {/* Celda Izquierda (Sticky Left) */}
+                            <div className="h-10 flex items-stretch hover:bg-[#f8faf4] dark:hover:bg-[#142002]/60 transition-colors group">
+                              {/* Celda Izquierda WBS (Sticky Left) */}
                               <div
-                                style={{ width: `${WBS_WIDTH}px` }}
-                                className="sticky left-0 z-20 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 pl-6 pr-3 flex items-center justify-between flex-shrink-0 transition-colors"
+                                style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
+                                className="sticky left-0 z-20 bg-white dark:bg-[#0e1601] group-hover:bg-[#f8faf4] dark:group-hover:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] pl-3 sm:pl-6 pr-2 sm:pr-3 flex items-center justify-between flex-shrink-0 transition-all"
                               >
-                                <div className="flex items-center gap-2 min-w-0 pr-2">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setExpandedHitos((prev) => ({ ...prev, [h.id]: !prev[h.id] }))
-                                    }
-                                    className="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
-                                  >
-                                    {isHitoExp ? (
-                                      <ChevronDown className="w-3 h-3" />
-                                    ) : (
-                                      <ChevronRight className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                  <div className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[9px] font-bold flex items-center justify-center flex-shrink-0">
-                                    {h.orden}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <span
-                                      className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate block"
-                                      title={h.nombre}
-                                    >
-                                      {h.nombre}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400 block font-normal">
-                                      Meta: {formatDisplayDate(h.fecha_meta)}
-                                    </span>
-                                  </div>
-                                </div>
+                                {!wbsCollapsedMobile ? (
+                                  <>
+                                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 pr-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setExpandedHitos((prev) => ({ ...prev, [h.id]: !prev[h.id] }))
+                                        }
+                                        className="p-0.5 rounded text-slate-400 hover:text-[#2c4001] dark:hover:text-[#a1c62e] transition shrink-0"
+                                      >
+                                        {isHitoExp ? (
+                                          <ChevronDown className="w-3 h-3" />
+                                        ) : (
+                                          <ChevronRight className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                      <div className="w-4 h-4 rounded-full bg-[#dfb75c] text-[#2c4001] text-[9px] font-black flex items-center justify-center flex-shrink-0 shadow-xs">
+                                        {h.orden}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <span
+                                          className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block"
+                                          title={h.nombre}
+                                        >
+                                          {h.nombre}
+                                        </span>
+                                        <span className="text-[9px] text-slate-400 block font-medium">
+                                          Meta: {formatDisplayDate(h.fecha_meta)}
+                                        </span>
+                                      </div>
+                                    </div>
 
-                                <div className="text-right flex-shrink-0 font-mono text-[9px] space-y-0.5">
-                                  <div className="flex items-center gap-1.5 justify-end">
-                                    <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                      {hMetaHa} ha
-                                    </span>
-                                    <span
-                                      className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                                        statusBadgeStyles[h.estado] || statusBadgeStyles.pendiente
-                                      }`}
-                                    >
-                                      {h.estado?.replace('_', ' ')}
+                                    <div className="text-right flex-shrink-0 font-mono text-[9px]">
+                                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                                        {hMetaHa} ha
+                                      </span>
+                                      <span
+                                        className={`ml-1 text-[8px] font-bold px-1 py-0.2 rounded uppercase ${
+                                          statusBadgeStyles[h.estado] || statusBadgeStyles.pendiente
+                                        }`}
+                                      >
+                                        {h.estado?.replace('_', ' ')}
+                                      </span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="w-full text-center">
+                                    <span className="w-4 h-4 mx-auto rounded-full bg-[#dfb75c] text-[#2c4001] text-[9px] font-black flex items-center justify-center">
+                                      {h.orden}
                                     </span>
                                   </div>
-                                </div>
+                                )}
                               </div>
 
                               {/* Pista Derecha del Hito */}
@@ -1071,11 +1370,18 @@ export default function GanttChart({
                                 {/* Barra del Hito */}
                                 <div
                                   style={{ left: `${hLeftPct}%`, width: `${hWidthPct}%` }}
-                                  className={`absolute h-5 rounded bg-gradient-to-r ${
-                                    hitoBarStyles[h.estado] || hitoBarStyles.pendiente
-                                  } border text-white shadow-2xs flex items-center px-2 overflow-hidden cursor-pointer hover:brightness-110 transition`}
+                                  onClick={() =>
+                                    handleItemClick({
+                                      title: `Hito #${h.orden}: ${h.nombre}`,
+                                      type: 'Hito en Cascada',
+                                      subtitle: h.descripcion || 'Sin descripción',
+                                      dates: `Meta: ${formatDisplayDate(h.fecha_meta)}`,
+                                      progress: `${hPct}% (${hAcumHa} / ${hMetaHa} ha)`,
+                                      estado: h.estado
+                                    })
+                                  }
                                   onMouseEnter={(e) => {
-                                    setTooltipData({
+                                    setHoverTooltip({
                                       title: `Hito #${h.orden}: ${h.nombre}`,
                                       type: 'Hito en Cascada',
                                       subtitle: h.descripcion || 'Sin descripción',
@@ -1086,21 +1392,33 @@ export default function GanttChart({
                                       y: e.clientY
                                     });
                                   }}
-                                  onMouseLeave={() => setTooltipData(null)}
+                                  onMouseLeave={() => setHoverTooltip(null)}
+                                  className={`absolute h-5 rounded-md bg-gradient-to-r ${
+                                    hitoBarStyles[h.estado] || hitoBarStyles.pendiente
+                                  } border text-white shadow-2xs flex items-center px-2 overflow-hidden cursor-pointer hover:brightness-110 active:scale-98 transition`}
                                 >
                                   <div
                                     style={{ width: `${hPct}%` }}
-                                    className="absolute left-0 top-0 bottom-0 bg-white/25 rounded"
+                                    className="absolute left-0 top-0 bottom-0 bg-white/25 rounded-l-md"
                                   />
                                   <span className="relative z-10 text-[9px] font-bold truncate">
                                     #{h.orden} {h.nombre}
                                   </span>
                                 </div>
 
-                                {/* Diamante del Hito (Meta) */}
+                                {/* Diamante del Hito (Meta) - Marca Oficial AGROKOOL */}
                                 <div
                                   style={{ left: `calc(${milestonePosPct}% - 7px)` }}
-                                  className="absolute w-3.5 h-3.5 rotate-45 bg-amber-400 border-2 border-white dark:border-slate-900 shadow-sm z-10 cursor-pointer hover:scale-125 transition"
+                                  onClick={() =>
+                                    handleItemClick({
+                                      title: `Hito Clave #${h.orden}: ${h.nombre}`,
+                                      type: 'Fecha Meta Clave',
+                                      dates: `Meta: ${formatDisplayDate(h.fecha_meta)}`,
+                                      progress: `${hPct}% de la superficie`,
+                                      estado: h.estado
+                                    })
+                                  }
+                                  className="absolute w-3.5 h-3.5 rotate-45 bg-[#dfb75c] border-2 border-white dark:border-[#0e1700] shadow-sm z-10 cursor-pointer hover:scale-125 active:scale-110 transition"
                                   title={`Hito Meta: ${formatDisplayDate(h.fecha_meta)}`}
                                 />
                               </div>
@@ -1135,35 +1453,45 @@ export default function GanttChart({
                                 return (
                                   <div
                                     key={`task-row-${t.id}`}
-                                    className="h-8 flex items-stretch hover:bg-slate-50/80 dark:hover:bg-slate-900/30 transition-colors group"
+                                    className="h-8 flex items-stretch hover:bg-[#f8faf4] dark:hover:bg-[#142002]/30 transition-colors group"
                                   >
                                     {/* Celda Izquierda de la Tarea (Sticky Left) */}
                                     <div
-                                      style={{ width: `${WBS_WIDTH}px` }}
-                                      className="sticky left-0 z-20 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 border-r border-slate-200 dark:border-slate-800 pl-11 pr-3 flex items-center justify-between flex-shrink-0 transition-colors"
+                                      style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
+                                      className="sticky left-0 z-20 bg-white dark:bg-[#0c1400] group-hover:bg-[#f8faf4] dark:group-hover:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] pl-6 sm:pl-10 pr-2 sm:pr-3 flex items-center justify-between flex-shrink-0 transition-all"
                                     >
-                                      <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                                        <CheckSquare className="w-3 h-3 text-slate-400 shrink-0" />
-                                        <div className="min-w-0">
-                                          <span
-                                            className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate block"
-                                            title={t.nombre}
-                                          >
-                                            {t.nombre}
-                                          </span>
-                                          {t.responsable && (
-                                            <span className="text-[9px] text-slate-400 block font-normal">
-                                              {t.responsable}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
+                                      {!wbsCollapsedMobile ? (
+                                        <>
+                                          <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                                            <CheckSquare className="w-3 h-3 text-slate-400 shrink-0" />
+                                            <div className="min-w-0">
+                                              <span
+                                                className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate block"
+                                                title={t.nombre}
+                                              >
+                                                {t.nombre}
+                                              </span>
+                                              {t.responsable && (
+                                                <span className="text-[9px] text-slate-400 block font-normal">
+                                                  {t.responsable}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
 
-                                      <div className="text-right flex-shrink-0 font-mono text-[9px]">
-                                        <span className="text-slate-600 dark:text-slate-400">
-                                          {tAcum}/{tMeta} {t.unidad || 'ha'}
-                                        </span>
-                                      </div>
+                                          <div className="text-right flex-shrink-0 font-mono text-[9px]">
+                                            <span className="text-slate-600 dark:text-slate-400">
+                                              {tAcum}/{tMeta} {t.unidad || 'ha'}
+                                            </span>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="w-full text-center">
+                                          <span className="text-[8px] font-mono text-slate-400">
+                                            {tPct}%
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
 
                                     {/* Pista Derecha de la Tarea */}
@@ -1173,9 +1501,19 @@ export default function GanttChart({
                                     >
                                       <div
                                         style={{ left: `${tLeftPct}%`, width: `${tWidthPct}%` }}
-                                        className={`absolute h-4 rounded ${taskColor} text-white shadow-2xs border flex items-center px-1.5 overflow-hidden cursor-pointer hover:brightness-110 transition`}
+                                        onClick={() =>
+                                          handleItemClick({
+                                            title: `Tarea: ${t.nombre}`,
+                                            type: 'Tarea Operativa de Campo',
+                                            subtitle: `Actividad: ${t.actividad_id}`,
+                                            responsable: t.responsable || 'Sin asignar',
+                                            predio: t.predio_nombre || 'General',
+                                            progress: `${tAcum} / ${tMeta} ${t.unidad || 'ha'} (${tPct}%)`,
+                                            estado: t.estado
+                                          })
+                                        }
                                         onMouseEnter={(e) => {
-                                          setTooltipData({
+                                          setHoverTooltip({
                                             title: `Tarea: ${t.nombre}`,
                                             type: 'Tarea Operativa de Campo',
                                             subtitle: `Actividad: ${t.actividad_id}`,
@@ -1187,7 +1525,8 @@ export default function GanttChart({
                                             y: e.clientY
                                           });
                                         }}
-                                        onMouseLeave={() => setTooltipData(null)}
+                                        onMouseLeave={() => setHoverTooltip(null)}
+                                        className={`absolute h-4 rounded-md ${taskColor} text-white shadow-2xs border flex items-center px-1.5 overflow-hidden cursor-pointer hover:brightness-110 active:scale-98 transition`}
                                       >
                                         <div
                                           style={{ width: `${tPct}%` }}
@@ -1213,51 +1552,158 @@ export default function GanttChart({
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. TOOLTIP FLOTANTE INTERACTIVO                                           */}
+      {/* 5. BOTÓN FLOTANTE RÁPIDO EN MÓVIL (FAB PARA CENTRAR EN "HOY")              */}
       {/* ========================================================================= */}
-      {tooltipData && (
+      {mobileTab === 'gantt' && (
+        <button
+          type="button"
+          onClick={handleScrollToToday}
+          className="md:hidden fixed bottom-12 right-4 z-40 px-3 py-2 rounded-full bg-[#2c4001] text-[#a1c62e] border-2 border-[#a1c62e] shadow-xl flex items-center gap-1.5 text-xs font-black active:scale-95 transition"
+          title="Centrar cronograma en hoy"
+        >
+          <Clock className="w-4 h-4 text-[#a1c62e]" />
+          <span>Hoy</span>
+        </button>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. BOTTOM SHEET MODAL TÁCTIL (SENIOR MOBILE UX PARA INSPECCIÓN DE TAREAS)  */}
+      {/* ========================================================================= */}
+      {selectedItemDetail && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-lg bg-white dark:bg-[#142002] rounded-t-3xl border-t border-[#3e5606] shadow-2xl p-5 space-y-3 animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabecera del Bottom Sheet con Barra de Arrastre */}
+            <div className="w-12 h-1 rounded-full bg-slate-300 dark:bg-[#3e5606] mx-auto mb-1" />
+
+            <div className="flex items-center justify-between border-b border-[#e2ebd3] dark:border-[#253905] pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#1e2d01] text-[#a1c62e] border border-[#3e5606]">
+                  {selectedItemDetail.type}
+                </span>
+                {selectedItemDetail.estado && (
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {selectedItemDetail.estado}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedItemDetail(null)}
+                className="p-1.5 rounded-full bg-slate-100 dark:bg-[#1e2d01] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug">
+              {selectedItemDetail.title}
+            </h3>
+
+            {selectedItemDetail.subtitle && (
+              <p className="text-xs text-slate-600 dark:text-[#d4e6b5]">{selectedItemDetail.subtitle}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
+              {selectedItemDetail.dates && (
+                <div className="p-2.5 rounded-xl bg-[#f4f8ed] dark:bg-[#1a2903] border border-[#e2ebd3] dark:border-[#253905]">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase block">
+                    📅 Fechas
+                  </span>
+                  <span className="font-semibold text-slate-800 dark:text-white block mt-0.5">
+                    {selectedItemDetail.dates}
+                  </span>
+                </div>
+              )}
+
+              {selectedItemDetail.progress && (
+                <div className="p-2.5 rounded-xl bg-[#f4f8ed] dark:bg-[#1a2903] border border-[#e2ebd3] dark:border-[#253905]">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase block">
+                    📊 Avance
+                  </span>
+                  <span className="font-bold text-emerald-700 dark:text-[#a1c62e] block mt-0.5">
+                    {selectedItemDetail.progress}
+                  </span>
+                </div>
+              )}
+
+              {selectedItemDetail.responsable && (
+                <div className="p-2.5 rounded-xl bg-[#f4f8ed] dark:bg-[#1a2903] border border-[#e2ebd3] dark:border-[#253905]">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase block">
+                    👤 Responsable
+                  </span>
+                  <span className="font-semibold text-slate-800 dark:text-white block mt-0.5">
+                    {selectedItemDetail.responsable}
+                  </span>
+                </div>
+              )}
+
+              {selectedItemDetail.predio && (
+                <div className="p-2.5 rounded-xl bg-[#f4f8ed] dark:bg-[#1a2903] border border-[#e2ebd3] dark:border-[#253905]">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase block">
+                    📍 Predio
+                  </span>
+                  <span className="font-semibold text-slate-800 dark:text-white block mt-0.5">
+                    {selectedItemDetail.predio}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedItemDetail(null)}
+              className="w-full py-2.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-[#a1c62e] font-black text-xs border border-[#a1c62e]/40 shadow-sm transition"
+            >
+              Cerrar Detalle
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. TOOLTIP FLOTANTE (SOLO DESKTOP CON MOUSE)                              */}
+      {/* ========================================================================= */}
+      {hoverTooltip && (
         <div
           style={{
             position: 'fixed',
-            left: `${Math.min(window.innerWidth - 280, tooltipData.x + 15)}px`,
-            top: `${Math.min(window.innerHeight - 180, tooltipData.y + 15)}px`
+            left: `${Math.min(window.innerWidth - 280, hoverTooltip.x + 15)}px`,
+            top: `${Math.min(window.innerHeight - 180, hoverTooltip.y + 15)}px`
           }}
-          className="no-print z-50 p-2.5 rounded-xl bg-slate-900/95 text-white border border-slate-700 shadow-xl backdrop-blur-sm w-64 pointer-events-none space-y-1 animate-in fade-in duration-100"
+          className="hidden md:block z-50 p-2.5 rounded-2xl bg-slate-900/95 text-white border border-slate-700 shadow-2xl backdrop-blur-sm w-64 pointer-events-none space-y-1 animate-in fade-in duration-100"
         >
           <div className="flex items-center justify-between border-b border-slate-700 pb-1">
-            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">
-              {tooltipData.type}
+            <span className="text-[9px] font-black text-[#a1c62e] uppercase tracking-wider">
+              {hoverTooltip.type}
             </span>
-            {tooltipData.estado && (
+            {hoverTooltip.estado && (
               <span className="text-[8px] px-1 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
-                {tooltipData.estado}
+                {hoverTooltip.estado}
               </span>
             )}
           </div>
-          <h4 className="text-xs font-bold text-white leading-snug">{tooltipData.title}</h4>
-          {tooltipData.subtitle && (
-            <p className="text-[10px] text-slate-300">{tooltipData.subtitle}</p>
+          <h4 className="text-xs font-bold text-white leading-snug">{hoverTooltip.title}</h4>
+          {hoverTooltip.subtitle && (
+            <p className="text-[10px] text-slate-300">{hoverTooltip.subtitle}</p>
           )}
           <div className="pt-1 text-[9px] space-y-0.5 text-slate-400 border-t border-slate-800">
-            {tooltipData.dates && (
+            {hoverTooltip.dates && (
               <div>
-                📅 <strong>Fechas:</strong> {tooltipData.dates}
+                📅 <strong>Fechas:</strong> {hoverTooltip.dates}
               </div>
             )}
-            {tooltipData.progress && (
+            {hoverTooltip.progress && (
               <div>
                 📊 <strong>Avance:</strong>{' '}
-                <span className="text-emerald-400 font-bold">{tooltipData.progress}</span>
+                <span className="text-emerald-400 font-bold">{hoverTooltip.progress}</span>
               </div>
             )}
-            {tooltipData.responsable && (
+            {hoverTooltip.responsable && (
               <div>
-                👤 <strong>Responsable:</strong> {tooltipData.responsable}
-              </div>
-            )}
-            {tooltipData.predio && (
-              <div>
-                📍 <strong>Predio:</strong> {tooltipData.predio}
+                👤 <strong>Responsable:</strong> {hoverTooltip.responsable}
               </div>
             )}
           </div>
@@ -1265,42 +1711,43 @@ export default function GanttChart({
       )}
 
       {/* ========================================================================= */}
-      {/* 5. PIE DE PÁGINA CON LEYENDA SUTIL                                        */}
+      {/* 8. PIE DE PÁGINA CON LEYENDA CANÓNICA                                     */}
       {/* ========================================================================= */}
-      <footer className="no-print print:hidden h-8 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-3 sm:px-4 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 flex-shrink-0 z-30">
-        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-          <span className="font-semibold text-slate-700 dark:text-slate-300 text-[10px] uppercase">
+      <footer className="no-print print:hidden h-8 bg-[#f4f8ed] dark:bg-[#121c02] border-t border-[#e2ebd3] dark:border-[#253905] px-3 sm:px-4 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 flex-shrink-0 z-30">
+        <div className="flex items-center gap-2.5 sm:gap-4 flex-wrap overflow-x-auto no-scrollbar">
+          <span className="font-bold text-[#2c4001] dark:text-[#a1c62e] text-[10px] uppercase">
             Leyenda:
           </span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-emerald-700" />
+          <div className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded bg-[#2c4001] border border-[#a1c62e]" />
             <span className="text-[10px]">Proyecto</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rotate-45 bg-amber-400" />
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rotate-45 bg-[#dfb75c]" />
             <span className="text-[10px]">Hito Meta</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded bg-emerald-500" />
             <span className="text-[10px]">Completada</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded bg-sky-500" />
             <span className="text-[10px]">En Proceso</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded bg-slate-400" />
             <span className="text-[10px]">Pendiente</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded bg-rose-500" />
             <span className="text-[10px]">Detenida</span>
           </div>
         </div>
 
-        <span className="hidden sm:inline text-[10px] text-slate-400">
-          Agrookool Gantt Engine
-        </span>
+        <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-slate-400">
+          <img src="/logo.png" alt="AGROKOOL" className="h-3.5 w-auto object-contain opacity-70" />
+          <span>Gantt Engine v7.0</span>
+        </div>
       </footer>
     </div>
   );

@@ -119,10 +119,7 @@ async function startServer() {
     // Auto-seed si no hay usuarios
     const userCount = await db.get('SELECT COUNT(*) as count FROM usuario');
     if (userCount?.count === 0) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('La base de datos de producción está vacía. Ejecute una provisión segura de usuarios antes de iniciar.');
-      }
-      console.log('⚡ Base de datos vacía detectada, ejecutando seed automático...');
+      console.warn('⚠️ Base de datos SQLite vacía: creando datos iniciales temporales. Configure un disco persistente para conservarlos entre despliegues.');
       const seed = require('./db/seed');
       await seed();
     }

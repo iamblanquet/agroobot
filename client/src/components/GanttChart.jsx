@@ -574,151 +574,23 @@ export default function GanttChart({
       </section>
 
       {/* ========================================================================= */}
-      {/* 1. TOOLBAR PRINCIPAL RESPONSIVA CON LOGO Y COLORES OFICIALES AGROKOOL      */}
+      {/* 1. BARRA DE HERRAMIENTAS DE TRABAJO (TOOLBAR ÚNICA, SIN NAVBAR DUPLICADO) */}
       {/* ========================================================================= */}
-      <header className="no-print print:hidden bg-[#243302] text-white border-b border-[#3e5606] px-3 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-2 flex-shrink-0 z-30 shadow-md">
-        {/* Fila 1: Logo + Botón Volver + Título + Selector Modo Móvil + Controles */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          {/* Lado Izquierdo: Volver + Logo Oficial + Título */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {onNavigateBack && (
-              <button
-                type="button"
-                onClick={onNavigateBack}
-                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#a1c62e] border border-[#3e5606] text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
-                title="Volver"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Volver</span>
-              </button>
-            )}
-
-            {/* Logo Oficial AGROKOOL */}
-            <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="AGROKOOL" className="h-7 sm:h-8 w-auto object-contain shrink-0" />
-              <div className="hidden sm:block">
-                <h1 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
-                  <span>Diagrama de Gantt</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#1e2d01] text-[#a1c62e] border border-[#3e5606] font-mono">
-                    v7
-                  </span>
-                </h1>
-                <p className="text-[10px] text-[#d4e6b5] font-medium mt-0.5">Planeación & Ejecución Agrícola</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Selector de Modo en Móvil (Gantt vs Lista) */}
-          <div className="flex md:hidden items-center bg-[#1e2d01] rounded-xl p-0.5 border border-[#3e5606]">
+      <div className="no-print print:hidden bg-white dark:bg-[#142002] border-b border-[#e2ebd3] dark:border-[#253905] px-3 sm:px-4 py-2 flex items-center justify-between gap-2.5 flex-shrink-0 z-30">
+        {/* Grupo Izquierdo: Volver (si existe) + Selector de Proyecto + Modo Móvil */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
+          {onNavigateBack && (
             <button
               type="button"
-              onClick={() => setMobileTab('gantt')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                mobileTab === 'gantt'
-                  ? 'bg-[#a1c62e] text-[#2c4001] shadow-xs'
-                  : 'text-[#d4e6b5] hover:text-white'
-              }`}
+              onClick={onNavigateBack}
+              className="px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] hover:bg-[#e6f0d7] dark:bg-[#1e2d01] dark:hover:bg-[#152000] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1.5 transition shadow-2xs shrink-0"
+              title="Volver"
             >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Gantt</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Volver</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setMobileTab('lista')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                mobileTab === 'lista'
-                  ? 'bg-[#a1c62e] text-[#2c4001] shadow-xs'
-                  : 'text-[#d4e6b5] hover:text-white'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>Lista</span>
-            </button>
-          </div>
+          )}
 
-          {/* Lado Derecho: Controles Rápidos */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            {/* Escala Temporal (Días / Semanas / Meses) */}
-            <div className="hidden sm:flex items-center bg-[#1e2d01] rounded-xl p-0.5 border border-[#3e5606]">
-              {['dias', 'semanas', 'meses'].map((scale) => (
-                <button
-                  key={scale}
-                  type="button"
-                  onClick={() => setTimeScale(scale)}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition ${
-                    timeScale === scale
-                      ? 'bg-[#a1c62e] text-[#2c4001] shadow-xs'
-                      : 'text-[#d4e6b5] hover:text-white'
-                  }`}
-                >
-                  {scale}
-                </button>
-              ))}
-            </div>
-
-            {/* Botón Hoy */}
-            <button
-              type="button"
-              onClick={handleScrollToToday}
-              className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#a1c62e] border border-[#3e5606] text-xs font-bold flex items-center gap-1 transition shadow-xs"
-              title="Centrar línea de tiempo en el día actual"
-            >
-              <Clock className="w-3.5 h-3.5 text-[#a1c62e]" />
-              <span className="hidden xs:inline">Hoy</span>
-            </button>
-
-            {/* Alternar Métricas */}
-            <button
-              type="button"
-              onClick={() => setShowMetrics(!showMetrics)}
-              className={`p-1.5 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition shadow-xs ${
-                showMetrics
-                  ? 'bg-[#a1c62e] text-[#2c4001] border-[#a1c62e]'
-                  : 'bg-[#1e2d01] text-[#d4e6b5] border-[#3e5606] hover:text-white'
-              }`}
-              title="Mostrar / Ocultar cinta de métricas"
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Métricas</span>
-            </button>
-
-            {/* Expandir / Colapsar Todo */}
-            <button
-              type="button"
-              onClick={() => {
-                const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
-                handleToggleExpandAll(anyCollapsed);
-              }}
-              className="p-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#d4e6b5] hover:text-white border border-[#3e5606] transition"
-              title="Expandir / Colapsar todos los proyectos"
-            >
-              <Sliders className="w-3.5 h-3.5 text-[#a1c62e]" />
-            </button>
-
-            {/* Pantalla Completa */}
-            <button
-              type="button"
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#d4e6b5] hover:text-white border border-[#3e5606] transition"
-              title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-            >
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            </button>
-
-            {isModal && onCloseModal && (
-              <button
-                type="button"
-                onClick={onCloseModal}
-                className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition ml-1"
-              >
-                Cerrar
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Fila 2: Selectores de Proyecto, Estado y Buscador (Adaptativo a Móvil) */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap pt-1 border-t border-[#3e5606]/80 text-xs">
           {/* Selector de Proyecto */}
           <select
             value={activeProjectFilter}
@@ -726,7 +598,7 @@ export default function GanttChart({
               setActiveProjectFilter(e.target.value);
               if (onProjectChange) onProjectChange(e.target.value);
             }}
-            className="flex-1 sm:flex-initial sm:min-w-[200px] max-w-full sm:max-w-xs px-2.5 py-1.5 rounded-xl bg-[#1e2d01] border border-[#3e5606] text-xs font-bold text-white focus:outline-none focus:border-[#a1c62e] truncate"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-[#a1c62e] max-w-[200px] sm:max-w-xs truncate shadow-2xs"
           >
             <option value="all">📁 Todos los Proyectos ({projects.length})</option>
             {projects.map((p) => (
@@ -736,11 +608,11 @@ export default function GanttChart({
             ))}
           </select>
 
-          {/* Selector de Estado */}
+          {/* Selector de Estado (desktop) */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="hidden sm:block px-2.5 py-1.5 rounded-xl bg-[#1e2d01] border border-[#3e5606] text-xs font-semibold text-[#d4e6b5] focus:outline-none focus:border-[#a1c62e]"
+            className="hidden lg:block px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-semibold text-slate-700 dark:text-[#d4e6b5] focus:outline-none focus:border-[#a1c62e] shadow-2xs"
           >
             <option value="all">Todos los Estados</option>
             <option value="en_progreso">🔵 En Proceso</option>
@@ -749,17 +621,69 @@ export default function GanttChart({
             <option value="bloqueado">🔴 Con Bloqueo</option>
           </select>
 
-          {/* Escala en móvil si la barra superior se ocultó */}
-          <div className="flex sm:hidden items-center bg-[#1e2d01] rounded-xl p-0.5 border border-[#3e5606]">
+          {/* Selector de Modo en Móvil (Gantt vs Lista) */}
+          <div className="flex md:hidden items-center bg-slate-100 dark:bg-[#1e2d01] rounded-xl p-0.5 border border-[#d3e2be] dark:border-[#3e5606]">
+            <button
+              type="button"
+              onClick={() => setMobileTab('gantt')}
+              className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                mobileTab === 'gantt'
+                  ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
+                  : 'text-slate-600 dark:text-[#d4e6b5]'
+              }`}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Gantt</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('lista')}
+              className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                mobileTab === 'lista'
+                  ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
+                  : 'text-slate-600 dark:text-[#d4e6b5]'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Lista</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Grupo Derecho: Buscador + Escala + Acciones */}
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+          {/* Buscador */}
+          <div className="relative w-28 sm:w-44">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-6 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#a1c62e]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Escala Temporal (Días / Semanas / Meses) */}
+          <div className="flex items-center bg-slate-100 dark:bg-[#1e2d01] rounded-xl p-0.5 border border-[#d3e2be] dark:border-[#3e5606]">
             {['dias', 'semanas', 'meses'].map((scale) => (
               <button
                 key={scale}
                 type="button"
                 onClick={() => setTimeScale(scale)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold capitalize transition ${
+                className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition ${
                   timeScale === scale
-                    ? 'bg-[#a1c62e] text-[#2c4001]'
-                    : 'text-[#d4e6b5]'
+                    ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
+                    : 'text-slate-600 dark:text-[#d4e6b5] hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {scale}
@@ -767,28 +691,66 @@ export default function GanttChart({
             ))}
           </div>
 
-          {/* Buscador */}
-          <div className="relative flex-1 sm:w-56 sm:ml-auto">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Buscar hito, tarea..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-6 py-1.5 rounded-xl bg-[#1e2d01] border border-[#3e5606] text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#a1c62e]"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          {/* Botón Hoy */}
+          <button
+            type="button"
+            onClick={handleScrollToToday}
+            className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] hover:bg-[#e6f0d7] dark:bg-[#1e2d01] dark:hover:bg-[#152000] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1 transition shadow-2xs"
+            title="Centrar línea de tiempo en el día actual"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
+            <span className="hidden xs:inline">Hoy</span>
+          </button>
+
+          {/* Alternar Métricas */}
+          <button
+            type="button"
+            onClick={() => setShowMetrics(!showMetrics)}
+            className={`p-1.5 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition shadow-2xs ${
+              showMetrics
+                ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] border-[#2c4001] dark:border-[#a1c62e]'
+                : 'bg-slate-100 dark:bg-[#1e2d01] text-slate-600 dark:text-[#d4e6b5] border-[#d3e2be] dark:border-[#3e5606]'
+            }`}
+            title="Mostrar / Ocultar KPIs"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">Métricas</span>
+          </button>
+
+          {/* Expandir / Colapsar Todo */}
+          <button
+            type="button"
+            onClick={() => {
+              const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
+              handleToggleExpandAll(anyCollapsed);
+            }}
+            className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
+            title="Expandir / Colapsar todo"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Pantalla Completa */}
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
+            title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {isModal && onCloseModal && (
+            <button
+              type="button"
+              onClick={onCloseModal}
+              className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition ml-1"
+            >
+              Cerrar
+            </button>
+          )}
         </div>
-      </header>
+      </div>
 
       {/* ========================================================================= */}
       {/* 2. CINTA DE MÉTRICAS COMPACTA CON COLORES CORPORATIVOS                    */}

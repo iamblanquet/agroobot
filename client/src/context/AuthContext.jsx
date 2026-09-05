@@ -51,18 +51,7 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // 3. Sincronizar catálogo de operadores para validación PIN offline
-    if (navigator.onLine && !offlineSimulated) {
-      api.get('/auth/operators')
-        .then(data => {
-          if (data?.operators) {
-            localStorage.setItem('tesa_cached_operators', JSON.stringify(data.operators));
-          }
-        })
-        .catch(() => {});
-    }
-
-    // 4. Listener para deslogueo por 401
+    // 3. Listener para deslogueo por 401
     const handleUnauthorized = () => {
       if (navigator.onLine && !offlineSimulated) {
         setUser(null);
@@ -89,32 +78,11 @@ export function AuthProvider({ children }) {
       if (data.token && data.user) {
         localStorage.setItem('tesa_token', data.token);
         localStorage.setItem('tesa_user', JSON.stringify(data.user));
-        localStorage.setItem('tesa_last_user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
         return data.user;
       }
     } catch (err) {
-      // Si estamos offline o el servidor no responde, validar contra caché local
-      const isNetworkError = !navigator.onLine || offlineSimulated || err.message?.includes('Network') || err.message?.includes('Failed to fetch');
-      if (isNetworkError) {
-        const cachedOpsStr = localStorage.getItem('tesa_cached_operators');
-        if (cachedOpsStr) {
-          try {
-            const ops = JSON.parse(cachedOpsStr);
-            const matched = ops.find(o => String(o.pin) === String(pin));
-            if (matched) {
-              return loginOffline(matched.username);
-            }
-          } catch (e) {}
-        }
-
-        // Mapeo rápido de demo PINs offline
-        if (pin === '1234') return loginOffline('campo_user');
-        if (pin === '2345') return loginOffline('sup_user');
-        if (pin === '3456') return loginOffline('dir_user');
-        if (pin === '9999') return loginOffline('admin_user');
-      }
       throw err;
     }
   };
@@ -128,66 +96,18 @@ export function AuthProvider({ children }) {
       if (data.token && data.user) {
         localStorage.setItem('tesa_token', data.token);
         localStorage.setItem('tesa_user', JSON.stringify(data.user));
-        localStorage.setItem('tesa_last_user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
         return data.user;
       }
     } catch (err) {
-      const isNetworkError = !navigator.onLine || offlineSimulated || err.message?.includes('Network') || err.message?.includes('Failed to fetch');
-      if (isNetworkError) {
-        return loginOffline(username);
-      }
       throw err;
     }
   };
 
-  const loginOffline = (requestedUsername) => {
-    const lastUserStr = localStorage.getItem('tesa_last_user');
-    let offlineUser = null;
-
-    if (lastUserStr) {
-      try {
-        const parsed = JSON.parse(lastUserStr);
-        if (!requestedUsername || parsed.username === requestedUsername || requestedUsername === 'campo_user') {
-          offlineUser = parsed;
-        }
-      } catch (e) {}
-    }
-
-    if (!offlineUser) {
-      const role = requestedUsername === 'sup_user' ? 'supervisor' : requestedUsername === 'dir_user' ? 'direccion' : requestedUsername === 'admin_user' ? 'it' : 'campo';
-      offlineUser = {
-        id: role === 'campo' ? 1 : role === 'supervisor' ? 2 : role === 'direccion' ? 3 : 4,
-        username: requestedUsername || 'operador_campo',
-        nombre: role === 'campo' ? 'Juan Pérez - Residente de Campo' : 'Usuario Operativo (Offline)',
-        rol: role,
-        is_offline_session: true
-      };
-    }
-
-    const offlineToken = `offline-token-${Date.now()}`;
-    localStorage.setItem('tesa_token', offlineToken);
-    localStorage.setItem('tesa_user', JSON.stringify(offlineUser));
-    setToken(offlineToken);
-    setUser(offlineUser);
-    return offlineUser;
-  };
-
-  const quickLogin = async (role) => {
-    // Protección: Solo permitir alternar roles si ya existe una sesión iniciada
-    if (!token || !user) {
-      throw new Error('Acceso protegido: Debe iniciar sesión con su PIN o contraseña para poder cambiar de rol.');
-    }
-    const userMap = {
-      campo: { pin: '1234', username: 'campo_user', pass: 'demo123' },
-      supervisor: { pin: '2345', username: 'sup_user', pass: 'demo123' },
-      direccion: { pin: '3456', username: 'dir_user', pass: 'demo123' },
-      it: { pin: '9999', username: 'admin_user', pass: 'demo123' }
-    };
-    const target = userMap[role] || userMap.campo;
-    return loginWithPin(target.pin);
-  };
+  // Se conserva para no romper consumidores existentes, pero nunca cambia de
+  // identidad ni usa credenciales de demostración incrustadas en el cliente.
+  const quickLogin = async () => user;
 
   const logout = () => {
     localStorage.removeItem('tesa_token');
@@ -214,7 +134,6 @@ export function AuthProvider({ children }) {
         toggleOfflineSimulation,
         loginWithPin,
         login,
-        loginOffline,
         quickLogin,
         logout
       }}

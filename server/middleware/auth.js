@@ -2,7 +2,14 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { db } = require('../db/database');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tesa_default_secret_jwt_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function requireJwtSecret() {
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET debe estar configurado y tener al menos 32 caracteres.');
+  }
+  return JWT_SECRET;
+}
 
 /**
  * Middleware para validar el JWT en encabezados Authorization
@@ -15,7 +22,7 @@ async function authenticateJWT(req, res, next) {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, requireJwtSecret());
     const user = await db.get('SELECT id, username, nombre, rol, tg_user_id, tg_chat_id, activo FROM usuario WHERE id = ?', [decoded.id]);
 
     if (!user || !user.activo) {
@@ -78,7 +85,14 @@ function verifyTelegramWebAppData(initData, botToken) {
       .update(params)
       .digest('hex');
 
-    const isValid = calculatedHash === hash;
+    const authDate = Number(urlParams.get('auth_date'));
+    const maxAgeSeconds = Number(process.env.TELEGRAM_AUTH_MAX_AGE_SECONDS || 86400);
+    const now = Math.floor(Date.now() / 1000);
+    const isFresh = Number.isFinite(authDate) && authDate <= now + 300 && now - authDate <= maxAgeSeconds;
+    const hashBuffer = Buffer.from(hash, 'hex');
+    const calculatedBuffer = Buffer.from(calculatedHash, 'hex');
+    const hashMatches = hashBuffer.length === calculatedBuffer.length && crypto.timingSafeEqual(hashBuffer, calculatedBuffer);
+    const isValid = hashMatches && isFresh;
     let user = null;
     const userParam = urlParams.get('user');
     if (userParam) {
@@ -94,6 +108,7 @@ function verifyTelegramWebAppData(initData, botToken) {
 
 module.exports = {
   JWT_SECRET,
+  requireJwtSecret,
   authenticateJWT,
   requireRole,
   verifyTelegramWebAppData

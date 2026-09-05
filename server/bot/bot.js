@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db/database');
 const { parseFreeTextReport, KNOWN_PREDIOS } = require('./parser');
+const { getOperationalDate } = require('../utils/operationalDate');
 
 let botInstance = null;
 
@@ -327,7 +328,7 @@ async function generateProyectosTareasText() {
  * Generar texto del Tablero de Control
  */
 async function generateTableroText() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getOperationalDate();
 
   // 1. Obras sin reporte hoy
   const activeObras = await db.all("SELECT id, nombre FROM obra WHERE estado = 'operacion'");
@@ -846,7 +847,7 @@ function initTelegramBot(app) {
         const obra = await db.get("SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.estado = 'operacion' LIMIT 1");
 
         const clientUuid = `tg-paro-${uuidv4()}`;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getOperationalDate();
 
         try {
           await db.run(
@@ -926,7 +927,7 @@ function initTelegramBot(app) {
           const clientUuid = `tg-rep-${uuidv4()}`;
           const authUser = await getAuthUser(msg);
           const author = authUser?.nombre || `${msg.from.first_name || 'Operador'}`;
-          const opDate = parsed.fecha_operativa || new Date().toISOString().split('T')[0];
+          const opDate = parsed.fecha_operativa || getOperationalDate();
 
           // Buscar obra correspondiente por nombre o por thread
           let obra = null;

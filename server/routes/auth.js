@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { db } = require('../db/database');
-const { JWT_SECRET, authenticateJWT, verifyTelegramWebAppData } = require('../middleware/auth');
+const { JWT_SECRET, requireJwtSecret, authenticateJWT, verifyTelegramWebAppData } = require('../middleware/auth');
 
 /**
  * POST /api/auth/pin-login
@@ -30,7 +30,7 @@ router.post('/pin-login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
-      JWT_SECRET,
+      requireJwtSecret(),
       { expiresIn: '30d' } // Sesión persistente de 30 días para trabajo continuo
     );
 
@@ -47,21 +47,6 @@ router.post('/pin-login', async (req, res) => {
   } catch (err) {
     console.error('Error en /auth/pin-login:', err);
     return res.status(500).json({ error: 'Error interno al validar PIN.' });
-  }
-});
-
-/**
- * GET /api/auth/operators
- * Lista de perfiles de operador para caché y sincronización offline en IndexedDB
- */
-router.get('/operators', async (req, res) => {
-  try {
-    const operators = await db.all(
-      'SELECT id, nombre, username, rol, pin FROM usuario WHERE activo = 1 ORDER BY nombre ASC'
-    );
-    return res.json({ success: true, operators });
-  } catch (err) {
-    return res.status(500).json({ error: 'Error al listar operadores.' });
   }
 });
 
@@ -93,7 +78,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
-      JWT_SECRET,
+      requireJwtSecret(),
       { expiresIn: '30d' }
     );
 
@@ -127,24 +112,7 @@ router.post('/telegram', async (req, res) => {
     }
 
     if (!botToken) {
-      const urlParams = new URLSearchParams(initData);
-      const userParam = urlParams.get('user');
-      if (userParam && process.env.NODE_ENV === 'development') {
-        const tgUser = JSON.parse(userParam);
-        const user = await db.get(
-          'SELECT id, username, nombre, rol, tg_user_id, activo FROM usuario WHERE tg_user_id = ? OR id = ?',
-          [String(tgUser.id), 1]
-        );
-        if (user) {
-          const token = jwt.sign(
-            { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
-            JWT_SECRET,
-            { expiresIn: '30d' }
-          );
-          return res.json({ token, user });
-        }
-      }
-      return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN no configurado en el servidor.' });
+      return res.status(503).json({ error: 'Autenticación de Telegram no disponible: TELEGRAM_BOT_TOKEN no configurado.' });
     }
 
     const { isValid, user: tgUser } = verifyTelegramWebAppData(initData, botToken);
@@ -166,7 +134,7 @@ router.post('/telegram', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, rol: user.rol, nombre: user.nombre },
-      JWT_SECRET,
+      requireJwtSecret(),
       { expiresIn: '30d' }
     );
 

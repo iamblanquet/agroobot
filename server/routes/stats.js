@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
+const { getOperationalDate } = require('../utils/operationalDate');
 
 /**
  * GET /api/stats/supervisor
@@ -9,7 +10,7 @@ const { authenticateJWT, requireRole } = require('../middleware/auth');
  */
 router.get('/supervisor', authenticateJWT, async (req, res) => {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getOperationalDate();
 
     // 1. Widget 1: Obras sin reporte hoy (y cálculo de días de atraso)
     const activeObras = await db.all(`
@@ -121,12 +122,13 @@ router.get('/supervisor', authenticateJWT, async (req, res) => {
     const maquinas = await db.all('SELECT * FROM maquina ORDER BY alerta_mantenimiento DESC, codigo ASC');
     const maquinasCalculadas = maquinas.map((m) => {
       const hrsDesdeServicio = m.horometro_actual - (m.ultimo_servicio_hr || 0);
-      const hrsRestantes = Math.max(0, 300 - hrsDesdeServicio);
+      const umbral = Number(m.umbral_servicio_hrs) || 300;
+      const hrsRestantes = Math.max(0, umbral - hrsDesdeServicio);
       return {
         ...m,
         horas_desde_servicio: hrsDesdeServicio,
         horas_restantes: hrsRestantes,
-        alerta_activa: hrsDesdeServicio >= 280
+        alerta_activa: hrsDesdeServicio >= Math.max(0, umbral - 20)
       };
     });
 

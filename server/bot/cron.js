@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { db } = require('../db/database');
 const { sendTopicMessage, generateTableroText, generateProyectosTareasText, getBotInstance } = require('./bot');
+const { getOperationalDate } = require('../utils/operationalDate');
 
 const TIMEZONE = process.env.TIMEZONE || 'America/Merida';
 
@@ -9,7 +10,7 @@ const TIMEZONE = process.env.TIMEZONE || 'America/Merida';
  */
 async function runEveningCheck() {
   console.log('⏰ Ejecutando cron de las 21:00: Verificación de obras sin reporte...');
-  const today = new Date().toISOString().split('T')[0];
+  const today = getOperationalDate();
   const bot = getBotInstance();
   const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
 

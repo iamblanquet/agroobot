@@ -41,14 +41,6 @@ export async function saveReportOffline(report) {
 }
 
 /**
- * Obtiene todos los reportes pendientes
- */
-export async function getPendingReports() {
-  const db = await getOfflineDb();
-  return db.getAll('pending_reports');
-}
-
-/**
  * Cuenta cuántos reportes están en cola
  */
 export async function countPendingReports() {
@@ -56,9 +48,11 @@ export async function countPendingReports() {
   return db.count('pending_reports');
 }
 
-/**
- * Elimina un reporte de la cola tras sincronización exitosa
- */
+export async function getPendingReports() {
+  const db = await getOfflineDb();
+  return db.getAll('pending_reports');
+}
+
 export async function removePendingReport(client_uuid) {
   const db = await getOfflineDb();
   await db.delete('pending_reports', client_uuid);
@@ -90,37 +84,20 @@ export async function getCachedCatalogData() {
   }
 }
 
-/**
- * Sincroniza todos los reportes pendientes con el backend Standalone API
- */
+// Los reportes solo salen de la cola cuando el servidor confirma que la
+// transacción completa quedó guardada. Los errores permanecen pendientes.
 export async function syncPendingReports(apiClient) {
   const pending = await getPendingReports();
-  if (!pending || pending.length === 0) {
-    return { count: 0, synced: 0, errors: [] };
-  }
+  if (pending.length === 0) return { count: 0, synced: 0, errors: [] };
 
-  console.log(`🚀 Iniciando sincronización de ${pending.length} reportes offline...`);
-
-  try {
-    const response = await apiClient.post('/reports/sync', { reports: pending });
-
-    if (response.success && response.results) {
-      // Eliminar de IndexedDB los que se sincronizaron o ya existían (idempotentes)
-      for (const res of response.results) {
-        if (res.status === 'synced' || res.status === 'ignored') {
-          await removePendingReport(res.client_uuid);
-        }
-      }
+  const response = await apiClient.post('/reports/sync', { reports: pending });
+  const errors = [];
+  for (const result of response.results || []) {
+    if (result.status === 'synced' || result.status === 'ignored') {
+      await removePendingReport(result.client_uuid);
+    } else {
+      errors.push(result);
     }
-
-    return {
-      count: pending.length,
-      synced: response.syncedCount || 0,
-      ignored: response.ignoredCount || 0,
-      raw: response
-    };
-  } catch (err) {
-    console.error('Error al sincronizar con el servidor:', err);
-    throw err;
   }
+  return { count: pending.length, synced: response.syncedCount || 0, errors };
 }

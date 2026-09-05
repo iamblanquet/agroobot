@@ -126,7 +126,7 @@ export default function LoginView() {
           <div className="p-2.5 rounded-xl bg-[#f9f2df] dark:bg-[#362409] border border-[#a87d13]/40 text-[#704f15] dark:text-[#f3e3ba] text-xs flex items-center justify-between gap-2 shadow-sm font-medium">
             <div className="flex items-center gap-1.5">
               <WifiOff className="w-4 h-4 text-[#a87d13] flex-shrink-0" />
-              <span><strong>Modo Fuera de Línea:</strong> PIN validado en memoria local.</span>
+              <span><strong>Modo Fuera de Línea:</strong> inicia sesión cuando se recupere la conexión.</span>
             </div>
           </div>
         )}

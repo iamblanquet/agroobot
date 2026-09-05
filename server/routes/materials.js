@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
+const { getOperationalDate } = require('../utils/operationalDate');
 
 /**
  * GET /api/materials
@@ -27,7 +28,7 @@ router.get('/', authenticateJWT, async (req, res) => {
     query += ` ORDER BY m.obra_id ASC, m.nombre ASC`;
 
     const rows = await db.all(query, params);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getOperationalDate();
 
     const materials = rows.map((m) => {
       const deficit = Math.max(0, m.requerido - m.en_sitio);

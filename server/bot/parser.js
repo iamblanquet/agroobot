@@ -3,6 +3,8 @@
  * Soporta formato de bloques pegados, viñetas multi-predio y formato en una línea con pipes (|).
  */
 
+const { getOperationalDate } = require('../utils/operationalDate');
+
 const ROLE_KEYWORDS = [
   { key: 'operador_tractor', regex: /tractor(?:ista)?|operador\s*de\s*tractor/i },
   { key: 'operador_retro', regex: /retro(?:excavadora)?|operador\s*de\s*retro/i },
@@ -63,7 +65,7 @@ function parseFreeTextReport(text, messageDate = new Date()) {
   }
 
   // 2. Extraer Fecha escrita y calcular fecha operativa (Regla ±1 día)
-  let fechaOperativa = new Date(messageDate).toISOString().split('T')[0];
+  let fechaOperativa = getOperationalDate(messageDate);
   const fechaRegex = /(?:fecha|hora)\s*[:=-]\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i;
   const fechaMatch = raw.match(fechaRegex);
   if (fechaMatch) {
@@ -76,7 +78,7 @@ function parseFreeTextReport(text, messageDate = new Date()) {
       const diffDays = Math.abs((parsedDate - messageDate) / (1000 * 60 * 60 * 24));
       // Si la fecha escrita está a ±1 día de la hora del mensaje, usar la escrita
       if (diffDays <= 1.5) {
-        fechaOperativa = parsedDate.toISOString().split('T')[0];
+        fechaOperativa = getOperationalDate(parsedDate);
       }
     }
   }

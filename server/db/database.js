@@ -11,6 +11,7 @@ if (!fs.existsSync(dbDir)) {
 }
 
 let dbInstance = null;
+let transactionQueue = Promise.resolve();
 
 function getDb() {
   if (!dbInstance) {
@@ -65,16 +66,21 @@ const db = {
     });
   },
 
-  async transaction(callback) {
-    await this.run('BEGIN TRANSACTION');
-    try {
-      const result = await callback(this);
-      await this.run('COMMIT');
-      return result;
-    } catch (err) {
-      await this.run('ROLLBACK');
-      throw err;
-    }
+  transaction(callback) {
+    const execute = async () => {
+      await this.run('BEGIN TRANSACTION');
+      try {
+        const result = await callback(this);
+        await this.run('COMMIT');
+        return result;
+      } catch (err) {
+        await this.run('ROLLBACK');
+        throw err;
+      }
+    };
+    const operation = transactionQueue.then(execute, execute);
+    transactionQueue = operation.catch(() => undefined);
+    return operation;
   }
 };
 

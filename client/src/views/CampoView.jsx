@@ -157,9 +157,6 @@ export default function CampoView() {
     if (catalog.proyectos.length > 0 && !selectedProyectoId) {
       setSelectedProyectoId(catalog.proyectos[0].id);
     }
-    if (catalog.obras.length > 0 && !selectedObraId) {
-      setSelectedObraId(catalog.obras[0].id);
-    }
     if (catalog.predios.length > 0 && !selectedPredioId) {
       setSelectedPredioId(catalog.predios[0].id);
     }
@@ -176,6 +173,19 @@ export default function CampoView() {
   const filteredHitos = catalog.hitos.filter(
     (h) => String(h.proyecto_id) === String(selectedProyectoId)
   );
+  const filteredObras = catalog.obras.filter(
+    (obra) => String(obra.proyecto_id) === String(selectedProyectoId)
+  );
+
+  useEffect(() => {
+    if (filteredObras.length > 0) {
+      if (!filteredObras.some((obra) => String(obra.id) === String(selectedObraId))) {
+        setSelectedObraId(filteredObras[0].id);
+      }
+    } else {
+      setSelectedObraId('');
+    }
+  }, [selectedProyectoId, catalog.obras]);
 
   useEffect(() => {
     if (filteredHitos.length > 0) {
@@ -242,7 +252,11 @@ export default function CampoView() {
 
     const clientUuid = `rep-local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(now).reduce((date, part) => ({ ...date, [part.type]: part.value }), {});
+    const fechaOperativa = `${today.year}-${today.month}-${today.day}`;
     const horaCaptura = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     const creadoOffline = now.toISOString();
 
@@ -253,7 +267,9 @@ export default function CampoView() {
       client_uuid: clientUuid,
       obra_id: parseInt(selectedObraId, 10) || null,
       proyecto_id: parseInt(selectedProyectoId, 10) || null,
-      fecha_operativa: today,
+      hito_id: parseInt(selectedHitoId, 10) || null,
+      tarea_id: parseInt(selectedTareaId, 10) || null,
+      fecha_operativa: fechaOperativa,
       hora_offline: horaCaptura,
       creado_offline: creadoOffline,
       fue_capturado_offline: isOfflineMode ? 1 : 0,
@@ -480,7 +496,7 @@ export default function CampoView() {
                 onChange={(e) => setSelectedObraId(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none"
               >
-                {catalog.obras.map((o) => (
+                {filteredObras.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.nombre} ({o.fase_actual})
                   </option>

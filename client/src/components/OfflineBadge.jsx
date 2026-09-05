@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, RefreshCw, Database } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Wifi, WifiOff, Database, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { countPendingReports, syncPendingReports } from '../db/indexedDb';
 import api from '../api/client';
@@ -9,28 +9,44 @@ export default function OfflineBadge({ onSyncComplete }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFeedback, setSyncFeedback] = useState(null);
+  const syncInFlight = useRef(false);
+  const attemptedPendingCount = useRef(null);
 
   const effectiveOnline = isOnline && !offlineSimulated;
 
-  const updateCount = async () => {
+  const updateCount = useCallback(async () => {
     try {
       const count = await countPendingReports();
       setPendingCount(count);
     } catch (e) {
       console.warn('Error contando pendientes:', e);
     }
-  };
+  }, []);
+
+  const syncSavedReports = useCallback(async () => {
+    if (!navigator.onLine || offlineSimulated || syncInFlight.current) return;
+    syncInFlight.current = true;
+    setIsSyncing(true);
+    try {
+      const result = await syncPendingReports(api);
+      await updateCount();
+      if (result.synced > 0) onSyncComplete?.();
+    } catch (error) {
+      console.warn('Los reportes guardados localmente siguen pendientes:', error);
+    } finally {
+      syncInFlight.current = false;
+      setIsSyncing(false);
+    }
+  }, [offlineSimulated, onSyncComplete, updateCount]);
 
   useEffect(() => {
     updateCount();
     const interval = setInterval(updateCount, 3000);
 
-    const handleOnline = async () => {
+    const handleOnline = () => {
       setIsOnline(true);
-      if (!offlineSimulated) {
-        handleManualSync();
-      }
+      attemptedPendingCount.current = null;
+      syncSavedReports();
     };
     const handleOffline = () => setIsOnline(false);
 
@@ -42,35 +58,14 @@ export default function OfflineBadge({ onSyncComplete }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [offlineSimulated]);
+  }, [offlineSimulated, syncSavedReports, updateCount]);
 
-  const handleManualSync = async () => {
-    if (!effectiveOnline) {
-      setSyncFeedback({ type: 'warning', text: 'Modo sin conexión activo. Desactiva la simulación para sincronizar.' });
-      setTimeout(() => setSyncFeedback(null), 4000);
-      return;
+  useEffect(() => {
+    if (effectiveOnline && pendingCount > 0 && attemptedPendingCount.current !== pendingCount) {
+      attemptedPendingCount.current = pendingCount;
+      syncSavedReports();
     }
-
-    setIsSyncing(true);
-    try {
-      const result = await syncPendingReports(api);
-      await updateCount();
-      if (result.count > 0) {
-        setSyncFeedback({
-          type: 'success',
-          text: `Sincronizados ${result.synced} reportes (${result.ignored} ya existentes).`
-        });
-        if (onSyncComplete) onSyncComplete();
-      } else {
-        setSyncFeedback({ type: 'info', text: 'Todos los datos están al día en el servidor.' });
-      }
-    } catch (err) {
-      setSyncFeedback({ type: 'error', text: 'Fallo al sincronizar con el servidor.' });
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setSyncFeedback(null), 4000);
-    }
-  };
+  }, [effectiveOnline, pendingCount, syncSavedReports]);
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -98,30 +93,13 @@ export default function OfflineBadge({ onSyncComplete }) {
         )}
       </button>
 
-      {/* Cola de Pendientes y Sincronización Manual */}
+      {/* Cola local: se sincroniza al recuperar conexión. */}
       {pendingCount > 0 && (
-        <button
-          type="button"
-          onClick={handleManualSync}
-          disabled={isSyncing}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-950/80 text-blue-300 border border-blue-500/40 hover:bg-blue-900/60 transition shadow-sm"
-        >
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-950/80 text-blue-300 border border-blue-500/40 shadow-sm">
           <Database className="w-3.5 h-3.5 text-blue-400" />
           <span className="font-semibold">{pendingCount} pendiente{pendingCount > 1 ? 's' : ''}</span>
-          <RefreshCw className={`w-3 h-3 text-blue-300 ml-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
-        </button>
-      )}
-
-      {/* Feedback Toast */}
-      {syncFeedback && (
-        <div className={`px-3 py-1 rounded-lg text-xs font-medium ${
-          syncFeedback.type === 'success' ? 'bg-emerald-900 text-emerald-100 border border-emerald-600' :
-          syncFeedback.type === 'warning' ? 'bg-amber-900 text-amber-100 border border-amber-600' :
-          syncFeedback.type === 'error' ? 'bg-rose-900 text-rose-100 border border-rose-600' :
-          'bg-slate-800 text-slate-200 border border-slate-700'
-        }`}>
-          {syncFeedback.text}
-        </div>
+          {isSyncing && <RefreshCw className="w-3 h-3 text-blue-300 animate-spin" />}
+        </span>
       )}
     </div>
   );

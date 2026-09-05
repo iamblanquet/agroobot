@@ -4,6 +4,34 @@ const fs = require('fs');
 const path = require('path');
 const { db } = require('../db/database');
 const { authenticateJWT } = require('../middleware/auth');
+const { getOperationalDate } = require('../utils/operationalDate');
+
+async function validateReportReferences({ proyecto_id, hito_id, tarea_id, obra_id, lineas, maquinaria }) {
+  const projectId = proyecto_id ? Number(proyecto_id) : null;
+  const hitoId = hito_id ? Number(hito_id) : null;
+  const tareaId = tarea_id ? Number(tarea_id) : null;
+  const obraId = obra_id ? Number(obra_id) : null;
+
+  if (projectId && !await db.get('SELECT id FROM proyecto WHERE id = ?', [projectId])) throw new Error('Proyecto no encontrado.');
+  if (hitoId) {
+    const hito = await db.get('SELECT proyecto_id FROM hito WHERE id = ?', [hitoId]);
+    if (!hito || (projectId && hito.proyecto_id !== projectId)) throw new Error('Hito no válido para el proyecto.');
+  }
+  if (tareaId) {
+    const tarea = await db.get('SELECT proyecto_id, hito_id FROM tarea WHERE id = ?', [tareaId]);
+    if (!tarea || (projectId && tarea.proyecto_id !== projectId) || (hitoId && tarea.hito_id !== hitoId)) throw new Error('Tarea no válida para el proyecto o hito.');
+  }
+  if (obraId) {
+    const obra = await db.get('SELECT proyecto_id FROM obra WHERE id = ?', [obraId]);
+    if (!obra || (projectId && obra.proyecto_id !== projectId)) throw new Error('Frente no válido para el proyecto.');
+  }
+  for (const line of lineas) {
+    if (line.predio_id && !await db.get('SELECT id FROM predio WHERE id = ?', [Number(line.predio_id)])) throw new Error('Predio no encontrado.');
+  }
+  for (const machine of maquinaria) {
+    if (!machine.maquina_id || !await db.get('SELECT id FROM maquina WHERE id = ?', [Number(machine.maquina_id)])) throw new Error('Máquina no encontrada.');
+  }
+}
 
 /**
  * POST /api/reports/sync
@@ -58,11 +86,25 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         continue;
       }
 
-      const opDate = fecha_operativa || new Date().toISOString().split('T')[0];
+      if (!Array.isArray(lineas) || !Array.isArray(cuadrilla) || !Array.isArray(maquinaria) || !Array.isArray(fotos)) {
+        results.push({ client_uuid, status: 'error', message: 'Formato de reporte inválido.' });
+        continue;
+      }
+      try {
+        await validateReportReferences({ proyecto_id, hito_id, tarea_id, obra_id, lineas, maquinaria });
+      } catch (validationError) {
+        results.push({ client_uuid, status: 'error', message: validationError.message });
+        continue;
+      }
+
+      const opDate = fecha_operativa || getOperationalDate();
       const author = autor_nombre || req.user.nombre || 'Operador de Campo';
       const horaOff = hora_offline || null;
       const creadoOff = creado_offline || null;
 
+      let reporteId;
+      const savedFotos = [];
+      await db.transaction(async () => {
       // Insertar reporte principal
       const repRes = await db.run(
         `INSERT INTO reporte (
@@ -87,7 +129,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         ]
       );
 
-      const reporteId = repRes.lastID;
+      reporteId = repRes.lastID;
 
       // Si no es un día sin actividad, procesar líneas, avance de tarea, cuadrilla y horómetros
       if (!es_sin_actividad) {
@@ -151,14 +193,13 @@ router.post('/sync', authenticateJWT, async (req, res) => {
               [reporteId, maquinaId, hInicio, hFin, horasTrab, litros]
             );
 
-            // Obtener máquina actual para verificar regla de mantenimiento preventivo (280 hrs)
-            const maq = await db.get('SELECT id, horometro_actual, ultimo_servicio_hr FROM maquina WHERE id = ?', [maquinaId]);
+            const maq = await db.get('SELECT id, horometro_actual, ultimo_servicio_hr, umbral_servicio_hrs FROM maquina WHERE id = ?', [maquinaId]);
             if (maq) {
               const nuevoHorometro = Math.max(maq.horometro_actual, hFin);
               const hrsDesdeServicio = nuevoHorometro - (maq.ultimo_servicio_hr || 0);
 
-              // Regla: si hrsDesdeServicio >= 280 (aviso preventivo cuando falten <= 20 hrs para las 300 hrs)
-              const alerta = hrsDesdeServicio >= 280 ? 1 : 0;
+              const umbral = Number(maq.umbral_servicio_hrs) || 300;
+              const alerta = hrsDesdeServicio >= Math.max(0, umbral - 20) ? 1 : 0;
 
               await db.run(
                 `UPDATE maquina
@@ -173,7 +214,6 @@ router.post('/sync', authenticateJWT, async (req, res) => {
       }
 
       // 4. Guardar evidencias fotográficas si se incluyeron
-      const savedFotos = [];
       const uploadsDir = path.join(__dirname, '../uploads');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
@@ -219,6 +259,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           }
         }
       }
+      });
 
       // Notificar al tema #Reportes de Telegram si el supergrupo está configurado
       try {

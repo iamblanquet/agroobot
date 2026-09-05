@@ -1,3 +1,4 @@
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-only-jwt-secret-that-is-at-least-32-characters';
 const assert = require('assert');
 const { parseFreeTextReport } = require('./bot/parser');
 const { verifyTelegramWebAppData } = require('./middleware/auth');

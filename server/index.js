@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const { initDatabase, db } = require('./db/database');
 const { initTelegramBot } = require('./bot/bot');
+const { requireJwtSecret } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
 const reportsRoutes = require('./routes/reports');
@@ -112,11 +113,15 @@ if (fs.existsSync(clientDistPath)) {
 // Inicializar DB, Bot y arrancar servidor
 async function startServer() {
   try {
+    requireJwtSecret();
     await initDatabase();
 
     // Auto-seed si no hay usuarios
     const userCount = await db.get('SELECT COUNT(*) as count FROM usuario');
     if (userCount?.count === 0) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('La base de datos de producción está vacía. Ejecute una provisión segura de usuarios antes de iniciar.');
+      }
       console.log('⚡ Base de datos vacía detectada, ejecutando seed automático...');
       const seed = require('./db/seed');
       await seed();

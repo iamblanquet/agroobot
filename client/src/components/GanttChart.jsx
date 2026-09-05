@@ -89,21 +89,27 @@ export default function GanttChart({
     }
   }, [selectedProjectId]);
 
-  // Expandir proyectos por defecto al cargar
+  // Expandir proyectos e hitos de manera inteligente al cargar
   useEffect(() => {
     if (projects.length > 0) {
       const expProj = {};
       const expHit = {};
-      projects.forEach((p) => {
-        expProj[p.id] = true;
-        p.hitos?.forEach((h) => {
+      if (selectedProjectId && selectedProjectId !== 'all') {
+        expProj[selectedProjectId] = true;
+        const targetProj = projects.find((p) => String(p.id) === String(selectedProjectId));
+        targetProj?.hitos?.forEach((h) => {
           expHit[h.id] = true;
         });
-      });
+      } else {
+        // En vista general: proyectos desplegados pero hitos colapsados para vista limpia
+        projects.forEach((p) => {
+          expProj[p.id] = true;
+        });
+      }
       setExpandedProjects(expProj);
       setExpandedHitos(expHit);
     }
-  }, [projects]);
+  }, [projects, selectedProjectId]);
 
   // Filtrar proyectos según selección y búsqueda
   const filteredProjects = useMemo(() => {
@@ -586,17 +592,6 @@ export default function GanttChart({
               <span className="hidden sm:inline">Nueva Ventana</span>
             </button>
 
-            {/* Imprimir / PDF */}
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="px-3 py-1.5 rounded-xl bg-[#a1c62e] hover:bg-[#8eb025] text-[#2c4001] font-black text-xs transition flex items-center gap-1.5 shadow-md shadow-[#a1c62e]/30"
-              title="Imprimir o Guardar como PDF"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir / PDF</span>
-            </button>
-
             {/* Pantalla Completa */}
             <button
               type="button"
@@ -767,24 +762,35 @@ export default function GanttChart({
               return (
                 <div key={`wbs-p-${p.id}`} className="gantt-row group">
                   {/* Fila del Proyecto */}
-                  <div className="h-12 px-3 flex items-center justify-between bg-[#f8faf2] dark:bg-[#1a2803] hover:bg-[#eef5e4] dark:hover:bg-[#203004] transition">
+                  <div className="h-12 px-3 flex items-center justify-between bg-[#f4f7ee] dark:bg-[#1a2903] hover:bg-[#eaf1e1] dark:hover:bg-[#203204] border-b border-[#e2ebd3] dark:border-[#283c05] transition">
                     <div className="flex items-center gap-2 min-w-0 pr-2">
                       <button
                         type="button"
                         onClick={() =>
                           setExpandedProjects((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
                         }
-                        className="no-print p-0.5 rounded-md bg-[#2c4001] text-white hover:bg-[#1e2d01]"
+                        className="no-print p-1 rounded-lg bg-[#2c4001] text-[#a1c62e] hover:bg-[#1e2d01] transition shadow-2xs"
                       >
-                        {isProjExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        {isProjExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                       </button>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-black text-slate-900 dark:text-white truncate" title={p.nombre}>
+                        <h4 className="text-xs sm:text-[13px] font-black text-slate-900 dark:text-white truncate" title={p.nombre}>
                           {p.nombre}
                         </h4>
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                          {p.tipo} · {p.ciclo}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-500 dark:text-slate-400">
+                          <span className="font-semibold">{p.tipo}</span>
+                          <span>•</span>
+                          <span>Ciclo {p.ciclo}</span>
+                          {p.obras && p.obras.length > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="inline-flex items-center gap-1 text-[9px] text-purple-700 dark:text-purple-300 font-bold bg-purple-100/80 dark:bg-purple-950/70 px-1.5 py-0.2 rounded border border-purple-300 dark:border-purple-800/40">
+                                <Building className="w-2.5 h-2.5 no-print" />
+                                {p.obras.length} {p.obras.length === 1 ? 'frente' : 'frentes'}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -792,24 +798,11 @@ export default function GanttChart({
                       <span className="text-xs font-black text-[#2c4001] dark:text-[#a1c62e] block">
                         {pAcumHa}/{pTotalHa} ha
                       </span>
-                      <span className="text-[10px] text-slate-500 font-bold">{pPct}%</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 inline-block">
+                        {pPct}%
+                      </span>
                     </div>
                   </div>
-
-                  {/* Frentes de Obra Chips */}
-                  {isProjExp && p.obras && p.obras.length > 0 && (
-                    <div className="px-6 py-1 bg-[#fbfdf8] dark:bg-[#121c02] border-t border-[#f0f4ea] dark:border-[#253905]/40 flex flex-wrap gap-1">
-                      {p.obras.map((o) => (
-                        <span
-                          key={o.id}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[8px] font-bold bg-[#dfb75c]/20 text-[#5c4015] dark:text-[#dfb75c] border border-[#dfb75c]/40"
-                        >
-                          <Building className="w-2.5 h-2.5 no-print" />
-                          {o.nombre}
-                        </span>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Filas de Hitos */}
                   {isProjExp &&
@@ -819,40 +812,51 @@ export default function GanttChart({
                       const hAcumHa = h.tareas?.reduce((acc, t) => acc + (t.cantidad_acumulada || 0), 0) || 0;
                       const hPct = hMetaHa > 0 ? Math.min(100, Math.round((hAcumHa / hMetaHa) * 100)) : 0;
 
+                      const statusBadgeStyles = {
+                        completado: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60',
+                        en_proceso: 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border-blue-300 dark:border-blue-700/60',
+                        pendiente: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+                        bloqueado: 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-700/60'
+                      };
+
                       return (
                         <div key={`wbs-h-${h.id}`} className="gantt-row">
                           {/* Fila del Hito */}
-                          <div className="h-10 pl-5 pr-3 flex items-center justify-between bg-white dark:bg-[#152202] hover:bg-[#f4f8ed] dark:hover:bg-[#1d2b05] border-t border-[#f0f4ea] dark:border-[#253905]/30 transition">
-                            <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                          <div className="h-11 pl-4 pr-3 flex items-center justify-between bg-white dark:bg-[#142002] hover:bg-[#f8faf4] dark:hover:bg-[#1b2b04] border-b border-[#eef3e6] dark:border-[#223604] transition">
+                            <div className="flex items-center gap-2 min-w-0 pr-2">
                               <button
                                 type="button"
                                 onClick={() =>
                                   setExpandedHitos((prev) => ({ ...prev, [h.id]: !prev[h.id] }))
                                 }
-                                className="no-print p-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                                className="no-print p-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-[#1d2d03] text-slate-700 dark:text-[#a1c62e] transition"
+                                title={isHitoExp ? 'Ocultar tareas' : 'Ver tareas'}
                               >
-                                {isHitoExp ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
+                                {isHitoExp ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                               </button>
-                              <div className="w-4 h-4 rounded-full bg-[#2c4001] text-[#a1c62e] text-[8px] font-black flex items-center justify-center flex-shrink-0">
+                              <div className="w-5 h-5 rounded-full bg-[#2c4001] text-[#a1c62e] text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-2xs">
                                 {h.orden}
                               </div>
                               <div className="min-w-0">
-                                <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate block" title={h.nombre}>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate block" title={h.nombre}>
                                   {h.nombre}
                                 </span>
-                                <span className="text-[8px] text-slate-500 dark:text-slate-400">
-                                  Meta: {formatDisplayDate(h.fecha_meta)}
+                                <span className="text-[9px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
+                                  <span>Meta: {formatDisplayDate(h.fecha_meta)}</span>
                                 </span>
                               </div>
                             </div>
 
-                            <div className="text-right flex-shrink-0">
-                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
-                                {hMetaHa} ha
-                              </span>
-                              <span className={`text-[8px] font-semibold ${h.estado === 'completado' ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                {h.estado}
-                              </span>
+                            <div className="text-right flex-shrink-0 space-y-0.5">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                  {hMetaHa} ha
+                                </span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border uppercase ${statusBadgeStyles[h.estado] || statusBadgeStyles.pendiente}`}>
+                                  {h.estado.replace('_', ' ')}
+                                </span>
+                              </div>
+                              <span className="text-[9px] text-slate-400 font-semibold block">{hPct}%</span>
                             </div>
                           </div>
 
@@ -866,15 +870,18 @@ export default function GanttChart({
                               return (
                                 <div
                                   key={`wbs-t-${t.id}`}
-                                  className="gantt-row h-9 pl-9 pr-3 flex items-center justify-between bg-[#fbfdf8] dark:bg-[#101901] hover:bg-[#f0f6e8] dark:hover:bg-[#182403] border-t border-[#f0f4ea] dark:border-[#253905]/20 text-xs"
+                                  className="gantt-row h-9 pl-9 pr-3 flex items-center justify-between bg-[#fafcf7] dark:bg-[#0e1601] hover:bg-[#f1f6e8] dark:hover:bg-[#172403] border-b border-[#f0f4ea] dark:border-[#1e2e04]/40 text-xs transition"
                                 >
-                                  <div className="min-w-0 pr-2">
-                                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 truncate block" title={t.nombre}>
-                                      • {t.nombre}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 text-[8px] text-slate-500 dark:text-slate-400">
-                                      {t.responsable && <span>👤 {t.responsable}</span>}
-                                      {t.predio_nombre && <span>📍 {t.predio_nombre}</span>}
+                                  <div className="min-w-0 pr-2 flex items-center gap-1.5">
+                                    <CheckSquare className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0 no-print" />
+                                    <div className="min-w-0">
+                                      <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate block" title={t.nombre}>
+                                        {t.nombre}
+                                      </span>
+                                      <div className="flex items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400">
+                                        {t.responsable && <span>👤 {t.responsable}</span>}
+                                        {t.predio_nombre && <span>📍 {t.predio_nombre}</span>}
+                                      </div>
                                     </div>
                                   </div>
 
@@ -882,6 +889,7 @@ export default function GanttChart({
                                     <span className="font-bold text-slate-800 dark:text-slate-200">
                                       {tAcum}/{tMeta} {t.unidad || 'ha'}
                                     </span>
+                                    <span className="text-slate-400 ml-1 font-sans">({tPct}%)</span>
                                   </div>
                                 </div>
                               );
@@ -969,10 +977,10 @@ export default function GanttChart({
                 return (
                   <div key={`bars-p-${p.id}`} className="gantt-row">
                     {/* Barra del Proyecto */}
-                    <div className="h-12 relative flex items-center bg-[#f8faf2]/50 dark:bg-[#1a2803]/30">
+                    <div className="h-12 relative flex items-center bg-[#f4f7ee]/40 dark:bg-[#1a2903]/20 border-b border-[#e2ebd3] dark:border-[#283c05]">
                       <div
                         style={{ left: `${projLeftPct}%`, width: `${projWidthPct}%` }}
-                        className="absolute h-7 rounded-lg bg-gradient-to-r from-[#2c4001] to-[#456306] border border-[#a1c62e]/50 shadow-md flex items-center px-2 text-white overflow-hidden group cursor-pointer hover:ring-2 hover:ring-[#a1c62e] transition"
+                        className="absolute h-7 rounded-lg bg-gradient-to-r from-[#2c4001] to-[#456306] border border-[#a1c62e]/50 shadow-sm flex items-center px-2.5 text-white overflow-hidden group cursor-pointer hover:ring-2 hover:ring-[#a1c62e] transition"
                         onMouseEnter={(e) => {
                           setTooltipData({
                             title: p.nombre,
@@ -989,19 +997,14 @@ export default function GanttChart({
                       >
                         <div
                           style={{ width: `${pPct}%` }}
-                          className="absolute left-0 top-0 bottom-0 bg-[#a1c62e]/40"
+                          className="absolute left-0 top-0 bottom-0 bg-[#a1c62e]/40 rounded-lg"
                         />
-                        <span className="relative z-10 text-[10px] font-black truncate drop-shadow-sm flex items-center gap-1">
+                        <span className="relative z-10 text-[10px] font-black truncate drop-shadow-sm flex items-center gap-1.5">
                           <Layers className="w-3 h-3 text-[#a1c62e] no-print" />
                           {p.nombre} ({pPct}%)
                         </span>
                       </div>
                     </div>
-
-                    {/* Espacio para Obras Chips */}
-                    {isProjExp && p.obras && p.obras.length > 0 && (
-                      <div className="h-[25px] bg-[#fbfdf8]/40 dark:bg-[#121c02]/20" />
-                    )}
 
                     {/* Barras de Hitos */}
                     {isProjExp &&
@@ -1026,20 +1029,20 @@ export default function GanttChart({
                         const barColors = {
                           completado: 'from-emerald-600 to-emerald-700 border-emerald-400',
                           en_proceso: 'from-blue-600 to-blue-700 border-blue-400',
-                          pendiente: 'from-amber-600 to-amber-700 border-amber-400',
+                          pendiente: 'from-slate-600 to-slate-700 border-slate-400',
                           bloqueado: 'from-rose-600 to-rose-700 border-rose-400'
                         };
 
                         return (
                           <div key={`bars-h-${h.id}`} className="gantt-row">
                             {/* Barra del Hito */}
-                            <div className="h-10 relative flex items-center bg-white/40 dark:bg-[#152202]/20">
+                            <div className="h-11 relative flex items-center bg-white/40 dark:bg-[#142002]/20 border-b border-[#eef3e6] dark:border-[#223604]">
                               {/* Barra de duración del hito */}
                               <div
                                 style={{ left: `${hLeftPct}%`, width: `${hWidthPct}%` }}
                                 className={`absolute h-5 rounded-md bg-gradient-to-r ${
                                   barColors[h.estado] || barColors.pendiente
-                                } border shadow-xs flex items-center px-1.5 text-white overflow-hidden cursor-pointer hover:scale-[1.02] transition`}
+                                } border shadow-xs flex items-center px-2 text-white overflow-hidden cursor-pointer hover:scale-[1.01] transition`}
                                 onMouseEnter={(e) => {
                                   setTooltipData({
                                     title: `Hito #${h.orden}: ${h.nombre}`,
@@ -1056,17 +1059,17 @@ export default function GanttChart({
                               >
                                 <div
                                   style={{ width: `${hPct}%` }}
-                                  className="absolute left-0 top-0 bottom-0 bg-white/30"
+                                  className="absolute left-0 top-0 bottom-0 bg-white/25 rounded-md"
                                 />
-                                <span className="relative z-10 text-[9px] font-bold truncate">
+                                <span className="relative z-10 text-[9px] font-bold truncate flex items-center gap-1">
                                   #{h.orden} {h.nombre}
                                 </span>
                               </div>
 
                               {/* Diamante de Hito (Fecha Meta) */}
                               <div
-                                style={{ left: `calc(${milestonePosPct}% - 6px)` }}
-                                className="absolute w-3.5 h-3.5 rotate-45 bg-[#dfb75c] border-2 border-white dark:border-[#152202] shadow-sm z-10 cursor-pointer"
+                                style={{ left: `calc(${milestonePosPct}% - 7px)` }}
+                                className="absolute w-3.5 h-3.5 rotate-45 bg-[#dfb75c] border-2 border-white dark:border-[#142002] shadow-sm z-10 cursor-pointer hover:scale-125 transition"
                                 title={`Hito Meta: ${formatDisplayDate(h.fecha_meta)}`}
                               />
                             </div>
@@ -1090,21 +1093,21 @@ export default function GanttChart({
 
                                 const taskColor =
                                   t.estado === 'completada'
-                                    ? 'bg-emerald-500'
+                                    ? 'bg-emerald-500 border-emerald-400/60 hover:bg-emerald-600'
                                     : t.estado === 'en_progreso'
-                                    ? 'bg-sky-500'
+                                    ? 'bg-sky-500 border-sky-400/60 hover:bg-sky-600'
                                     : t.estado === 'detenida'
-                                    ? 'bg-rose-500'
-                                    : 'bg-amber-500';
+                                    ? 'bg-amber-500 border-amber-400/60 hover:bg-amber-600'
+                                    : 'bg-slate-400 border-slate-300/60 hover:bg-slate-500';
 
                                 return (
                                   <div
                                     key={`bars-t-${t.id}`}
-                                    className="gantt-row h-9 relative flex items-center bg-[#fbfdf8]/20 dark:bg-[#101901]/20"
+                                    className="gantt-row h-9 relative flex items-center bg-[#fafcf7]/30 dark:bg-[#0e1601]/20 border-b border-[#f0f4ea] dark:border-[#1e2e04]/40"
                                   >
                                     <div
                                       style={{ left: `${tLeftPct}%`, width: `${tWidthPct}%` }}
-                                      className={`absolute h-3.5 rounded-sm ${taskColor} text-white shadow-xs flex items-center px-1 overflow-hidden cursor-pointer hover:h-4.5 transition-all`}
+                                      className={`absolute h-4.5 rounded-md ${taskColor} text-white shadow-xs border flex items-center px-1.5 overflow-hidden cursor-pointer hover:h-5 transition-all`}
                                       onMouseEnter={(e) => {
                                         setTooltipData({
                                           title: `Tarea: ${t.nombre}`,
@@ -1124,7 +1127,7 @@ export default function GanttChart({
                                         style={{ width: `${tPct}%` }}
                                         className="absolute left-0 top-0 bottom-0 bg-black/20"
                                       />
-                                      <span className="relative z-10 text-[8px] font-bold truncate">
+                                      <span className="relative z-10 text-[9px] font-bold truncate leading-none">
                                         {t.nombre}
                                       </span>
                                     </div>

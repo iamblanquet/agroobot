@@ -70,27 +70,15 @@ export default function GanttView({ initialProjectId = null, onNavigateBack = nu
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-2 sm:px-6 py-5 pb-20 space-y-5">
-      {/* Botón de Retorno si se requiere */}
-      {onNavigateBack && (
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onNavigateBack}
-            className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#152202] hover:bg-[#f4f8ed] dark:hover:bg-[#1f3004] text-slate-700 dark:text-slate-200 border border-[#e2ebd3] dark:border-[#253905] text-xs font-bold flex items-center gap-2 transition shadow-xs"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Volver a la vista anterior</span>
-          </button>
-        </div>
-      )}
-
-      {/* Diagrama de Gantt Principal */}
+    <div className="w-full flex-1 flex flex-col">
+      {/* Diagrama de Gantt Principal Integrado Nativamente */}
       <GanttChart
         projects={projects}
         selectedProjectId={selectedProjectId}
         onProjectChange={setSelectedProjectId}
         onRefresh={loadProjects}
+        isModal={false}
+        onNavigateBack={onNavigateBack}
       />
     </div>
   );

@@ -23,6 +23,7 @@ import {
   Sliders,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   Building
 } from 'lucide-react';
 
@@ -69,7 +70,8 @@ export default function GanttChart({
   onProjectChange = null,
   onRefresh = null,
   isModal = false,
-  onCloseModal = null
+  onCloseModal = null,
+  onNavigateBack = null
 }) {
   const [activeProjectFilter, setActiveProjectFilter] = useState(selectedProjectId || 'all');
   const [timeScale, setTimeScale] = useState('semanas'); // 'dias' | 'semanas' | 'meses'
@@ -434,7 +436,11 @@ export default function GanttChart({
   return (
     <div
       className={`gantt-root flex flex-col bg-[#f8faf2] dark:bg-[#0c1400] text-slate-900 dark:text-slate-100 ${
-        isFullscreen ? 'fixed inset-0 z-50 overflow-hidden' : 'w-full rounded-2xl border border-[#e2ebd3] dark:border-[#253905] shadow-lg'
+        isFullscreen
+          ? 'fixed inset-0 z-50 overflow-hidden'
+          : isModal
+          ? 'w-full h-full flex-1 overflow-hidden'
+          : 'w-full flex-1 min-h-[calc(100vh-80px)] border-b border-[#e2ebd3] dark:border-[#253905]'
       }`}
     >
       {/* ========================================================================= */}
@@ -475,12 +481,12 @@ export default function GanttChart({
             <span className="text-xs font-black text-emerald-800">{metrics.totalAcumHa} ha ({metrics.pctGlobal}%)</span>
           </div>
           <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
-            <span className="text-[9px] font-bold text-slate-600 uppercase block">Hitos</span>
-            <span className="text-xs font-black text-blue-800">{metrics.hitosCompletados} / {metrics.totalHitos} completados</span>
+            <span className="text-[9px] font-bold text-slate-600 uppercase block">Hitos Clave</span>
+            <span className="text-xs font-black text-blue-800">{metrics.hitosCompletados} / {metrics.totalHitos}</span>
           </div>
           <div className="p-1.5 rounded bg-slate-50 border border-slate-300">
             <span className="text-[9px] font-bold text-slate-600 uppercase block">Tareas</span>
-            <span className="text-xs font-black text-purple-800">{metrics.tareasCompletadas} / {metrics.totalTareas} listas</span>
+            <span className="text-xs font-black text-purple-800">{metrics.tareasCompletadas} / {metrics.totalTareas}</span>
           </div>
         </div>
       </div>
@@ -536,6 +542,17 @@ export default function GanttChart({
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
+              {onNavigateBack && (
+                <button
+                  type="button"
+                  onClick={onNavigateBack}
+                  className="px-3 py-1.5 rounded-xl bg-[#1e2d01] hover:bg-[#152000] text-[#a1c62e] hover:text-white border border-[#3e5606] transition flex items-center gap-1.5 text-xs font-bold shadow-sm mr-1"
+                  title="Volver a la vista anterior"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Volver</span>
+                </button>
+              )}
               <div className="p-2 rounded-xl bg-[#1e2d01] border border-[#a1c62e]/40 shadow-inner">
                 <Calendar className="w-5 h-5 text-[#a1c62e]" />
               </div>
@@ -602,7 +619,7 @@ export default function GanttChart({
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
 
-            {onCloseModal && (
+            {isModal && onCloseModal && (
               <button
                 type="button"
                 onClick={onCloseModal}

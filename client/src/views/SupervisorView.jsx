@@ -31,7 +31,11 @@ import {
   Search,
   Filter,
   Send,
-  ExternalLink
+  ExternalLink,
+  MoreVertical,
+  X,
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 
 export default function SupervisorView({ activeTab: externalActiveTab, onTabChange: externalOnTabChange, onRegisterMetadata }) {
@@ -78,6 +82,10 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   // Estados de expansión de proyectos e hitos
   const [expandedProjects, setExpandedProjects] = useState({});
   const [expandedHitos, setExpandedHitos] = useState({});
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectCicloFilter, setProjectCicloFilter] = useState('todos');
+  const [projectSubTabs, setProjectSubTabs] = useState({});
+  const [activeProjectMenuId, setActiveProjectMenuId] = useState(null);
 
   // Modal Cierre de Incidencia
   const [selectedIssueToClose, setSelectedIssueToClose] = useState(null);
@@ -192,15 +200,6 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         });
       }
 
-      // Auto-expandir el primer proyecto
-      if (projData.projects?.length > 0) {
-        const firstProjId = projData.projects[0].id;
-        setExpandedProjects(prev => ({ ...prev, [firstProjId]: true }));
-        if (projData.projects[0].hitos?.length > 0) {
-          const firstHitoId = projData.projects[0].hitos[0].id;
-          setExpandedHitos(prev => ({ ...prev, [firstHitoId]: true }));
-        }
-      }
     } catch (err) {
       console.error('Error al cargar datos del supervisor:', err);
     } finally {
@@ -219,6 +218,21 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
   const toggleHitoExpand = (hitoId) => {
     setExpandedHitos(prev => ({ ...prev, [hitoId]: !prev[hitoId] }));
+  };
+
+  const handleToggleAllProjects = () => {
+    const areAllExpanded = proyectosList.length > 0 && proyectosList.every(p => expandedProjects[p.id]);
+    if (areAllExpanded) {
+      setExpandedProjects({});
+    } else {
+      const all = {};
+      proyectosList.forEach(p => { all[p.id] = true; });
+      setExpandedProjects(all);
+    }
+  };
+
+  const setProjectSubTab = (projId, tab) => {
+    setProjectSubTabs(prev => ({ ...prev, [projId]: tab }));
   };
 
   // --- CRUD PROYECTOS ---
@@ -767,403 +781,698 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       {/* ========================================================================= */}
       {/* VISTA 1: GESTOR DE PROYECTOS, HITOS Y TAREAS (WBS / EDT)                  */}
       {/* ========================================================================= */}
-      {activeTab === 'proyectos' && (
-        <div className="space-y-6">
-          {/* Barra de Acción Superior */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-md">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-emerald-400" /> Estructura de Proyectos Agrícolas
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                Define proyectos, crea frentes de obra, calendariza hitos y asigna metas y responsables
-              </p>
-            </div>
+      {activeTab === 'proyectos' && (() => {
+        const availableCiclos = Array.from(new Set(proyectosList.map(p => p.ciclo).filter(Boolean)));
+        const areAllExpanded = proyectosList.length > 0 && proyectosList.every(p => !!expandedProjects[p.id]);
 
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-              {/* Botón Diagrama de Gantt */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedGanttProject('all');
-                  setShowGanttModal(true);
-                }}
-                className="px-3.5 py-2 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
-              >
-                <Calendar className="w-3.5 h-3.5 text-[#a1c62e]" />
-                <span>Diagrama de Gantt</span>
-              </button>
+        const filteredProyectos = proyectosList.filter(p => {
+          const matchesCiclo = projectCicloFilter === 'todos' || p.ciclo === projectCicloFilter;
+          if (!matchesCiclo) return false;
+          if (!projectSearch.trim()) return true;
+          const query = projectSearch.toLowerCase();
+          return (
+            (p.nombre && p.nombre.toLowerCase().includes(query)) ||
+            (p.tipo && p.tipo.toLowerCase().includes(query)) ||
+            (p.gerente_nombre && p.gerente_nombre.toLowerCase().includes(query)) ||
+            (p.fase_catalogo && p.fase_catalogo.toLowerCase().includes(query)) ||
+            (p.obras && p.obras.some(o => o.nombre && o.nombre.toLowerCase().includes(query))) ||
+            (p.hitos && p.hitos.some(h => h.nombre && h.nombre.toLowerCase().includes(query)))
+          );
+        });
 
-              {/* Botón Abrir en Nueva Ventana */}
-              <button
-                type="button"
-                onClick={() => {
-                  window.open('/index.html#gantt', 'AgrokoolGantt', 'width=1380,height=850,resizable=yes,scrollbars=yes');
-                }}
-                className="p-2 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-[#3e5606] text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
-                title="Abrir Gantt en Ventana Independiente"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
-                <span className="hidden md:inline">Nueva Ventana</span>
-              </button>
-
-              {/* Botón Nuevo Proyecto */}
-              <button
-                type="button"
-                onClick={() => handleOpenProjectModal()}
-                className="px-4 py-2 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-950/60"
-              >
-                <FolderPlus className="w-4 h-4" />
-                <span>+ Nuevo Proyecto</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Lista de Proyectos Expandibles */}
+        return (
           <div className="space-y-4">
-            {proyectosList.map((p) => {
-              const isExpanded = !!expandedProjects[p.id];
-              const totalHitos = p.hitos?.length || 0;
-              const totalTareas = p.hitos?.reduce((acc, h) => acc + (h.tareas?.length || 0), 0) || 0;
-              const totalAcumuladoHa = p.hitos?.reduce((acc, h) =>
-                acc + (h.tareas?.reduce((tAcc, t) => tAcc + (t.cantidad_acumulada || 0), 0) || 0), 0) || 0;
-              const progresoPct = p.superficie_meta_ha > 0
-                ? Math.min(100, Math.round((totalAcumuladoHa / p.superficie_meta_ha) * 100))
-                : 0;
+            {/* Backdrop para cerrar menús desplegables */}
+            {activeProjectMenuId && (
+              <div
+                className="fixed inset-0 z-20"
+                onClick={() => setActiveProjectMenuId(null)}
+              />
+            )}
 
-              return (
-                <div key={p.id} className="rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                  {/* Tarjeta de Encabezado de Proyecto */}
-                  <div className="p-4 sm:p-5 bg-white dark:bg-[#152202]">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      {/* Título & Meta */}
-                      <div className="flex items-start gap-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleProjectExpand(p.id)}
-                          className="mt-0.5 p-1 rounded-lg bg-[#2c4001] text-white hover:bg-[#1e2d01] transition"
-                        >
-                          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                        </button>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight">{p.nombre}</h4>
-                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-[#2c4001] text-[#d4e6b5]">
-                              {p.tipo} • Ciclo {p.ciclo}
-                            </span>
-                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-200 dark:bg-slate-800 dark:text-slate-300">
-                              {p.fase_catalogo}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2 font-medium">
-                            <span>Gerente: <strong className="text-slate-900 dark:text-slate-200">{p.gerente_nombre || 'No asignado'}</strong></span>
-                            <span>•</span>
-                            <span>Inicio: {p.fecha_inicio || 'Sin fecha'}</span>
-                            {p.fecha_fin && <span>Fin: {p.fecha_fin}</span>}
-                          </p>
-                        </div>
-                      </div>
+            {/* Barra de Cabecera y Herramientas */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] shadow-xs space-y-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-500" /> Estructura de Proyectos Agrícolas
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Administración de frentes de obra, hitos calendarizados y tareas operativas
+                  </p>
+                </div>
 
-                      {/* Progreso y Botones de Acción */}
-                      <div className="flex flex-wrap items-center gap-4">
-                        <div className="w-44 space-y-1">
-                          <div className="flex justify-between text-xs font-bold">
-                            <span className="text-slate-600 dark:text-slate-400 font-semibold">Avance Total:</span>
-                            <span className="text-[#2c4001] dark:text-[#a1c62e]">{totalAcumuladoHa}/{p.superficie_meta_ha} ha ({progresoPct}%)</span>
-                          </div>
-                          <div className="w-full bg-slate-200 dark:bg-[#1e2d01] rounded-full h-2 overflow-hidden">
-                            <div className="bg-[#2c4001] dark:bg-[#a1c62e] h-2 rounded-full transition-all" style={{ width: `${progresoPct}%` }} />
-                          </div>
-                        </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleToggleAllProjects}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#283d03] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#3e5606] text-xs font-semibold flex items-center gap-1.5 transition"
+                    title={areAllExpanded ? 'Colapsar todos los proyectos' : 'Expandir todos los proyectos'}
+                  >
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-500 dark:text-[#a1c62e]" />
+                    <span>{areAllExpanded ? 'Colapsar Todo' : 'Expandir Todo'}</span>
+                  </button>
 
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {/* Botón Gantt Individual de Proyecto */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedGanttProject(p.id);
-                              setShowGanttModal(true);
-                            }}
-                            className="px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] dark:bg-[#1f3004] hover:bg-[#e6f0d8] dark:hover:bg-[#253905] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1 shadow-xs transition"
-                            title="Ver Diagrama de Gantt de este proyecto"
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Gantt</span>
-                          </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGanttProject('all');
+                      setShowGanttModal(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#283d03] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#3e5606] text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
+                    <span>Gantt</span>
+                  </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHitoModal(p)}
-                            className="px-3 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
-                            title="Agregar Hito en Cascada"
-                          >
-                            <Flag className="w-3.5 h-3.5 text-[#a1c62e]" />
-                            <span>+ Hito</span>
-                          </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.open('/index.html#gantt', 'AgrokoolGantt', 'width=1380,height=850,resizable=yes,scrollbars=yes');
+                    }}
+                    className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#283d03] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#3e5606] transition"
+                    title="Abrir Gantt en Ventana Independiente"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleOpenObraModal(p)}
-                            className="px-3 py-1.5 rounded-xl bg-[#5c4015] hover:bg-[#45300f] text-[#fbebd0] text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
-                            title="Agregar Frente de Obra"
-                          >
-                            <Building className="w-3.5 h-3.5 text-[#dfb75c]" />
-                            <span>+ Frente</span>
-                          </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenProjectModal()}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+                  >
+                    <FolderPlus className="w-4 h-4 text-[#a1c62e]" />
+                    <span>+ Nuevo Proyecto</span>
+                  </button>
+                </div>
+              </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleOpenProjectModal(p)}
-                            className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-slate-300 transition border border-slate-300 dark:border-[#3e5606]"
-                            title="Editar Proyecto"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
+              {/* Barra de Búsqueda y Filtros Rápidos */}
+              <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-slate-100 dark:border-[#253905]/40">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={projectSearch}
+                    onChange={(e) => setProjectSearch(e.target.value)}
+                    placeholder="Buscar por proyecto, cultivo, frente o responsable..."
+                    className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-slate-50 dark:bg-[#121c02] border border-slate-200 dark:border-[#253905] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  {projectSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setProjectSearch('')}
+                      className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteProject(p.id, p.nombre)}
-                            className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40 transition"
-                            title="Eliminar Proyecto"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Frentes / Obras Asociadas con chips claros redondeados estilo screenshot */}
-                    {p.obras?.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-[#e2ebd3] dark:border-[#253905]/60 flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Frentes de Obra:</span>
-                        {p.obras.map(o => (
-                          <div key={o.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-[#1e2d01] border border-[#d9e6c3] dark:border-[#3e5606] text-slate-800 dark:text-slate-200 text-xs shadow-xs">
-                            <span className="font-bold">{o.nombre}</span>
-                            <span className="text-[11px] text-purple-600 dark:text-purple-300 font-mono">({o.fase_actual})</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenObraModal(p, o)}
-                              className="text-slate-400 hover:text-purple-600 ml-1"
-                              title="Editar frente"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteObra(o.id, o.nombre)}
-                              className="text-slate-400 hover:text-rose-600"
-                              title="Eliminar frente"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {availableCiclos.length > 0 && (
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto overflow-x-auto max-w-full pb-1 sm:pb-0">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Filter className="w-3 h-3" /> Ciclo:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setProjectCicloFilter('todos')}
+                      className={`px-2 py-1 rounded-lg text-xs font-medium transition ${
+                        projectCicloFilter === 'todos'
+                          ? 'bg-[#2c4001] text-white font-bold'
+                          : 'bg-slate-100 dark:bg-[#1a2902] text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {availableCiclos.map((ciclo) => (
+                      <button
+                        key={ciclo}
+                        type="button"
+                        onClick={() => setProjectCicloFilter(ciclo)}
+                        className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+                          projectCicloFilter === ciclo
+                            ? 'bg-[#2c4001] text-white font-bold'
+                            : 'bg-slate-100 dark:bg-[#1a2902] text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                        }`}
+                      >
+                        {ciclo}
+                      </button>
+                    ))}
                   </div>
+                )}
+              </div>
+            </div>
 
-                  {/* HITOS DEL PROYECTO (Desplegable) */}
-                  {isExpanded && (
-                    <div className="p-4 sm:p-5 bg-[#fbfdf8] dark:bg-[#0f1701] border-t border-[#d9e6c3] dark:border-[#253905] space-y-4">
-                      {p.hitos?.length > 0 ? (
-                        p.hitos.map((h) => {
-                          const isHitoExp = !!expandedHitos[h.id];
-                          const hitoTareas = h.tareas || [];
-                          const hitoAcumHa = hitoTareas.reduce((acc, t) => acc + (t.cantidad_acumulada || 0), 0);
-                          const hitoPct = h.superficie_meta_ha > 0 ? Math.min(100, Math.round((hitoAcumHa / h.superficie_meta_ha) * 100)) : 0;
+            {/* Lista de Proyectos */}
+            {filteredProyectos.length === 0 ? (
+              <div className="p-10 text-center rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] space-y-2">
+                <Layers className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  {proyectosList.length === 0
+                    ? 'No hay proyectos agrícolas registrados'
+                    : 'No se encontraron proyectos con los filtros actuales'}
+                </p>
+                {projectSearch || projectCicloFilter !== 'todos' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProjectSearch('');
+                      setProjectCicloFilter('todos');
+                    }}
+                    className="text-xs font-bold text-emerald-600 dark:text-[#a1c62e] underline"
+                  >
+                    Restablecer filtros de búsqueda
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenProjectModal()}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold inline-flex items-center gap-1.5"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5 text-[#a1c62e]" />
+                    Crear el primer proyecto
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredProyectos.map((p) => {
+                  const isExpanded = !!expandedProjects[p.id];
+                  const totalHitos = p.hitos?.length || 0;
+                  const allTareas = p.hitos?.flatMap(h => h.tareas || []) || [];
+                  const totalTareas = allTareas.length;
+                  const tareasCompletadas = allTareas.filter(t => t.estado === 'completada').length;
+                  const totalAcumuladoHa = allTareas.reduce((acc, t) => acc + (t.cantidad_acumulada || 0), 0);
+                  const progresoPct = p.superficie_meta_ha > 0
+                    ? Math.min(100, Math.round((totalAcumuladoHa / p.superficie_meta_ha) * 100))
+                    : 0;
+                  const currentSubTab = projectSubTabs[p.id] || 'hitos';
+                  const isMenuOpen = activeProjectMenuId === p.id;
 
-                          const statusBadgeColors = {
-                            pendiente: 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border-slate-300',
-                            en_proceso: 'bg-blue-900 text-white border-blue-950 font-black',
-                            completado: 'bg-[#2c4001] text-[#d4e6b5] border-[#1e2d01] font-black',
-                            bloqueado: 'bg-rose-800 text-white border-rose-950 font-black'
-                          };
+                  return (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] shadow-xs hover:shadow-md transition-all overflow-hidden"
+                    >
+                      {/* Cabecera Principal del Proyecto */}
+                      <div className="p-3.5 sm:p-4 bg-white dark:bg-[#152202] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        {/* Lado Izquierdo: Toggle, Nombre, Badges y Meta */}
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleProjectExpand(p.id)}
+                            className="mt-0.5 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2d01] dark:hover:bg-[#283d03] text-slate-700 dark:text-[#a1c62e] transition"
+                            title={isExpanded ? 'Contraer proyecto' : 'Expandir proyecto'}
+                          >
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
 
-                          return (
-                            <div key={h.id} className="rounded-2xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] overflow-hidden shadow-xs">
-                              {/* Fila del Hito */}
-                              <div className="p-3.5 bg-white dark:bg-[#152202] flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#f0f4ea] dark:border-[#253905]/50">
-                                <div className="flex items-center gap-2.5">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h4
+                                onClick={() => toggleProjectExpand(p.id)}
+                                className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight cursor-pointer hover:text-emerald-700 dark:hover:text-[#a1c62e] transition"
+                              >
+                                {p.nombre}
+                              </h4>
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#eef5e2] text-[#2c4001] dark:bg-[#203001] dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606]">
+                                {p.tipo}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                Ciclo {p.ciclo}
+                              </span>
+                              {p.fase_catalogo && (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-[#192404] dark:text-slate-300 border border-slate-200 dark:border-[#2f4308]">
+                                  {p.fase_catalogo}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Metadatos en una sola línea limpia */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <User className="w-3 h-3 text-slate-400" />
+                                <span className="text-slate-700 dark:text-slate-300 font-medium">
+                                  {p.gerente_nombre || 'Sin gerente'}
+                                </span>
+                              </span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400" />
+                                <span>{p.fecha_inicio || 'S/F'} {p.fecha_fin ? `al ${p.fecha_fin}` : ''}</span>
+                              </span>
+                              <span>•</span>
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                {totalHitos} {totalHitos === 1 ? 'hito' : 'hitos'}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {p.obras?.length || 0} {p.obras?.length === 1 ? 'frente' : 'frentes'}
+                              </span>
+                              {totalTareas > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span>{tareasCompletadas}/{totalTareas} tareas</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Lado Derecho: Barra de Progreso y Acciones */}
+                        <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-[#253905]/40">
+                          {/* Progreso */}
+                          <div className="w-36 sm:w-44 space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-500 dark:text-slate-400 font-medium">Avance:</span>
+                              <span className="font-bold text-[#2c4001] dark:text-[#a1c62e]">
+                                {totalAcumuladoHa}/{p.superficie_meta_ha} ha ({progresoPct}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-[#1a2802] rounded-full h-2 overflow-hidden border border-slate-200/50 dark:border-[#253905]">
+                              <div
+                                className="bg-[#2c4001] dark:bg-[#a1c62e] h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${progresoPct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Botones de Acción Consolidados */}
+                          <div className="flex items-center gap-1.5 relative">
+                            {/* Botón Primario: + Hito */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenHitoModal(p)}
+                              className="px-2.5 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition"
+                              title="Agregar Hito"
+                            >
+                              <Flag className="w-3 h-3 text-[#a1c62e]" />
+                              <span>+ Hito</span>
+                            </button>
+
+                            {/* Botón Gantt Individual */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedGanttProject(p.id);
+                                setShowGanttModal(true);
+                              }}
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2d01] dark:hover:bg-[#283d03] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#3e5606] transition"
+                              title="Ver Gantt de este proyecto"
+                            >
+                              <Calendar className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
+                            </button>
+
+                            {/* Menú Desplegable de Más Opciones */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setActiveProjectMenuId(isMenuOpen ? null : p.id)}
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2d01] dark:hover:bg-[#283d03] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#3e5606] transition"
+                                title="Más opciones"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5" />
+                              </button>
+
+                              {isMenuOpen && (
+                                <div className="absolute right-0 top-9 w-48 rounded-xl bg-white dark:bg-[#172502] border border-slate-200 dark:border-[#3e5606] shadow-xl py-1 z-30 text-xs">
                                   <button
                                     type="button"
-                                    onClick={() => toggleHitoExpand(h.id)}
-                                    className="p-1 rounded-lg bg-[#2c4001] text-white hover:bg-[#1e2d01] transition"
+                                    onClick={() => {
+                                      setActiveProjectMenuId(null);
+                                      handleOpenObraModal(p);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#203202] flex items-center gap-2 transition"
                                   >
-                                    {isHitoExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                  </button>
-                                  <div className="w-6 h-6 rounded-full bg-[#2c4001] text-[#a1c62e] flex items-center justify-center font-black text-xs">
-                                    {h.orden}
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h5 className="text-sm font-bold text-slate-900 dark:text-white">{h.nombre}</h5>
-                                      <span className={`px-2 py-0.5 rounded-md text-[10px] uppercase border ${statusBadgeColors[h.estado] || statusBadgeColors.pendiente}`}>
-                                        {h.estado.replace('_', ' ')}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-                                      {h.descripcion || 'Sin descripción'} • Meta: <strong className="text-slate-800 dark:text-slate-200">{h.superficie_meta_ha} ha</strong> {h.fecha_meta && `• Fecha Meta: ${h.fecha_meta}`}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 self-end md:self-auto">
-                                  <div className="w-32 hidden sm:block">
-                                    <div className="flex justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                                      <span>Progreso:</span>
-                                      <span className="font-bold text-[#2c4001] dark:text-[#a1c62e]">{hitoPct}%</span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 dark:bg-[#1e2d01] rounded-full h-1.5 overflow-hidden">
-                                      <div className="bg-[#2c4001] dark:bg-[#a1c62e] h-1.5 rounded-full" style={{ width: `${hitoPct}%` }} />
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenTaskModal(p, h)}
-                                    className="px-3 py-1.5 rounded-xl bg-[#2c4001] hover:bg-[#1e2d01] text-white text-xs font-bold flex items-center gap-1 shadow-sm transition"
-                                  >
-                                    <CheckSquare className="w-3.5 h-3.5 text-[#a1c62e]" />
-                                    <span>+ Tarea</span>
+                                    <Building className="w-3.5 h-3.5 text-[#a87d13]" />
+                                    <span>+ Agregar Frente de Obra</span>
                                   </button>
 
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenHitoModal(p, h)}
-                                    className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-slate-300 transition border border-slate-200 dark:border-[#3e5606]"
-                                    title="Editar Hito"
+                                    onClick={() => {
+                                      setActiveProjectMenuId(null);
+                                      handleOpenProjectModal(p);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#203202] flex items-center gap-2 transition"
                                   >
-                                    <Edit2 className="w-3.5 h-3.5" />
+                                    <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                                    <span>Editar Proyecto</span>
                                   </button>
+
+                                  <div className="my-1 border-t border-slate-100 dark:border-[#253905]" />
 
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteHito(h.id, h.nombre)}
-                                    className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40"
-                                    title="Eliminar Hito"
+                                    onClick={() => {
+                                      setActiveProjectMenuId(null);
+                                      handleDeleteProject(p.id, p.nombre);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                    <span>Eliminar Proyecto</span>
                                   </button>
-                                </div>
-                              </div>
-
-                              {/* TAREAS DENTRO DEL HITO (TABLA LIMPIA EN CASCADA) */}
-                              {isHitoExp && (
-                                <div className="p-3 bg-white dark:bg-[#152202]">
-                                  {hitoTareas.length > 0 ? (
-                                    <div className="overflow-x-auto">
-                                      <table className="w-full text-left text-xs text-slate-800 dark:text-slate-200">
-                                        <thead className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-[#e2ebd3] dark:border-[#253905]">
-                                          <tr>
-                                            <th className="py-2.5 px-3">Tarea / Actividad</th>
-                                            <th className="py-2.5 px-3">Predio</th>
-                                            <th className="py-2.5 px-3">Responsable</th>
-                                            <th className="py-2.5 px-3 text-right">Meta vs Acumulado</th>
-                                            <th className="py-2.5 px-3 text-center">Estado (Clic para alternar)</th>
-                                            <th className="py-2.5 px-3 text-right">Acciones</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[#f0f4ea] dark:divide-[#253905]/60">
-                                          {hitoTareas.map((t) => {
-                                            const tPct = t.cantidad_meta > 0 ? Math.min(100, Math.round((t.cantidad_acumulada / t.cantidad_meta) * 100)) : 0;
-                                            const taskStatusPill = {
-                                              pendiente: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300',
-                                              en_progreso: 'bg-blue-900 text-white font-bold shadow-xs',
-                                              completada: 'bg-[#2c4001] text-[#d4e6b5] font-black shadow-xs',
-                                              detenida: 'bg-amber-800 text-white font-bold'
-                                            };
-
-                                            return (
-                                              <tr key={t.id} className="hover:bg-[#f8faf4] dark:hover:bg-[#1a2b03] transition-colors">
-                                                <td className="py-3 px-3">
-                                                  <span className="font-bold text-slate-900 dark:text-white block">{t.nombre}</span>
-                                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">[{t.actividad_id}]</span>
-                                                </td>
-                                                <td className="py-3 px-3 font-medium text-slate-700 dark:text-slate-300">
-                                                  {t.predio_nombre || 'General'}
-                                                </td>
-                                                <td className="py-3 px-3">
-                                                  <span className="flex items-center gap-1 text-slate-800 dark:text-slate-200 font-medium">
-                                                    <User className="w-3.5 h-3.5 text-slate-400" /> {t.responsable || 'Sin asignar'}
-                                                  </span>
-                                                </td>
-                                                <td className="py-3 px-3 text-right font-mono">
-                                                  <span className="text-[#2c4001] dark:text-[#a1c62e] font-black">{t.cantidad_acumulada}</span>
-                                                  <span className="text-slate-500 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad} ({tPct}%)</span>
-                                                </td>
-                                                <td className="py-3 px-3 text-center">
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleToggleTaskStatus(t)}
-                                                    className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wide transition transform active:scale-95 ${taskStatusPill[t.estado] || taskStatusPill.pendiente}`}
-                                                    title="Haz clic para alternar estado en cascada"
-                                                  >
-                                                    {t.estado.replace('_', ' ')}
-                                                  </button>
-                                                </td>
-                                                <td className="py-3 px-3 text-right">
-                                                  <div className="flex items-center justify-end gap-1">
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => handleOpenTaskModal(p, h, t)}
-                                                      className="p-1 rounded-lg bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
-                                                      title="Editar Tarea"
-                                                    >
-                                                      <Edit2 className="w-3 h-3" />
-                                                    </button>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => handleDeleteTask(t.id, t.nombre)}
-                                                      className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 hover:bg-rose-100 transition"
-                                                      title="Eliminar Tarea"
-                                                    >
-                                                      <Trash2 className="w-3 h-3" />
-                                                    </button>
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  ) : (
-                                    <div className="py-4 text-center text-xs text-slate-500 dark:text-slate-400">
-                                      No hay tareas configuradas en este hito.{' '}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleOpenTaskModal(p, h)}
-                                        className="text-[#2c4001] dark:text-[#a1c62e] font-bold underline ml-1"
-                                      >
-                                        Crear la primera tarea
-                                      </button>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400">
-                          Este proyecto aún no tiene hitos definidos.{' '}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHitoModal(p)}
-                            className="text-blue-400 font-semibold underline ml-1"
-                          >
-                            Agregar Hito 1
-                          </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CONTENIDO INTERNO DESPLEGABLE (Estructurado por Pestañas) */}
+                      {isExpanded && (
+                        <div className="border-t border-[#d9e6c3] dark:border-[#253905] bg-[#fbfdf8] dark:bg-[#0f1701]">
+                          {/* Barra de Sub-Navegación Interna */}
+                          <div className="px-4 py-2 bg-slate-50/70 dark:bg-[#121c02] border-b border-[#e6eed9] dark:border-[#253905] flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setProjectSubTab(p.id, 'hitos')}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                  currentSubTab === 'hitos'
+                                    ? 'bg-[#2c4001] text-white shadow-xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-[#1a2802]'
+                                }`}
+                              >
+                                <Flag className="w-3 h-3 text-[#a1c62e]" />
+                                <span>Hitos & Cronograma</span>
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white">
+                                  {totalHitos}
+                                </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setProjectSubTab(p.id, 'frentes')}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                  currentSubTab === 'frentes'
+                                    ? 'bg-[#2c4001] text-white shadow-xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-[#1a2802]'
+                                }`}
+                              >
+                                <Building className="w-3 h-3 text-[#dfb75c]" />
+                                <span>Frentes de Obra</span>
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-white">
+                                  {p.obras?.length || 0}
+                                </span>
+                              </button>
+                            </div>
+
+                            {/* Botón rápido de acción según pestaña activa */}
+                            <div>
+                              {currentSubTab === 'hitos' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenHitoModal(p)}
+                                  className="text-xs font-semibold text-[#2c4001] dark:text-[#a1c62e] hover:underline flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>Nuevo Hito</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenObraModal(p)}
+                                  className="text-xs font-semibold text-[#a87d13] dark:text-[#dfb75c] hover:underline flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>Nuevo Frente</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* PESTAÑA: FRENTES DE OBRA */}
+                          {currentSubTab === 'frentes' && (
+                            <div className="p-4">
+                              {p.obras?.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                  {p.obras.map(o => (
+                                    <div
+                                      key={o.id}
+                                      className="p-3 rounded-xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] shadow-xs flex items-center justify-between gap-2"
+                                    >
+                                      <div className="min-w-0">
+                                        <h5 className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                          {o.nombre}
+                                        </h5>
+                                        <p className="text-[11px] text-purple-600 dark:text-purple-300 font-medium">
+                                          Fase: {o.fase_actual}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenObraModal(p, o)}
+                                          className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2d01] text-slate-600 dark:text-slate-300 transition"
+                                          title="Editar frente"
+                                        >
+                                          <Edit2 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteObra(o.id, o.nombre)}
+                                          className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 transition"
+                                          title="Eliminar frente"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                                  Este proyecto aún no tiene frentes de obra asignados.{' '}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenObraModal(p)}
+                                    className="text-[#a87d13] font-bold underline ml-1"
+                                  >
+                                    Crear Frente de Obra
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* PESTAÑA: HITOS Y TAREAS */}
+                          {currentSubTab === 'hitos' && (
+                            <div className="p-3 sm:p-4 space-y-3">
+                              {p.hitos?.length > 0 ? (
+                                p.hitos.map((h) => {
+                                  const isHitoExp = !!expandedHitos[h.id];
+                                  const hitoTareas = h.tareas || [];
+                                  const hitoAcumHa = hitoTareas.reduce((acc, t) => acc + (t.cantidad_acumulada || 0), 0);
+                                  const hitoPct = h.superficie_meta_ha > 0 ? Math.min(100, Math.round((hitoAcumHa / h.superficie_meta_ha) * 100)) : 0;
+
+                                  const statusStyles = {
+                                    pendiente: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200',
+                                    en_proceso: 'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+                                    completado: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+                                    bloqueado: 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                                  };
+
+                                  return (
+                                    <div
+                                      key={h.id}
+                                      className="rounded-xl bg-white dark:bg-[#152202] border border-[#d9e6c3] dark:border-[#253905] overflow-hidden shadow-2xs"
+                                    >
+                                      {/* Fila Encabezado del Hito */}
+                                      <div className="p-3 bg-white dark:bg-[#152202] flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleHitoExpand(h.id)}
+                                            className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2d01] dark:hover:bg-[#283d03] text-slate-700 dark:text-[#a1c62e] transition"
+                                          >
+                                            {isHitoExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                          </button>
+                                          <div className="w-6 h-6 rounded-full bg-[#2c4001] text-[#a1c62e] flex items-center justify-center font-black text-xs shrink-0">
+                                            {h.orden}
+                                          </div>
+                                          <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                              <h5
+                                                onClick={() => toggleHitoExpand(h.id)}
+                                                className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white cursor-pointer hover:text-emerald-700 dark:hover:text-[#a1c62e] transition truncate"
+                                              >
+                                                {h.nombre}
+                                              </h5>
+                                              <span className={`px-2 py-0.2 rounded-md text-[10px] uppercase font-bold border ${statusStyles[h.estado] || statusStyles.pendiente}`}>
+                                                {h.estado.replace('_', ' ')}
+                                              </span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium truncate">
+                                              {h.descripcion || 'Sin descripción'} • Meta: <strong className="text-slate-800 dark:text-slate-200">{h.superficie_meta_ha} ha</strong> {h.fecha_meta && `• Límite: ${h.fecha_meta}`}
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2.5 self-end md:self-auto shrink-0">
+                                          <div className="w-28 hidden sm:block">
+                                            <div className="flex justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">
+                                              <span>Progreso</span>
+                                              <span className="font-bold text-[#2c4001] dark:text-[#a1c62e]">{hitoPct}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 dark:bg-[#1e2d01] rounded-full h-1.5 overflow-hidden">
+                                              <div className="bg-[#2c4001] dark:bg-[#a1c62e] h-1.5 rounded-full" style={{ width: `${hitoPct}%` }} />
+                                            </div>
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenTaskModal(p, h)}
+                                            className="px-2.5 py-1 rounded-lg bg-[#2c4001] hover:bg-[#1e2d01] text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
+                                          >
+                                            <CheckSquare className="w-3 h-3 text-[#a1c62e]" />
+                                            <span>+ Tarea</span>
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenHitoModal(p, h)}
+                                            className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2d01] text-slate-600 dark:text-slate-300 transition"
+                                            title="Editar Hito"
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteHito(h.id, h.nombre)}
+                                            className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 transition"
+                                            title="Eliminar Hito"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* TAREAS DENTRO DEL HITO */}
+                                      {isHitoExp && (
+                                        <div className="p-3 bg-slate-50/50 dark:bg-[#121c02] border-t border-[#f0f4ea] dark:border-[#253905]/50">
+                                          {hitoTareas.length > 0 ? (
+                                            <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-[#253905] bg-white dark:bg-[#152202]">
+                                              <table className="w-full text-left text-xs text-slate-800 dark:text-slate-200">
+                                                <thead className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-[#121c02] border-b border-slate-200 dark:border-[#253905]">
+                                                  <tr>
+                                                    <th className="py-2 px-3">Tarea / Actividad</th>
+                                                    <th className="py-2 px-3">Predio</th>
+                                                    <th className="py-2 px-3">Responsable</th>
+                                                    <th className="py-2 px-3 text-right">Meta vs Acumulado</th>
+                                                    <th className="py-2 px-3 text-center">Estado</th>
+                                                    <th className="py-2 px-3 text-right">Acciones</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-[#253905]/50">
+                                                  {hitoTareas.map((t) => {
+                                                    const tPct = t.cantidad_meta > 0 ? Math.min(100, Math.round((t.cantidad_acumulada / t.cantidad_meta) * 100)) : 0;
+                                                    const taskStatusStyles = {
+                                                      pendiente: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200',
+                                                      en_progreso: 'bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border-blue-200 font-bold',
+                                                      completada: 'bg-emerald-50 text-emerald-800 dark:bg-[#203001] dark:text-[#a1c62e] border-emerald-200 dark:border-[#3e5606] font-bold',
+                                                      detenida: 'bg-amber-50 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 font-bold'
+                                                    };
+
+                                                    return (
+                                                      <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-[#1a2b03] transition-colors">
+                                                        <td className="py-2.5 px-3">
+                                                          <span className="font-bold text-slate-900 dark:text-white block">{t.nombre}</span>
+                                                          <span className="text-[10px] text-slate-400 font-mono">[{t.actividad_id}]</span>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 font-medium text-slate-600 dark:text-slate-300">
+                                                          {t.predio_nombre || 'General'}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                          <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
+                                                            <User className="w-3 h-3 text-slate-400" /> {t.responsable || 'Sin asignar'}
+                                                          </span>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-right font-mono">
+                                                          <span className="text-[#2c4001] dark:text-[#a1c62e] font-black">{t.cantidad_acumulada}</span>
+                                                          <span className="text-slate-500 dark:text-slate-400"> / {t.cantidad_meta} {t.unidad}</span>
+                                                          <span className="text-[10px] text-slate-400 ml-1">({tPct}%)</span>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-center">
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => handleToggleTaskStatus(t)}
+                                                            className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wide border transition transform active:scale-95 ${taskStatusStyles[t.estado] || taskStatusStyles.pendiente}`}
+                                                            title="Clic para alternar estado"
+                                                          >
+                                                            {t.estado.replace('_', ' ')}
+                                                          </button>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-right">
+                                                          <div className="flex items-center justify-end gap-1">
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenTaskModal(p, h, t)}
+                                                              className="p-1 rounded-lg bg-slate-100 dark:bg-[#1e2d01] text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition"
+                                                              title="Editar Tarea"
+                                                            >
+                                                              <Edit2 className="w-3 h-3" />
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleDeleteTask(t.id, t.nombre)}
+                                                              className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 hover:bg-rose-100 transition"
+                                                              title="Eliminar Tarea"
+                                                            >
+                                                              <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                          </div>
+                                                        </td>
+                                                      </tr>
+                                                    );
+                                                  })}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          ) : (
+                                            <div className="py-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                                              No hay tareas en este hito.{' '}
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenTaskModal(p, h)}
+                                                className="text-[#2c4001] dark:text-[#a1c62e] font-bold underline ml-1"
+                                              >
+                                                Crear la primera tarea
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                                  Este proyecto aún no tiene hitos definidos.{' '}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenHitoModal(p)}
+                                    className="text-emerald-600 dark:text-[#a1c62e] font-bold underline ml-1"
+                                  >
+                                    Agregar Hito 1
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* VISTA 2: 4 WIDGETS CANÓNICOS & MONITOR DE HORÓMETROS (TABLERO)             */}

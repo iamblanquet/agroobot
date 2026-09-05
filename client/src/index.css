@@ -148,7 +148,7 @@ html.dark ::-webkit-scrollbar-track {
     border: none !important;
   }
 
-  /* Estructura del Gantt en impresión */
+  /* Reporte de impresión: cada renglón contiene su WBS y su barra. */
   .gantt-root {
     border: 1px solid #cbd5e1 !important;
     border-radius: 8px !important;
@@ -159,48 +159,142 @@ html.dark ::-webkit-scrollbar-track {
     page-break-inside: auto !important;
   }
 
-  .gantt-flex-wrapper {
-    display: flex !important;
-    flex-direction: row !important;
-    overflow: visible !important;
-    height: auto !important;
+  .screen-gantt,
+  .gantt-root > .no-print,
+  .gantt-root > .print\:hidden {
+    display: none !important;
+  }
+
+  .gantt-print-report {
+    display: block !important;
+  }
+
+  .gantt-print-grid {
+    display: grid !important;
+    grid-template-columns: 37% 63% !important;
     width: 100% !important;
-  }
-
-  .gantt-wbs-panel {
-    width: 38% !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    flex-shrink: 0 !important;
-    overflow: visible !important;
-    border-right: 1.5px solid #cbd5e1 !important;
-  }
-
-  .gantt-wbs-list {
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-  }
-
-  .gantt-timeline-panel {
-    width: 62% !important;
-    flex: 1 1 0% !important;
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-  }
-
-  .gantt-timeline-canvas {
-    width: 100% !important;
-    min-width: 0 !important;
-    overflow: visible !important;
-  }
-
-  .gantt-row {
-    page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+    page-break-inside: avoid !important;
   }
+
+  .gantt-print-wbs-head,
+  .gantt-print-wbs-subhead {
+    border: 1px solid #9aac71 !important;
+    border-right: 0 !important;
+    background: #edf5e3 !important;
+    padding: 4px 6px !important;
+    color: #263b00 !important;
+    font-size: 8px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+  }
+
+  .gantt-print-time-head,
+  .gantt-print-time-subhead {
+    display: flex !important;
+    overflow: hidden !important;
+    border: 1px solid #9aac71 !important;
+    background: #edf5e3 !important;
+  }
+
+  .gantt-print-time-head span,
+  .gantt-print-time-subhead span {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding: 3px 1px !important;
+    border-right: 1px solid #cbd8b7 !important;
+    color: #263b00 !important;
+    font-size: 7px !important;
+    font-weight: 700 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .gantt-print-time-subhead,
+  .gantt-print-wbs-subhead {
+    border-top: 0 !important;
+    background: #f7faef !important;
+  }
+
+  .gantt-print-row {
+    min-height: 23px !important;
+  }
+
+  .gantt-print-label {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding: 3px 6px !important;
+    border-left: 1px solid #d6dfc3 !important;
+    border-right: 1px solid #d6dfc3 !important;
+    border-bottom: 1px solid #e3ead6 !important;
+    background: #fff !important;
+    line-height: 1.1 !important;
+  }
+
+  .gantt-print-label strong {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 8px !important;
+  }
+
+  .gantt-print-label span {
+    color: #64748b !important;
+    font-size: 7px !important;
+  }
+
+  .gantt-print-milestone .gantt-print-label { padding-left: 12px !important; }
+  .gantt-print-task .gantt-print-label { padding-left: 18px !important; }
+
+  .gantt-print-track {
+    position: relative !important;
+    min-height: 23px !important;
+    overflow: hidden !important;
+    border-right: 1px solid #d6dfc3 !important;
+    border-bottom: 1px solid #e3ead6 !important;
+    background-image: linear-gradient(to right, rgba(101, 128, 64, .13) 1px, transparent 1px) !important;
+    background-size: 7% 100% !important;
+  }
+
+  .gantt-print-bar {
+    position: absolute !important;
+    top: 5px !important;
+    height: 13px !important;
+    min-width: 10px !important;
+    overflow: hidden !important;
+    border-radius: 3px !important;
+    color: white !important;
+  }
+
+  .gantt-print-bar i {
+    position: absolute !important;
+    inset: 0 auto 0 0 !important;
+    background: rgba(255, 255, 255, .28) !important;
+  }
+
+  .gantt-print-bar b {
+    position: relative !important;
+    z-index: 1 !important;
+    display: block !important;
+    overflow: hidden !important;
+    padding: 2px 4px !important;
+    color: white !important;
+    font-size: 7px !important;
+    line-height: 9px !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .gantt-print-project-bar { background: #395800 !important; }
+  .gantt-print-milestone-bar { background: #2563eb !important; }
+  .gantt-print-completado { background: #047857 !important; }
+  .gantt-print-pendiente { background: #b45309 !important; }
+  .gantt-print-bloqueado { background: #be123c !important; }
 
   .print-only {
     display: block !important;

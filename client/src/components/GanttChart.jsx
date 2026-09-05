@@ -308,11 +308,12 @@ export default function GanttChart({
 
   // Imprimir / PDF
   const handlePrint = () => {
-    // Expandir todo para que todas las labores salgan completas en la impresión
+    // Mantiene abierta la vista para quien vuelve de imprimir; el reporte impreso
+    // siempre genera todas las filas, aun si en pantalla estaban contraídas.
     handleToggleExpandAll(true);
-    setTimeout(() => {
-      window.print();
-    }, 200);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
   };
 
   // Calcular métricas del proyecto o consolidado
@@ -352,6 +353,77 @@ export default function GanttChart({
   }, [filteredProjects]);
 
   const activeProjectObj = projects.find((p) => String(p.id) === String(activeProjectFilter));
+
+  // El panel de pantalla usa dos columnas con scroll independiente. Para papel se
+  // construyen filas únicas (WBS + barra) para que nunca se descuadre el diagrama.
+  const printRows = useMemo(() => {
+    const rows = [];
+    const taskColors = {
+      completada: 'bg-emerald-600',
+      en_progreso: 'bg-sky-600',
+      detenida: 'bg-rose-600',
+      pendiente: 'bg-amber-500'
+    };
+
+    filteredProjects.forEach((p) => {
+      const pStart = parseDate(p.fecha_inicio) || minDate;
+      const pEnd = parseDate(p.fecha_fin) || addDays(pStart, 60);
+      const pDuration = Math.max(7, getDaysBetween(pStart, pEnd));
+      const pMeta = parseFloat(p.superficie_meta_ha) || 0;
+      const pAcum = p.hitos?.reduce((sum, h) => sum + (h.tareas?.reduce((taskSum, t) => taskSum + (parseFloat(t.cantidad_acumulada) || 0), 0) || 0), 0) || 0;
+      rows.push({
+        id: `print-p-${p.id}`,
+        type: 'project',
+        label: p.nombre,
+        detail: `${p.ciclo || 'Sin ciclo'} · ${pAcum}/${pMeta} ha`,
+        left: Math.max(0, getDaysBetween(minDate, pStart)) / totalDays * 100,
+        width: Math.max(3, pDuration / totalDays * 100),
+        progress: pMeta > 0 ? Math.min(100, Math.round(pAcum / pMeta * 100)) : 0,
+        barLabel: `${p.nombre} · ${pMeta > 0 ? Math.min(100, Math.round(pAcum / pMeta * 100)) : 0}%`
+      });
+
+      (p.hitos || []).forEach((h, hIndex) => {
+        const previous = hIndex > 0 ? p.hitos[hIndex - 1] : null;
+        const hStart = previous?.fecha_meta ? parseDate(previous.fecha_meta) : pStart;
+        const hEnd = parseDate(h.fecha_meta) || addDays(hStart, 20);
+        const hDuration = Math.max(4, getDaysBetween(hStart, hEnd));
+        const hMeta = parseFloat(h.superficie_meta_ha) || 0;
+        const hAcum = h.tareas?.reduce((sum, t) => sum + (parseFloat(t.cantidad_acumulada) || 0), 0) || 0;
+        const hProgress = hMeta > 0 ? Math.min(100, Math.round(hAcum / hMeta * 100)) : 0;
+        rows.push({
+          id: `print-h-${h.id}`,
+          type: 'milestone',
+          label: `Hito ${h.orden}: ${h.nombre}`,
+          detail: `Meta ${formatDisplayDate(h.fecha_meta)} · ${h.estado || 'pendiente'}`,
+          left: Math.max(0, getDaysBetween(minDate, hStart)) / totalDays * 100,
+          width: Math.max(2.5, hDuration / totalDays * 100),
+          progress: hProgress,
+          state: h.estado || 'pendiente',
+          barLabel: `Hito ${h.orden} · ${hProgress}%`
+        });
+
+        (h.tareas || []).forEach((t, taskIndex) => {
+          const taskStep = Math.max(2, Math.floor(hDuration / Math.max(1, h.tareas.length)));
+          const tStart = addDays(hStart, taskIndex * taskStep);
+          const tEnd = addDays(tStart, taskStep);
+          const tMeta = parseFloat(t.cantidad_meta) || 1;
+          const tAcum = parseFloat(t.cantidad_acumulada) || 0;
+          rows.push({
+            id: `print-t-${t.id}`,
+            type: 'task',
+            label: t.nombre,
+            detail: `${t.responsable || 'Sin asignar'} · ${tAcum}/${tMeta} ${t.unidad || 'ha'}`,
+            left: Math.max(0, getDaysBetween(minDate, tStart)) / totalDays * 100,
+            width: Math.max(2, getDaysBetween(tStart, tEnd) / totalDays * 100),
+            progress: Math.min(100, Math.round(tAcum / tMeta * 100)),
+            color: taskColors[t.estado] || taskColors.pendiente,
+            barLabel: t.nombre
+          });
+        });
+      });
+    });
+    return rows;
+  }, [filteredProjects, minDate, totalDays]);
 
   return (
     <div
@@ -407,11 +479,55 @@ export default function GanttChart({
         </div>
       </div>
 
+      <section className="gantt-print-report hidden print:block px-4 pb-3 text-slate-900">
+        <div className="gantt-print-grid gantt-print-header-row">
+          <div className="gantt-print-wbs-head">Estructura / tarea</div>
+          <div className="gantt-print-time-head">
+            {timelineHeaders.months.map((month) => (
+              <span key={month.key} style={{ width: `${month.widthPct}%` }}>{month.label}</span>
+            ))}
+          </div>
+        </div>
+        <div className="gantt-print-grid gantt-print-subhead">
+          <div className="gantt-print-wbs-subhead">Avance y responsable</div>
+          <div className="gantt-print-time-subhead">
+            {timelineHeaders.subUnits.map((unit) => (
+              <span key={unit.key} style={{ width: `${unit.widthPct}%` }}>{unit.label}</span>
+            ))}
+          </div>
+        </div>
+        <div className="gantt-print-rows">
+          {printRows.map((row) => (
+            <div className={`gantt-print-grid gantt-print-row gantt-print-${row.type}`} key={row.id}>
+              <div className="gantt-print-label">
+                <strong>{row.label}</strong>
+                <span>{row.detail}</span>
+              </div>
+              <div className="gantt-print-track">
+                <div
+                  className={`gantt-print-bar ${row.type === 'project' ? 'gantt-print-project-bar' : row.type === 'milestone' ? `gantt-print-milestone-bar gantt-print-${row.state}` : row.color}`}
+                  style={{ left: `${row.left}%`, width: `${row.width}%` }}
+                >
+                  <i style={{ width: `${row.progress}%` }} />
+                  <b>{row.barLabel}</b>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 text-[8px] text-slate-600 flex items-center justify-between border-t border-slate-300 pt-1.5">
+          <span>Escala: {formatDisplayDate(formatDate(minDate))} a {formatDisplayDate(formatDate(maxDate))}</span>
+          <span>AGROKOOL · Reporte operativo</span>
+        </div>
+      </section>
+
       {/* ========================================================================= */}
       {/* 1. ENCABEZADO SUPERIOR & BARRA DE HERRAMIENTAS EJECUTIVA (SOLO PANTALLA)  */}
       {/* ========================================================================= */}
-      <div className="no-print print:hidden bg-[#2c4001] text-white p-4 sm:p-5 border-b border-[#3e5606] space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="gantt-screen-header no-print print:hidden relative overflow-hidden bg-[#2c4001] text-white p-4 sm:p-5 border-b border-[#3e5606] space-y-4">
+        <div className="absolute -right-24 -top-32 h-64 w-64 rounded-full border border-[#a1c62e]/20" />
+        <div className="absolute right-24 -bottom-36 h-56 w-56 rounded-full border-[18px] border-[#a1c62e]/10" />
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-[#1e2d01] border border-[#a1c62e]/40 shadow-inner">
@@ -506,7 +622,7 @@ export default function GanttChart({
         {/* ======================================================================= */}
         {/* 2. FILTROS & SELECTOR DE PROYECTO (SOLO PANTALLA)                       */}
         {/* ======================================================================= */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-[#3e5606]">
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-[#3e5606]">
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Selector de Proyecto */}
             <div className="flex items-center gap-1.5">
@@ -627,7 +743,7 @@ export default function GanttChart({
       {/* ========================================================================= */}
       {/* 4. CUADRÍCULA INTERACTIVA & IMPRIMIBLE DEL GANTT (WBS + LÍNEA DE TIEMPO)  */}
       {/* ========================================================================= */}
-      <div className="gantt-flex-wrapper flex-1 flex overflow-hidden min-h-[500px]">
+      <div className="screen-gantt gantt-flex-wrapper flex-1 flex overflow-hidden min-h-[500px]">
         {/* PANEL IZQUIERDO: ESTRUCTURA DESGLOSADA DE TRABAJO (WBS) */}
         <div className="gantt-wbs-panel w-80 sm:w-96 flex-shrink-0 border-r border-[#e2ebd3] dark:border-[#253905] bg-white dark:bg-[#152202] flex flex-col select-none">
           {/* Encabezado WBS */}

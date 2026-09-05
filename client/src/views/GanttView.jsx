@@ -70,7 +70,7 @@ export default function GanttView({ initialProjectId = null, onNavigateBack = nu
   }
 
   return (
-    <div className="w-full flex-1 flex flex-col">
+    <div className="w-full h-full flex-1 flex flex-col overflow-hidden">
       {/* Diagrama de Gantt Principal Integrado Nativamente */}
       <GanttChart
         projects={projects}

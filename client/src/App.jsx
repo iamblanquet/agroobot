@@ -514,7 +514,7 @@ export default function App() {
         {/* ======================================================================= */}
         {/* 3. ÁREA DE CONTENIDO PRINCIPAL                                          */}
         {/* ======================================================================= */}
-        <main className="flex-1 overflow-y-auto">
+        <main className={`flex-1 ${currentView === 'gantt' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
           {/* VISTA HUB: BIENVENIDA CON TARJETAS GRID (ESTILO THESSA) */}
           {currentView === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-8">

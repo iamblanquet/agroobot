@@ -42,10 +42,31 @@ async function testHttpEndpoints() {
       // 4. Intentar cerrar incidencia con causa raíz corta (< 10 chars) -> Espera HTTP 400
       console.log('\n4. Probando POST /api/issues/:id/close con causa corta (< 10 chars)...');
       let activeIssue = statsSup.widgets.incidencias_abiertas[0];
+      let testProjId = 1;
+      let testObraId = 1;
+
       if (!activeIssue) {
+        // Si no hay obras en la BD limpia, crear un proyecto y obra temporal de prueba
+        let existingObra = (await requestJson('http://localhost:3099/api/projects/obras', 'GET', null, token))?.obras?.[0];
+        if (!existingObra) {
+          const testProj = await requestJson('http://localhost:3099/api/projects', 'POST', {
+            nombre: 'Proyecto Test Temporal',
+            tipo: 'maiz',
+            ciclo: 'Ciclo 2026'
+          }, token);
+          testProjId = testProj.project.id;
+          const newObraRes = await requestJson('http://localhost:3099/api/projects/obras', 'POST', {
+            nombre: 'Obra Test Temporal',
+            proyecto_id: testProjId
+          }, token);
+          existingObra = newObraRes.obra;
+        }
+        testObraId = existingObra.id;
+        testProjId = existingObra.proyecto_id || testProjId;
+
         const newIss = await requestJson('http://localhost:3099/api/issues', 'POST', {
           tipo: 'Falla mecánica: Bomba de agua sobrecalentada',
-          obra_id: 1,
+          obra_id: testObraId,
           causa_raiz: null
         }, token);
         activeIssue = newIss.issue;
@@ -73,9 +94,9 @@ async function testHttpEndpoints() {
       const syncRes = await requestJson('http://localhost:3099/api/reports/sync', 'POST', {
         reports: [{
           client_uuid: syncUUID,
-          obra_id: 1,
-          proyecto_id: 1,
-          tarea_id: 1,
+          obra_id: testObraId,
+          proyecto_id: testProjId,
+          tarea_id: null,
           fecha_operativa: '2026-08-31',
           hora_offline: '14:45:30',
           creado_offline: '2026-08-31T14:45:30.000Z',
@@ -83,7 +104,7 @@ async function testHttpEndpoints() {
           es_sin_actividad: false,
           lineas: [{ cantidad: 5.0, unidad: 'ha', cantidad_ha: 5.0 }],
           cuadrilla: [{ rol_id: 'operador', headcount: 3 }],
-          maquinaria: [{ maquina_id: 2, horometro_inicio: 415.5, horometro_fin: 423.5, horas_trabajadas: 8.0, litros_diesel: 120 }],
+          maquinaria: [],
           fotos: [{ data: samplePhotoBase64, descripcion: 'Evidencia de prueba horómetro' }]
         }]
       }, token);
@@ -124,7 +145,7 @@ async function testHttpEndpoints() {
       console.log('\n6d. Probando CRUD de Obras / Frentes (/api/projects/obras)...');
       const newObraRes = await requestJson('http://localhost:3099/api/projects/obras', 'POST', {
         nombre: 'Frente Santa Fe - Drenes',
-        proyecto_id: 1,
+        proyecto_id: testProjId,
         fase_actual: 'Habilitación',
         estado: 'operacion',
         tg_thread_id: '999',

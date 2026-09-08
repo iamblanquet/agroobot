@@ -288,15 +288,17 @@ async function seed() {
     const projId = pRes.lastID;
     projMap[pd.key] = projId;
 
-    // Intentar crear/vincular el tema real en Telegram Supergrupo
+    // Usar defaultThread por defecto para evitar saturar el supergrupo de Telegram
     let threadId = pd.defaultThread;
-    try {
-      const tgThread = await createObraForumTopic(pd.obraNombre, pd.nombre, pd.predios);
-      if (tgThread) {
-        threadId = String(tgThread);
+    if (process.env.SEED_CREATE_TELEGRAM_TOPICS === 'true') {
+      try {
+        const tgThread = await createObraForumTopic(pd.obraNombre, pd.nombre, pd.predios);
+        if (tgThread) {
+          threadId = String(tgThread);
+        }
+      } catch (tgErr) {
+        console.warn(`⚠️ No se pudo crear tema en Telegram para "${pd.obraNombre}": ${tgErr.message}. Usando thread ID: ${threadId}`);
       }
-    } catch (tgErr) {
-      console.warn(`⚠️ No se pudo crear tema en Telegram para "${pd.obraNombre}": ${tgErr.message}. Usando thread ID: ${threadId}`);
     }
 
     const oRes = await db.run(

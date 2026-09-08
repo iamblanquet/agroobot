@@ -135,16 +135,19 @@ async function startServer() {
     const isSupabaseOnly = process.env.DISABLE_SQLITE === 'true' || process.env.SUPABASE_ONLY === 'true';
     if (!isSupabaseOnly) {
       await initDatabase();
-
-      // Auto-seed si no hay usuarios (solo desarrollo local SQLite)
-      const userCount = await db.get('SELECT COUNT(*) as count FROM usuario');
-      if (userCount?.count === 0) {
-        console.warn('⚠️ Base de datos SQLite vacía: creando datos iniciales temporales. Configure un disco persistente para conservarlos entre despliegues.');
-        const seed = require('./db/seed');
-        await seed();
-      }
     } else {
       console.log('⚡ Modo exclusivo Supabase / PostgreSQL activo. Inicialización de SQLite omitida.');
+    }
+
+    // Asegurar usuarios mínimos para permitir inicio de sesión (sin sembrar proyectos ni crear temas)
+    const { ensureBaseUsers } = require('./db/ensureBaseUsers');
+    await ensureBaseUsers();
+
+    // Solo sembrar datos de prueba si se solicita explícitamente por variable de entorno
+    if (process.env.AUTO_SEED === 'true') {
+      console.warn('🌱 [AUTO_SEED=true] Detectado: Sembrando datos de prueba solicitados explícitamente...');
+      const seed = require('./db/seed');
+      await seed();
     }
 
     // Inicializar Bot de Telegram y Planificador de Tareas Cron (Docs 2 §4)

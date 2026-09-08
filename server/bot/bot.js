@@ -1061,15 +1061,47 @@ async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = 
     return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
   }
 
-  // 2. Comprobar en base de datos si la obra ya existe con un tema asignado
+  // 2. Comprobar en base de datos si la obra, predios o proyecto ya tienen un tema asignado
   if (!options.forceCreate) {
     try {
       const projectRepository = require('../repositories/projectRepository');
+      // A. Buscar por nombre de obra exacto
       const existingObra = await projectRepository.findObraByName(obraNombre);
       if (existingObra && existingObra.tg_thread_id) {
         const threadNum = parseInt(existingObra.tg_thread_id, 10);
         if (!isNaN(threadNum) && threadNum > 0) {
           console.log(`ℹ️ [Telegram] Frente "${obraNombre}" ya tiene tema asignado (#${existingObra.tg_thread_id}). Reutilizando tema.`);
+          return threadNum;
+        }
+      }
+
+      // B. Buscar si alguno de los predios vinculados ya tiene un frente con tema asignado
+      if (predioNombres && predioNombres.length > 0) {
+        const allPredios = await projectRepository.findAllPredios();
+        for (const pName of predioNombres) {
+          const matchedPredio = (allPredios || []).find(p => p.nombre && p.nombre.toLowerCase() === pName.toLowerCase());
+          if (matchedPredio) {
+            const predioObras = await projectRepository.findObrasByPredioId(matchedPredio.id);
+            const obraWithThread = (predioObras || []).find(o => o.tg_thread_id && parseInt(o.tg_thread_id, 10) > 0);
+            if (obraWithThread) {
+              const threadNum = parseInt(obraWithThread.tg_thread_id, 10);
+              console.log(`ℹ️ [Telegram] Predio "${pName}" ya está asociado al tema #${threadNum} (${obraWithThread.nombre}). Reutilizando tema.`);
+              return threadNum;
+            }
+          }
+        }
+      }
+
+      // C. Si el proyecto ya tiene un tema asignado en otra obra, reutilizar para evitar saturar el supergrupo
+      if (proyectoNombre) {
+        const allObras = await projectRepository.findAllObras();
+        const sameProjectObra = (allObras || []).find(o => 
+          (o.proyecto_nombre === proyectoNombre || o.nombre?.toLowerCase() === obraNombre?.toLowerCase()) &&
+          o.tg_thread_id && parseInt(o.tg_thread_id, 10) > 0
+        );
+        if (sameProjectObra) {
+          const threadNum = parseInt(sameProjectObra.tg_thread_id, 10);
+          console.log(`ℹ️ [Telegram] Proyecto "${proyectoNombre}" ya cuenta con tema #${threadNum} (${sameProjectObra.nombre}). Reutilizando tema.`);
           return threadNum;
         }
       }

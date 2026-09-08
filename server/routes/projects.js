@@ -45,22 +45,18 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), 
 
     const gerente = gerente_id ? parseInt(gerente_id, 10) : req.user.id;
 
-    const result = await db.run(
-      `INSERT INTO proyecto (nombre, tipo, ciclo, superficie_meta_ha, fase_catalogo, gerente_id, fecha_inicio, fecha_fin)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        nombre.trim(),
-        tipo.trim(),
-        ciclo.trim(),
-        parseFloat(superficie_meta_ha) || 0,
-        fase_catalogo || 'Planificación Inicial',
-        gerente,
-        fecha_inicio || new Date().toISOString().split('T')[0],
-        fecha_fin || null
-      ]
-    );
+    const newProject = await projectRepository.createProject({
+      nombre: nombre.trim(),
+      tipo: tipo.trim(),
+      ciclo: ciclo.trim(),
+      superficie_meta_ha: parseFloat(superficie_meta_ha) || 0,
+      fase_catalogo: fase_catalogo || 'Planificación Inicial',
+      gerente_id: gerente,
+      fecha_inicio: fecha_inicio || new Date().toISOString().split('T')[0],
+      fecha_fin: fecha_fin || null,
+      estado: 'activo'
+    });
 
-    const newProject = await db.get('SELECT * FROM proyecto WHERE id = ?', [result.lastID]);
     return res.status(201).json({ success: true, project: newProject });
   } catch (err) {
     console.error('Error al crear proyecto:', err);
@@ -485,14 +481,13 @@ router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direcc
     const supLegal = parseFloat(superficie_legal_ha) || 0;
     const supUtil = parseFloat(superficie_util_ha) || supLegal;
 
-    const result = await db.run(
-      `INSERT INTO predio (nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nombre.trim(), supLegal, supUtil, regimen.trim(), poligono_geojson || null]
-    );
-
-    const predioId = result.lastID;
-    const newPredio = await db.get('SELECT * FROM predio WHERE id = ?', [predioId]);
+    const newPredio = await projectRepository.createPredio({
+      nombre: nombre.trim(),
+      superficie_legal_ha: supLegal,
+      superficie_util_ha: supUtil,
+      regimen: regimen.trim(),
+      poligono_geojson: poligono_geojson || null
+    });
     newPredio.obras = [];
 
     let createdObra = null;
@@ -504,10 +499,11 @@ router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direcc
         let targetProjId = proyecto_id ? parseInt(proyecto_id, 10) : null;
         let proj = null;
         if (targetProjId) {
-          proj = await db.get('SELECT * FROM proyecto WHERE id = ?', [targetProjId]);
+          proj = await projectRepository.findProjectById(targetProjId);
         }
         if (!proj) {
-          proj = await db.get('SELECT * FROM proyecto ORDER BY id ASC LIMIT 1');
+          const allProjs = await projectRepository.findAllProjects();
+          proj = allProjs[0] || null;
         }
 
         if (proj) {
@@ -515,16 +511,15 @@ router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direcc
           const { createObraForumTopic } = require('../bot/bot');
           autoThreadId = await createObraForumTopic(obraNombre, proj.nombre, [nombre.trim()]);
 
-          const obraResult = await db.run(
-            `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
-             VALUES (?, ?, ?, ?, ?)`,
-            [obraNombre, proj.id, 'operacion', 'operacion', autoThreadId ? String(autoThreadId) : null]
-          );
+          createdObra = await projectRepository.createObra({
+            nombre: obraNombre,
+            proyecto_id: proj.id,
+            fase_actual: 'operacion',
+            estado: 'operacion',
+            tg_thread_id: autoThreadId ? String(autoThreadId) : null
+          });
 
-          const newObraId = obraResult.lastID;
-          await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [newObraId, predioId]);
-
-          createdObra = await db.get('SELECT * FROM obra WHERE id = ?', [newObraId]);
+          await projectRepository.setObraPredios(createdObra.id, [newPredio.id]);
           createdObra.predios = [{ id: newPredio.id, nombre: newPredio.nombre, superficie_util_ha: newPredio.superficie_util_ha }];
           newPredio.obras = [{ id: createdObra.id, nombre: createdObra.nombre, estado: createdObra.estado, tg_thread_id: createdObra.tg_thread_id }];
         }
@@ -557,26 +552,19 @@ router.patch('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'd
     const { id } = req.params;
     const { nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson } = req.body;
 
-    const predio = await db.get('SELECT * FROM predio WHERE id = ?', [id]);
+    const predio = await projectRepository.findPredioById(id);
     if (!predio) {
       return res.status(404).json({ error: 'Predio no encontrado.' });
     }
 
-    await db.run(
-      `UPDATE predio
-       SET nombre = ?, superficie_legal_ha = ?, superficie_util_ha = ?, regimen = ?, poligono_geojson = ?
-       WHERE id = ?`,
-      [
-        nombre !== undefined ? nombre.trim() : predio.nombre,
-        superficie_legal_ha !== undefined ? parseFloat(superficie_legal_ha) || 0 : predio.superficie_legal_ha,
-        superficie_util_ha !== undefined ? parseFloat(superficie_util_ha) || 0 : predio.superficie_util_ha,
-        regimen !== undefined ? regimen.trim() : predio.regimen,
-        poligono_geojson !== undefined ? poligono_geojson : predio.poligono_geojson,
-        id
-      ]
-    );
+    const fields = {};
+    if (nombre !== undefined) fields.nombre = nombre.trim();
+    if (superficie_legal_ha !== undefined) fields.superficie_legal_ha = parseFloat(superficie_legal_ha) || 0;
+    if (superficie_util_ha !== undefined) fields.superficie_util_ha = parseFloat(superficie_util_ha) || 0;
+    if (regimen !== undefined) fields.regimen = regimen.trim();
+    if (poligono_geojson !== undefined) fields.poligono_geojson = poligono_geojson;
 
-    const updated = await db.get('SELECT * FROM predio WHERE id = ?', [id]);
+    const updated = await projectRepository.updatePredio(id, fields);
     return res.json({ success: true, predio: updated });
   } catch (err) {
     console.error('Error al actualizar predio:', err);
@@ -591,9 +579,7 @@ router.patch('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'd
 router.delete('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
     const { id } = req.params;
-    await db.run('DELETE FROM obra_predio WHERE predio_id = ?', [id]);
-    await db.run('UPDATE tarea SET predio_id = NULL WHERE predio_id = ?', [id]);
-    await db.run('DELETE FROM predio WHERE id = ?', [id]);
+    await projectRepository.deletePredio(id);
     return res.json({ success: true, message: 'Predio eliminado correctamente.' });
   } catch (err) {
     console.error('Error al eliminar predio:', err);
@@ -613,21 +599,10 @@ router.delete('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', '
  */
 router.get('/obras', authenticateJWT, async (req, res) => {
   try {
-    const obras = await db.all(`
-      SELECT o.*, p.nombre AS proyecto_nombre, p.ciclo AS proyecto_ciclo
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      ORDER BY o.nombre ASC
-    `);
+    const obras = await projectRepository.findAllObras();
 
     for (const ob of obras) {
-      ob.predios = await db.all(`
-        SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
-        FROM predio pr
-        JOIN obra_predio op ON pr.id = op.predio_id
-        WHERE op.obra_id = ?
-        ORDER BY pr.nombre ASC
-      `, [ob.id]);
+      ob.predios = await projectRepository.findPrediosByObraId(ob.id);
     }
 
     return res.json({ obras });
@@ -678,35 +653,20 @@ router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccio
       }
     }
 
-    const result = await db.run(
-      `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nombre.trim(), parseInt(proyecto_id, 10), fase_actual, estado, finalThreadId]
-    );
+    const newObra = await projectRepository.createObra({
+      nombre: nombre.trim(),
+      proyecto_id: parseInt(proyecto_id, 10),
+      fase_actual: fase_actual || 'Operación',
+      estado: estado || 'operacion',
+      tg_thread_id: finalThreadId
+    });
 
-    const obraId = result.lastID;
-
-    // Vincular predios seleccionados
-    for (const pId of pIds) {
-      if (pId) {
-        await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [obraId, parseInt(pId, 10)]);
-      }
+    const validPids = pIds.map(id => parseInt(id, 10)).filter(Boolean);
+    if (validPids.length > 0) {
+      await projectRepository.setObraPredios(newObra.id, validPids);
     }
 
-    const newObra = await db.get(`
-      SELECT o.*, p.nombre AS proyecto_nombre
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE o.id = ?
-    `, [obraId]);
-
-    newObra.predios = await db.all(`
-      SELECT pr.id, pr.nombre, pr.superficie_util_ha
-      FROM predio pr
-      JOIN obra_predio op ON pr.id = op.predio_id
-      WHERE op.obra_id = ?
-    `, [obraId]);
-
+    newObra.predios = await projectRepository.findPrediosByObraId(newObra.id);
     return res.status(201).json({ success: true, obra: newObra });
   } catch (err) {
     console.error('Error al crear obra:', err);

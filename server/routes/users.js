@@ -108,4 +108,46 @@ router.patch('/:id', authenticateJWT, requireRole('it'), async (req, res) => {
   }
 });
 
+/**
+ * POST /api/users/clear-operational-data
+ * Vaciar datos operativos conservando usuarios (para reiniciar pruebas desde cualquier entorno)
+ */
+router.post('/clear-operational-data', authenticateJWT, requireRole('it', 'admin'), async (req, res) => {
+  try {
+    const { initDatabase, db } = require('../db/database');
+    await initDatabase();
+    const supabase = require('../db/supabase');
+
+    const tablesToClear = [
+      'lectura_activo_fijo', 'activo_fijo', 'reporte_foto', 'medicion', 'material',
+      'incidencia', 'lectura_maquina', 'reporte_cuadrilla', 'reporte_linea', 'reporte',
+      'maquina', 'obra_predio', 'obra', 'predio', 'tarea', 'hito', 'proyecto', 'entidad'
+    ];
+
+    for (const table of tablesToClear) {
+      try {
+        await db.run(`DELETE FROM ${table}`);
+      } catch (_) {}
+    }
+
+    if (supabase.isSupabaseConfigured()) {
+      for (const table of tablesToClear) {
+        try {
+          if (table === 'obra_predio') {
+            await supabase.deleteRows(table, { obra_id: 'gt.0' });
+          } else {
+            await supabase.deleteRows(table, { id: 'gt.0' });
+          }
+        } catch (_) {}
+      }
+    }
+
+    return res.json({ success: true, message: 'Datos operativos vaciados correctamente en el servidor.' });
+  } catch (err) {
+    console.error('Error en /api/users/clear-operational-data:', err);
+    return res.status(500).json({ error: 'Error al vaciar datos: ' + err.message });
+  }
+});
+
 module.exports = router;
+

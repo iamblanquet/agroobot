@@ -123,6 +123,15 @@ if (fs.existsSync(clientDistPath)) {
 async function startServer() {
   try {
     requireJwtSecret();
+
+    // Arrancar el listener HTTP de inmediato para responder al health check de Render
+    app.listen(PORT, () => {
+      console.log(`\n==================================================`);
+      console.log(`🌾 TESA Servidor Operativo en http://localhost:${PORT}`);
+      console.log(`🔒 Modo de seguridad: CSP frame-ancestors Telegram activo`);
+      console.log(`==================================================\n`);
+    });
+
     const isSupabaseOnly = process.env.DISABLE_SQLITE === 'true' || process.env.SUPABASE_ONLY === 'true';
     if (!isSupabaseOnly) {
       await initDatabase();
@@ -142,13 +151,6 @@ async function startServer() {
     initTelegramBot(app);
     const { initScheduler } = require('./bot/cron');
     initScheduler();
-
-    app.listen(PORT, () => {
-      console.log(`\n==================================================`);
-      console.log(`🌾 TESA Servidor Operativo en http://localhost:${PORT}`);
-      console.log(`🔒 Modo de seguridad: CSP frame-ancestors Telegram activo`);
-      console.log(`==================================================\n`);
-    });
   } catch (err) {
     console.error('❌ Error fatal al arrancar el servidor:', err);
     process.exit(1);

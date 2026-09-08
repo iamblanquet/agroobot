@@ -91,6 +91,26 @@ export default function GanttChart({
   const [selectedItemDetail, setSelectedItemDetail] = useState(null); // Para Bottom Sheet Modal táctil
   const [hoverTooltip, setHoverTooltip] = useState(null); // Para desktop tooltip
 
+  const [isMobileScreen, setIsMobileScreen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Ancho responsivo de la columna WBS (Estructura de tareas)
+  const wbsWidth = wbsCollapsedMobile
+    ? (isMobileScreen ? 44 : 60)
+    : (isMobileScreen ? 165 : 340);
+
   const timelineScrollRef = useRef(null);
 
   // Sincronizar filtro externo si cambia
@@ -574,86 +594,174 @@ export default function GanttChart({
       </section>
 
       {/* ========================================================================= */}
-      {/* 1. BARRA DE HERRAMIENTAS DE TRABAJO (TOOLBAR ÚNICA, SIN NAVBAR DUPLICADO) */}
+      {/* 1. BARRA DE HERRAMIENTAS DE TRABAJO RESPONSIVE                            */}
       {/* ========================================================================= */}
-      <div className="no-print print:hidden bg-white dark:bg-[#142002] border-b border-[#e2ebd3] dark:border-[#253905] px-3 sm:px-4 py-2 flex items-center justify-between gap-2.5 flex-shrink-0 z-30">
-        {/* Grupo Izquierdo: Volver (si existe) + Selector de Proyecto + Modo Móvil */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
-          {onNavigateBack && (
-            <button
-              type="button"
-              onClick={onNavigateBack}
-              className="px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] hover:bg-[#e6f0d7] dark:bg-[#1e2d01] dark:hover:bg-[#152000] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1.5 transition shadow-2xs shrink-0"
-              title="Volver"
+      <div className="no-print print:hidden bg-white dark:bg-[#142002] border-b border-[#e2ebd3] dark:border-[#253905] px-3 sm:px-4 py-2 flex flex-col md:flex-row md:items-center justify-between gap-2 flex-shrink-0 z-30">
+        {/* FILA 1 EN MÓVIL / GRUPO IZQUIERDO EN DESKTOP */}
+        <div className="flex items-center justify-between gap-2 w-full md:w-auto min-w-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {onNavigateBack && (
+              <button
+                type="button"
+                onClick={onNavigateBack}
+                className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#f4f8ed] hover:bg-[#e6f0d7] dark:bg-[#1e2d01] dark:hover:bg-[#152000] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1.5 transition shadow-2xs shrink-0"
+                title="Volver"
+              >
+                <ArrowLeft className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">Volver</span>
+              </button>
+            )}
+
+            {/* Selector de Proyecto */}
+            <select
+              value={activeProjectFilter}
+              onChange={(e) => {
+                setActiveProjectFilter(e.target.value);
+                if (onProjectChange) onProjectChange(e.target.value);
+              }}
+              className="flex-1 md:flex-none w-full md:w-auto px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-[#a1c62e] max-w-full md:max-w-xs truncate shadow-2xs"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Volver</span>
-            </button>
-          )}
+              <option value="all">📁 Todos los Proyectos ({projects.length})</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} ({p.ciclo}) · {p.superficie_meta_ha} ha
+                </option>
+              ))}
+            </select>
 
-          {/* Selector de Proyecto */}
-          <select
-            value={activeProjectFilter}
-            onChange={(e) => {
-              setActiveProjectFilter(e.target.value);
-              if (onProjectChange) onProjectChange(e.target.value);
-            }}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-[#a1c62e] max-w-[200px] sm:max-w-xs truncate shadow-2xs"
-          >
-            <option value="all">📁 Todos los Proyectos ({projects.length})</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre} ({p.ciclo}) · {p.superficie_meta_ha} ha
-              </option>
-            ))}
-          </select>
+            {/* Selector de Estado (desktop) */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="hidden lg:block px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-semibold text-slate-700 dark:text-[#d4e6b5] focus:outline-none focus:border-[#a1c62e] shadow-2xs shrink-0"
+            >
+              <option value="all">Todos los Estados</option>
+              <option value="en_progreso">🔵 En Proceso</option>
+              <option value="completado">🟢 Completados</option>
+              <option value="pendiente">⚪ Pendientes</option>
+              <option value="bloqueado">🔴 Con Bloqueo</option>
+            </select>
+          </div>
 
-          {/* Selector de Estado (desktop) */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="hidden lg:block px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-semibold text-slate-700 dark:text-[#d4e6b5] focus:outline-none focus:border-[#a1c62e] shadow-2xs"
-          >
-            <option value="all">Todos los Estados</option>
-            <option value="en_progreso">🔵 En Proceso</option>
-            <option value="completado">🟢 Completados</option>
-            <option value="pendiente">⚪ Pendientes</option>
-            <option value="bloqueado">🔴 Con Bloqueo</option>
-          </select>
-
-          {/* Selector de Modo en Móvil (Gantt vs Lista) */}
-          <div className="flex md:hidden items-center bg-slate-100 dark:bg-[#1e2d01] rounded-xl p-0.5 border border-[#d3e2be] dark:border-[#3e5606]">
+          {/* Acciones rápidas de Fila 1 en móvil */}
+          <div className="flex md:hidden items-center gap-1 shrink-0">
             <button
               type="button"
-              onClick={() => setMobileTab('gantt')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
-                mobileTab === 'gantt'
-                  ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
-                  : 'text-slate-600 dark:text-[#d4e6b5]'
+              onClick={() => setShowMetrics(!showMetrics)}
+              className={`p-1.5 rounded-xl border text-xs font-bold transition shadow-2xs ${
+                showMetrics
+                  ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] border-[#2c4001] dark:border-[#a1c62e]'
+                  : 'bg-slate-100 dark:bg-[#1e2d01] text-slate-600 dark:text-[#d4e6b5] border-[#d3e2be] dark:border-[#3e5606]'
               }`}
+              title="Mostrar / Ocultar KPIs"
             >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Gantt</span>
+              <TrendingUp className="w-4 h-4" />
             </button>
             <button
               type="button"
-              onClick={() => setMobileTab('lista')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
-                mobileTab === 'lista'
-                  ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
-                  : 'text-slate-600 dark:text-[#d4e6b5]'
-              }`}
+              onClick={() => {
+                const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
+                handleToggleExpandAll(anyCollapsed);
+              }}
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
+              title="Expandir / Colapsar todo"
             >
-              <List className="w-3.5 h-3.5" />
-              <span>Lista</span>
+              <Sliders className="w-4 h-4" />
             </button>
+            {isModal && onCloseModal && (
+              <button
+                type="button"
+                onClick={onCloseModal}
+                className="p-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold transition"
+                title="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Grupo Derecho: Buscador + Escala + Acciones */}
-        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+        {/* FILA 2 & 3 EN MÓVIL / GRUPO DERECHO EN DESKTOP */}
+        <div className="flex flex-col sm:flex-row md:items-center gap-1.5 sm:gap-2 w-full md:w-auto md:ml-auto">
+          {/* Controles de Vista y Escala */}
+          <div className="flex items-center justify-between sm:justify-start gap-1.5">
+            {/* Selector de Modo en Móvil (Gantt vs Lista) */}
+            <div className="flex md:hidden items-center bg-slate-100 dark:bg-[#1e2d01] rounded-xl p-0.5 border border-[#d3e2be] dark:border-[#3e5606] shrink-0">
+              <button
+                type="button"
+                onClick={() => setMobileTab('gantt')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                  mobileTab === 'gantt'
+                    ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
+                    : 'text-slate-600 dark:text-[#d4e6b5]'
+                }`}
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                <span>Gantt</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('lista')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                  mobileTab === 'lista'
+                    ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
+                    : 'text-slate-600 dark:text-[#d4e6b5]'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Lista</span>
+              </button>
+            </div>
+
+            {/* Escala Temporal (Días / Semanas / Meses) */}
+            {mobileTab === 'gantt' && (
+              <div className="flex items-center bg-slate-100 dark:bg-[#1e2d01] rounded-xl p-0.5 border border-[#d3e2be] dark:border-[#3e5606] shrink-0">
+                {['dias', 'semanas', 'meses'].map((scale) => (
+                  <button
+                    key={scale}
+                    type="button"
+                    onClick={() => setTimeScale(scale)}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition ${
+                      timeScale === scale
+                        ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
+                        : 'text-slate-600 dark:text-[#d4e6b5] hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {scale}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Filtro de Estado en Modo Lista (Móvil) */}
+            {mobileTab === 'lista' && (
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="md:hidden px-2 py-1 rounded-xl bg-slate-50 dark:bg-[#1e2d01] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-semibold text-slate-700 dark:text-[#d4e6b5] focus:outline-none focus:border-[#a1c62e] shadow-2xs"
+              >
+                <option value="all">Todos los Estados</option>
+                <option value="en_progreso">🔵 En Proceso</option>
+                <option value="completado">🟢 Completados</option>
+                <option value="pendiente">⚪ Pendientes</option>
+                <option value="bloqueado">🔴 Con Bloqueo</option>
+              </select>
+            )}
+
+            {/* Botón Hoy */}
+            <button
+              type="button"
+              onClick={handleScrollToToday}
+              className="hidden sm:flex px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] hover:bg-[#e6f0d7] dark:bg-[#1e2d01] dark:hover:bg-[#152000] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold items-center gap-1 transition shadow-2xs shrink-0"
+              title="Centrar línea de tiempo en el día actual"
+            >
+              <Clock className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
+              <span>Hoy</span>
+            </button>
+          </div>
+
           {/* Buscador */}
-          <div className="relative w-28 sm:w-44">
+          <div className="relative w-full sm:w-44 md:w-36 lg:w-48">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -673,82 +781,53 @@ export default function GanttChart({
             )}
           </div>
 
-          {/* Escala Temporal (Días / Semanas / Meses) */}
-          <div className="flex items-center bg-slate-100 dark:bg-[#1e2d01] rounded-xl p-0.5 border border-[#d3e2be] dark:border-[#3e5606]">
-            {['dias', 'semanas', 'meses'].map((scale) => (
-              <button
-                key={scale}
-                type="button"
-                onClick={() => setTimeScale(scale)}
-                className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition ${
-                  timeScale === scale
-                    ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] shadow-2xs'
-                    : 'text-slate-600 dark:text-[#d4e6b5] hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                {scale}
-              </button>
-            ))}
-          </div>
-
-          {/* Botón Hoy */}
-          <button
-            type="button"
-            onClick={handleScrollToToday}
-            className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#f4f8ed] hover:bg-[#e6f0d7] dark:bg-[#1e2d01] dark:hover:bg-[#152000] text-[#2c4001] dark:text-[#a1c62e] border border-[#d3e2be] dark:border-[#3e5606] text-xs font-bold flex items-center gap-1 transition shadow-2xs"
-            title="Centrar línea de tiempo en el día actual"
-          >
-            <Clock className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
-            <span className="hidden xs:inline">Hoy</span>
-          </button>
-
-          {/* Alternar Métricas */}
-          <button
-            type="button"
-            onClick={() => setShowMetrics(!showMetrics)}
-            className={`p-1.5 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition shadow-2xs ${
-              showMetrics
-                ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] border-[#2c4001] dark:border-[#a1c62e]'
-                : 'bg-slate-100 dark:bg-[#1e2d01] text-slate-600 dark:text-[#d4e6b5] border-[#d3e2be] dark:border-[#3e5606]'
-            }`}
-            title="Mostrar / Ocultar KPIs"
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline">Métricas</span>
-          </button>
-
-          {/* Expandir / Colapsar Todo */}
-          <button
-            type="button"
-            onClick={() => {
-              const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
-              handleToggleExpandAll(anyCollapsed);
-            }}
-            className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
-            title="Expandir / Colapsar todo"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Pantalla Completa */}
-          <button
-            type="button"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
-            title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-
-          {isModal && onCloseModal && (
+          {/* Acciones de Desktop */}
+          <div className="hidden md:flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={onCloseModal}
-              className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition ml-1"
+              onClick={() => setShowMetrics(!showMetrics)}
+              className={`p-1.5 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition shadow-2xs ${
+                showMetrics
+                  ? 'bg-[#2c4001] text-white dark:bg-[#a1c62e] dark:text-[#2c4001] border-[#2c4001] dark:border-[#a1c62e]'
+                  : 'bg-slate-100 dark:bg-[#1e2d01] text-slate-600 dark:text-[#d4e6b5] border-[#d3e2be] dark:border-[#3e5606]'
+              }`}
+              title="Mostrar / Ocultar KPIs"
             >
-              Cerrar
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Métricas</span>
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const anyCollapsed = Object.values(expandedProjects).some((v) => !v);
+                handleToggleExpandAll(anyCollapsed);
+              }}
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
+              title="Expandir / Colapsar todo"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1e2d01] hover:bg-slate-200 dark:hover:bg-[#152000] text-slate-700 dark:text-[#d4e6b5] border border-[#d3e2be] dark:border-[#3e5606] transition"
+              title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+
+            {isModal && onCloseModal && (
+              <button
+                type="button"
+                onClick={onCloseModal}
+                className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition ml-1"
+              >
+                Cerrar
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -986,7 +1065,7 @@ export default function GanttChart({
       >
         <div
           style={{
-            width: `${(wbsCollapsedMobile ? 60 : 340) + timelineTotalWidth}px`,
+            width: `${wbsWidth + timelineTotalWidth}px`,
             minWidth: '100%'
           }}
           className="relative"
@@ -995,14 +1074,14 @@ export default function GanttChart({
           <div className="sticky top-0 z-30 flex bg-[#edf5e3] dark:bg-[#142002] border-b border-[#d3e2be] dark:border-[#253905] shadow-xs">
             {/* Esquina Superior Izquierda (Sticky Left + Top) */}
             <div
-              style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
-              className="sticky left-0 z-40 bg-[#edf5e3] dark:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] px-2 sm:px-3 py-2 flex items-center justify-between flex-shrink-0 shadow-xs transition-all"
+              style={{ width: `${wbsWidth}px` }}
+              className="sticky left-0 z-40 bg-[#edf5e3] dark:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] px-1.5 sm:px-3 py-2 flex items-center justify-between flex-shrink-0 shadow-xs transition-all"
             >
               {!wbsCollapsedMobile ? (
                 <>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#2c4001] dark:text-[#a1c62e] flex items-center gap-1.5 truncate">
-                    <Layers className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e]" />
-                    <span>Estructura / Tareas</span>
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#2c4001] dark:text-[#a1c62e] flex items-center gap-1 truncate">
+                    <Layers className="w-3.5 h-3.5 text-[#2c4001] dark:text-[#a1c62e] shrink-0" />
+                    <span className="truncate">Estructura</span>
                   </span>
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">
@@ -1011,7 +1090,7 @@ export default function GanttChart({
                     <button
                       type="button"
                       onClick={() => setWbsCollapsedMobile(!wbsCollapsedMobile)}
-                      className="p-1 rounded text-slate-500 hover:text-[#2c4001] dark:hover:text-[#a1c62e] md:hidden"
+                      className="p-1 rounded bg-[#dceac6] dark:bg-[#253905] text-[#2c4001] dark:text-[#a1c62e] hover:bg-[#cbdeb1] transition md:hidden flex items-center gap-0.5 text-[9px] font-bold"
                       title="Ocultar columna para ampliar cronograma"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
@@ -1070,7 +1149,7 @@ export default function GanttChart({
           {/* ================= LÍNEAS DE GUÍA VERTICALES & LÍNEA DE HOY ================= */}
           <div
             style={{
-              left: `${wbsCollapsedMobile ? 60 : 340}px`,
+              left: `${wbsWidth}px`,
               width: `${timelineTotalWidth}px`
             }}
             className="absolute top-12 bottom-0 pointer-events-none flex transition-all"
@@ -1137,12 +1216,12 @@ export default function GanttChart({
                     <div className="h-11 flex items-stretch hover:bg-[#f4f8ed] dark:hover:bg-[#1a2b03] transition-colors group">
                       {/* Celda Izquierda WBS (Sticky Left) */}
                       <div
-                        style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
-                        className="sticky left-0 z-20 bg-[#f8faf4] dark:bg-[#142002] group-hover:bg-[#eef5e4] dark:group-hover:bg-[#1a2903] border-r border-[#d3e2be] dark:border-[#253905] px-2 sm:px-3 flex items-center justify-between flex-shrink-0 transition-all shadow-2xs"
+                        style={{ width: `${wbsWidth}px` }}
+                        className="sticky left-0 z-20 bg-[#f8faf4] dark:bg-[#142002] group-hover:bg-[#eef5e4] dark:group-hover:bg-[#1a2903] border-r border-[#d3e2be] dark:border-[#253905] px-1.5 sm:px-3 flex items-center justify-between flex-shrink-0 transition-all shadow-2xs"
                       >
                         {!wbsCollapsedMobile ? (
                           <>
-                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 pr-2">
+                            <div className="flex items-center gap-1 sm:gap-2 min-w-0 pr-1 sm:pr-2">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1154,12 +1233,12 @@ export default function GanttChart({
                               </button>
                               <div className="min-w-0">
                                 <h4
-                                  className="text-xs font-black text-[#2c4001] dark:text-white truncate"
+                                  className="text-[11px] sm:text-xs font-black text-[#2c4001] dark:text-white truncate"
                                   title={p.nombre}
                                 >
                                   {p.nombre}
                                 </h4>
-                                <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                <div className="hidden sm:flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                                   <span className="font-semibold">{p.tipo}</span>
                                   <span>•</span>
                                   <span>{p.ciclo}</span>
@@ -1167,11 +1246,13 @@ export default function GanttChart({
                               </div>
                             </div>
 
-                            <div className="text-right flex-shrink-0 font-mono text-[10px]">
+                            <div className="text-right flex-shrink-0 font-mono text-[9px] sm:text-[10px]">
                               <span className="font-black text-[#2c4001] dark:text-[#a1c62e] block">
+                                {pPct}%
+                              </span>
+                              <span className="hidden sm:inline font-bold text-slate-500 text-[9px]">
                                 {pAcumHa}/{pTotalHa} ha
                               </span>
-                              <span className="font-bold text-emerald-700 dark:text-emerald-400">{pPct}%</span>
                             </div>
                           </>
                         ) : (
@@ -1267,12 +1348,12 @@ export default function GanttChart({
                             <div className="h-10 flex items-stretch hover:bg-[#f8faf4] dark:hover:bg-[#142002]/60 transition-colors group">
                               {/* Celda Izquierda WBS (Sticky Left) */}
                               <div
-                                style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
-                                className="sticky left-0 z-20 bg-white dark:bg-[#0e1601] group-hover:bg-[#f8faf4] dark:group-hover:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] pl-3 sm:pl-6 pr-2 sm:pr-3 flex items-center justify-between flex-shrink-0 transition-all"
+                                style={{ width: `${wbsWidth}px` }}
+                                className="sticky left-0 z-20 bg-white dark:bg-[#0e1601] group-hover:bg-[#f8faf4] dark:group-hover:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] pl-2 sm:pl-6 pr-1 sm:pr-3 flex items-center justify-between flex-shrink-0 transition-all"
                               >
                                 {!wbsCollapsedMobile ? (
                                   <>
-                                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 pr-2">
+                                    <div className="flex items-center gap-1 sm:gap-2 min-w-0 pr-1 sm:pr-2">
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -1286,28 +1367,28 @@ export default function GanttChart({
                                           <ChevronRight className="w-3 h-3" />
                                         )}
                                       </button>
-                                      <div className="w-4 h-4 rounded-full bg-[#dfb75c] text-[#2c4001] text-[9px] font-black flex items-center justify-center flex-shrink-0 shadow-xs">
+                                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#dfb75c] text-[#2c4001] text-[8px] sm:text-[9px] font-black flex items-center justify-center flex-shrink-0 shadow-xs">
                                         {h.orden}
                                       </div>
                                       <div className="min-w-0">
                                         <span
-                                          className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block"
+                                          className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 truncate block"
                                           title={h.nombre}
                                         >
                                           {h.nombre}
                                         </span>
-                                        <span className="text-[9px] text-slate-400 block font-medium">
+                                        <span className="text-[8px] sm:text-[9px] text-slate-400 block font-medium truncate">
                                           Meta: {formatDisplayDate(h.fecha_meta)}
                                         </span>
                                       </div>
                                     </div>
 
-                                    <div className="text-right flex-shrink-0 font-mono text-[9px]">
-                                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                                    <div className="text-right flex-shrink-0 font-mono text-[8px] sm:text-[9px]">
+                                      <span className="font-bold text-slate-700 dark:text-slate-300 block">
                                         {hMetaHa} ha
                                       </span>
                                       <span
-                                        className={`ml-1 text-[8px] font-bold px-1 py-0.2 rounded uppercase ${
+                                        className={`hidden sm:inline text-[8px] font-bold px-1 py-0.2 rounded uppercase ${
                                           statusBadgeStyles[h.estado] || statusBadgeStyles.pendiente
                                         }`}
                                       >
@@ -1417,44 +1498,44 @@ export default function GanttChart({
                                     key={`task-row-${t.id}`}
                                     className="h-8 flex items-stretch hover:bg-[#f8faf4] dark:hover:bg-[#142002]/30 transition-colors group"
                                   >
-                                    {/* Celda Izquierda de la Tarea (Sticky Left) */}
-                                    <div
-                                      style={{ width: `${wbsCollapsedMobile ? 60 : 340}px` }}
-                                      className="sticky left-0 z-20 bg-white dark:bg-[#0c1400] group-hover:bg-[#f8faf4] dark:group-hover:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] pl-6 sm:pl-10 pr-2 sm:pr-3 flex items-center justify-between flex-shrink-0 transition-all"
-                                    >
-                                      {!wbsCollapsedMobile ? (
-                                        <>
-                                          <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                                            <CheckSquare className="w-3 h-3 text-slate-400 shrink-0" />
-                                            <div className="min-w-0">
-                                              <span
-                                                className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate block"
-                                                title={t.nombre}
-                                              >
-                                                {t.nombre}
-                                              </span>
-                                              {t.responsable && (
-                                                <span className="text-[9px] text-slate-400 block font-normal">
-                                                  {t.responsable}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
+                                     {/* Celda Izquierda de la Tarea (Sticky Left) */}
+                                     <div
+                                       style={{ width: `${wbsWidth}px` }}
+                                       className="sticky left-0 z-20 bg-white dark:bg-[#0c1400] group-hover:bg-[#f8faf4] dark:group-hover:bg-[#142002] border-r border-[#d3e2be] dark:border-[#253905] pl-3 sm:pl-10 pr-1 sm:pr-3 flex items-center justify-between flex-shrink-0 transition-all"
+                                     >
+                                       {!wbsCollapsedMobile ? (
+                                         <>
+                                           <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 pr-1 sm:pr-2">
+                                             <CheckSquare className="w-3 h-3 text-slate-400 shrink-0" />
+                                             <div className="min-w-0">
+                                               <span
+                                                 className="text-[10px] sm:text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate block"
+                                                 title={t.nombre}
+                                               >
+                                                 {t.nombre}
+                                               </span>
+                                               {t.responsable && (
+                                                 <span className="text-[8px] sm:text-[9px] text-slate-400 block font-normal truncate">
+                                                   {t.responsable}
+                                                 </span>
+                                               )}
+                                             </div>
+                                           </div>
 
-                                          <div className="text-right flex-shrink-0 font-mono text-[9px]">
-                                            <span className="text-slate-600 dark:text-slate-400">
-                                              {tAcum}/{tMeta} {t.unidad || 'ha'}
-                                            </span>
-                                          </div>
-                                        </>
-                                      ) : (
-                                        <div className="w-full text-center">
-                                          <span className="text-[8px] font-mono text-slate-400">
-                                            {tPct}%
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
+                                           <div className="text-right flex-shrink-0 font-mono text-[8px] sm:text-[9px]">
+                                             <span className="text-slate-600 dark:text-slate-400">
+                                               {tAcum}/{tMeta}
+                                             </span>
+                                           </div>
+                                         </>
+                                       ) : (
+                                         <div className="w-full text-center">
+                                           <span className="text-[8px] font-mono text-slate-400">
+                                             {tPct}%
+                                           </span>
+                                         </div>
+                                       )}
+                                     </div>
 
                                     {/* Pista Derecha de la Tarea */}
                                     <div
@@ -1520,7 +1601,7 @@ export default function GanttChart({
         <button
           type="button"
           onClick={handleScrollToToday}
-          className="md:hidden fixed bottom-12 right-4 z-40 px-3 py-2 rounded-full bg-[#2c4001] text-[#a1c62e] border-2 border-[#a1c62e] shadow-xl flex items-center gap-1.5 text-xs font-black active:scale-95 transition"
+          className="md:hidden fixed bottom-6 right-4 z-40 px-3.5 py-2 rounded-full bg-[#2c4001] text-[#a1c62e] border-2 border-[#a1c62e] shadow-xl flex items-center gap-1.5 text-xs font-black active:scale-95 transition"
           title="Centrar cronograma en hoy"
         >
           <Clock className="w-4 h-4 text-[#a1c62e]" />

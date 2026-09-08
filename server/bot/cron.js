@@ -1,4 +1,8 @@
 const cron = require('node-cron');
+const projectRepository = require('../repositories/projectRepository');
+const reportRepository = require('../repositories/reportRepository');
+const issueRepository = require('../repositories/issueRepository');
+const machineRepository = require('../repositories/machineRepository');
 const { db } = require('../db/database');
 const { sendTopicMessage, generateTableroText, generateProyectosTareasText, getBotInstance } = require('./bot');
 const { getOperationalDate } = require('../utils/operationalDate');
@@ -15,12 +19,13 @@ async function runEveningCheck() {
   const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
 
   try {
-    const activeObras = await db.all("SELECT id, nombre, tg_thread_id FROM obra WHERE estado = 'operacion'");
+    const allObras = await projectRepository.findAllObras();
+    const activeObras = allObras.filter(o => o.estado === 'operacion');
     const sinReporte = [];
 
     for (const o of activeObras) {
-      const rep = await db.get('SELECT id FROM reporte WHERE obra_id = ? AND fecha_operativa = ?', [o.id, today]);
-      if (!rep) {
+      const reps = await reportRepository.findAll({ obra_id: o.id, fecha_desde: today, fecha_hasta: today, limit: 1 });
+      if (!reps || reps.length === 0) {
         sinReporte.push(o);
 
         // Si la obra tiene un tema específico en Telegram, enviar aviso directo a su tema
@@ -86,48 +91,49 @@ async function runNightlyTablero() {
 async function runMorningAlerts() {
   console.log('⏰ Ejecutando cron de las 08:00: Alertas matutinas de mantenimiento e incidencias...');
   try {
-    // 1. Incidencias en verificación o abiertas > 3 días
-    const incs = await db.all(`
-      SELECT i.folio, i.tipo, i.estado, i.abierta_en, o.nombre AS obra_nombre,
-             CAST((julianday('now') - julianday(i.abierta_en)) AS INTEGER) AS dias_abierta
-      FROM incidencia i
-      JOIN obra o ON i.obra_id = o.id
-      WHERE i.estado != 'cerrada'
-    `);
+    // 1. Incidencias abiertas
+    const allIncs = await issueRepository.findAll();
+    const incs = allIncs
+      .filter(i => i.estado !== 'cerrada')
+      .map(i => {
+        const diffTime = Math.abs(new Date() - new Date(i.abierta_en || Date.now()));
+        const diasAbierta = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return { ...i, dias_abierta: diasAbierta };
+      });
 
     if (incs.length > 0) {
       let incMsg = `🌅 *SEGUIMIENTO MATUTINO DE INCIDENCIAS (08:00)*\n\n`;
       incs.forEach(i => {
-        incMsg += `• *\`${i.folio}\`* [${i.estado.toUpperCase()}] ➔ *${i.dias_abierta} días* en ${i.obra_nombre} (${i.tipo})\n`;
+        incMsg += `• *\`${i.folio}\`* [${(i.estado || 'abierta').toUpperCase()}] ➔ *${i.dias_abierta} días* en ${i.obra_nombre || 'Obra'} (${i.tipo})\n`;
       });
       incMsg += `\n_Para cerrar formalmente:_ \`/cerrar [folio] [causa_raiz]\``;
       await sendTopicMessage('incidencias', incMsg);
     }
 
     // 2. Maquinaria próxima a servicio preventivo (280h+)
-    const maqsAlert = await db.all(`
-      SELECT codigo, modelo, horometro_actual, ultimo_servicio_hr
-      FROM maquina
-      WHERE (horometro_actual - ultimo_servicio_hr) >= 280
-    `);
+    const allMaqs = await machineRepository.findAllMachines();
+    const maqsAlert = allMaqs.filter(m => (m.horometro_actual - (m.ultimo_servicio_hr || 0)) >= 280);
 
     if (maqsAlert.length > 0) {
       let maqMsg = `🚜 *ALERTA DE MANTENIMIENTO PREVENTIVO 300H (08:00)*\n\n`;
       maqsAlert.forEach(m => {
-        const hrsRestantes = Math.max(0, 300 - (m.horometro_actual - m.ultimo_servicio_hr));
+        const hrsRestantes = Math.max(0, 300 - (m.horometro_actual - (m.ultimo_servicio_hr || 0)));
         maqMsg += `• *\`${m.codigo}\`* (${m.modelo}): *${m.horometro_actual} hrs* acumuladas ➔ Faltan *${hrsRestantes.toFixed(1)} hrs* para servicio obligatorio.\n`;
       });
       maqMsg += `\n_Por favor coordinar lubricación y cambio de filtros con Beche / Taller._`;
       await sendTopicMessage('tablero', maqMsg);
     }
 
-    // 3. Activos Fijos sin lectura por más de 30 días (Plan Maestro §4.4 y §3.4)
-    const activosSinLectura = await db.all(`
-      SELECT codigo, nombre, tipo, ubicacion, ultima_lectura_fecha,
-             CAST((julianday('now') - julianday(COALESCE(ultima_lectura_fecha, '2026-01-01'))) AS INTEGER) AS dias_sin_lectura
-      FROM activo_fijo
-      WHERE ultima_lectura_fecha IS NULL OR ultima_lectura_fecha < date('now', '-30 days')
-    `);
+    // 3. Activos Fijos sin lectura por más de 30 días
+    let activosSinLectura = [];
+    try {
+      activosSinLectura = await db.all(`
+        SELECT codigo, nombre, tipo, ubicacion, ultima_lectura_fecha,
+               CAST((julianday('now') - julianday(COALESCE(ultima_lectura_fecha, '2026-01-01'))) AS INTEGER) AS dias_sin_lectura
+        FROM activo_fijo
+        WHERE ultima_lectura_fecha IS NULL OR ultima_lectura_fecha < date('now', '-30 days')
+      `);
+    } catch (e) {}
 
     if (activosSinLectura.length > 0) {
       let actMsg = `🏛️ *ALERTA DE SUPERVISIÓN: ACTIVOS FIJOS SIN REVISIÓN > 30 DÍAS (08:00)*\n\n`;

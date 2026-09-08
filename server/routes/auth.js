@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { db } = require('../db/database');
-const { JWT_SECRET, requireJwtSecret, authenticateJWT, verifyTelegramWebAppData } = require('../middleware/auth');
+const userRepository = require('../repositories/userRepository');
+const { requireJwtSecret, authenticateJWT, verifyTelegramWebAppData } = require('../middleware/auth');
 
 /**
  * POST /api/auth/pin-login
@@ -18,11 +18,7 @@ router.post('/pin-login', async (req, res) => {
     }
 
     const cleanPin = pin.trim();
-
-    const user = await db.get(
-      'SELECT id, username, nombre, rol, pin, activo FROM usuario WHERE pin = ? AND activo = 1',
-      [cleanPin]
-    );
+    const user = await userRepository.findByPin(cleanPin);
 
     if (!user) {
       return res.status(401).json({ error: 'PIN no encontrado o incorrecto.' });
@@ -62,10 +58,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Debe ingresar usuario y contraseña.' });
     }
 
-    const user = await db.get(
-      'SELECT id, username, password_hash, nombre, rol, tg_user_id, activo FROM usuario WHERE username = ?',
-      [username.trim()]
-    );
+    const user = await userRepository.findByUsername(username.trim());
 
     if (!user || !user.activo) {
       return res.status(401).json({ error: 'Credenciales inválidas o usuario inactivo.' });
@@ -121,10 +114,7 @@ router.post('/telegram', async (req, res) => {
       return res.status(401).json({ error: 'Firma criptográfica de Telegram inválida o alterada.' });
     }
 
-    const user = await db.get(
-      'SELECT id, username, nombre, rol, tg_user_id, activo FROM usuario WHERE tg_user_id = ? AND activo = 1',
-      [String(tgUser.id)]
-    );
+    const user = await userRepository.findByTelegramId(String(tgUser.id));
 
     if (!user) {
       return res.status(404).json({

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
+const projectRepository = require('../repositories/projectRepository');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 
 /**
@@ -9,37 +10,18 @@ const { authenticateJWT, requireRole } = require('../middleware/auth');
  */
 router.get('/', authenticateJWT, async (req, res) => {
   try {
-    const projects = await db.all(`
-      SELECT p.*, u.nombre AS gerente_nombre,
-             (SELECT COUNT(*) FROM hito WHERE proyecto_id = p.id) AS total_hitos,
-             (SELECT COUNT(*) FROM obra WHERE proyecto_id = p.id) AS total_obras
-      FROM proyecto p
-      LEFT JOIN usuario u ON p.gerente_id = u.id
-      ORDER BY p.id ASC
-    `);
+    const projects = await projectRepository.findAllProjects();
 
     for (const p of projects) {
-      p.hitos = await db.all('SELECT * FROM hito WHERE proyecto_id = ? ORDER BY orden ASC, id ASC', [p.id]);
+      p.hitos = await projectRepository.findMilestonesByProjectId(p.id);
       for (const h of p.hitos) {
-        h.tareas = await db.all(`
-          SELECT t.*, pr.nombre AS predio_nombre
-          FROM tarea t
-          LEFT JOIN predio pr ON t.predio_id = pr.id
-          WHERE t.hito_id = ?
-          ORDER BY t.id ASC
-        `, [h.id]);
+        h.tareas = await projectRepository.findTasksByMilestoneId(h.id);
       }
-      p.obras = await db.all('SELECT * FROM obra WHERE proyecto_id = ? ORDER BY id ASC', [p.id]);
+      p.obras = await projectRepository.findAllObras(p.id);
       for (const ob of p.obras) {
-        ob.predios = await db.all(`
-          SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
-          FROM predio pr
-          JOIN obra_predio op ON pr.id = op.predio_id
-          WHERE op.obra_id = ?
-          ORDER BY pr.nombre ASC
-        `, [ob.id]);
+        ob.predios = await projectRepository.findPrediosByObraId(ob.id);
       }
-      p.mediciones = await db.all('SELECT * FROM medicion WHERE proyecto_id = ? ORDER BY fecha DESC', [p.id]);
+      p.mediciones = await projectRepository.findMedicionesByProjectId(p.id);
     }
 
     return res.json({ projects });
@@ -467,22 +449,10 @@ router.get('/cascade-options', authenticateJWT, async (req, res) => {
  */
 router.get('/predios', authenticateJWT, async (req, res) => {
   try {
-    const predios = await db.all(`
-      SELECT p.*,
-             (SELECT COUNT(*) FROM obra_predio WHERE predio_id = p.id) AS total_obras,
-             (SELECT COUNT(*) FROM tarea WHERE predio_id = p.id) AS total_tareas
-      FROM predio p
-      ORDER BY p.nombre ASC
-    `);
+    const predios = await projectRepository.findAllPredios();
 
     for (const pr of predios) {
-      pr.obras = await db.all(`
-        SELECT o.id, o.nombre, o.fase_actual, o.estado
-        FROM obra o
-        JOIN obra_predio op ON o.id = op.obra_id
-        WHERE op.predio_id = ?
-        ORDER BY o.nombre ASC
-      `, [pr.id]);
+      pr.obras = await projectRepository.findObrasByPredioId(pr.id);
     }
 
     return res.json({ predios });

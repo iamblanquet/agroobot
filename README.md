@@ -39,6 +39,10 @@ Este proyecto está preconfigurado para compilarse y desplegarse como un solo se
 | `TELEGRAM_BOT_TOKEN` | Tu Token de `@BotFather` |
 | `TELEGRAM_MINI_APP_URL` | La URL HTTPS que te asigne Render (ej. `https://agroobot-tesa.onrender.com`) |
 | `DB_PATH` | `./server/db/tesa_campo.sqlite` |
+
+### Preparación para Supabase
+
+La migración se está realizando por etapas y SQLite continúa siendo el motor activo. El esquema inicial de PostgreSQL se encuentra en `server/db/supabase-schema.sql`; ejecútalo desde el SQL Editor del proyecto Supabase cuando quieras crear las tablas base de usuarios y planeación. La conexión de diagnóstico está disponible en `/api/health/supabase` mediante `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
 | `TIMEZONE` | `America/Merida` |
 
 ---

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { db } = require('../db/database');
+const userRepository = require('../repositories/userRepository');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 
 /**
@@ -10,11 +10,7 @@ const { authenticateJWT, requireRole } = require('../middleware/auth');
  */
 router.get('/', authenticateJWT, requireRole('it'), async (req, res) => {
   try {
-    const users = await db.all(`
-      SELECT id, username, pin, nombre, rol, activo, creado_en
-      FROM usuario
-      ORDER BY id ASC
-    `);
+    const users = await userRepository.findAll();
     return res.json({ users });
   } catch (err) {
     console.error('Error en GET /api/users:', err);
@@ -34,29 +30,27 @@ router.post('/', authenticateJWT, requireRole('it'), async (req, res) => {
       return res.status(400).json({ error: 'Username, password, nombre y rol son obligatorios.' });
     }
 
-    const existing = await db.get('SELECT id FROM usuario WHERE username = ?', [username.trim()]);
+    const existing = await userRepository.findByUsername(username.trim());
     if (existing) {
       return res.status(400).json({ error: 'El nombre de usuario ya existe en el sistema.' });
     }
 
     // Si viene PIN, verificar que no esté repetido
     const cleanPin = pin ? pin.trim() : String(Math.floor(1000 + Math.random() * 9000));
-    const pinExisting = await db.get('SELECT id, nombre FROM usuario WHERE pin = ?', [cleanPin]);
+    const pinExisting = await userRepository.findExistingPin(cleanPin);
     if (pinExisting) {
       return res.status(400).json({ error: `El PIN ${cleanPin} ya está asignado a ${pinExisting.nombre}.` });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const result = await db.run(
-      `INSERT INTO usuario (username, password_hash, pin, nombre, rol, activo)
-       VALUES (?, ?, ?, ?, ?, 1)`,
-      [username.trim(), passwordHash, cleanPin, nombre.trim(), rol]
-    );
-
-    const newUser = await db.get(
-      'SELECT id, username, pin, nombre, rol, activo, creado_en FROM usuario WHERE id = ?',
-      [result.lastID]
-    );
+    const newUser = await userRepository.create({
+      username: username.trim(),
+      password_hash: passwordHash,
+      pin: cleanPin,
+      nombre: nombre.trim(),
+      rol,
+      activo: true
+    });
 
     return res.status(201).json({ success: true, user: newUser });
   } catch (err) {
@@ -74,49 +68,39 @@ router.patch('/:id', authenticateJWT, requireRole('it'), async (req, res) => {
     const { id } = req.params;
     const { nombre, rol, pin, activo, password } = req.body;
 
-    const user = await db.get('SELECT * FROM usuario WHERE id = ?', [id]);
+    const user = await userRepository.findById(id);
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
-    let passwordHash = user.password_hash;
-    if (password && password.trim().length > 0) {
-      passwordHash = await bcrypt.hash(password, 10);
+    const updateFields = {};
+
+    if (nombre !== undefined) {
+      updateFields.nombre = nombre.trim();
     }
 
-    let targetPin = user.pin;
+    if (rol !== undefined) {
+      updateFields.rol = rol;
+    }
+
+    if (activo !== undefined) {
+      updateFields.activo = Boolean(activo);
+    }
+
+    if (password && password.trim().length > 0) {
+      updateFields.password_hash = await bcrypt.hash(password, 10);
+    }
+
     if (pin !== undefined && pin !== null && String(pin).trim().length > 0) {
       const cleanPin = String(pin).trim();
-      const pinConflict = await db.get('SELECT id, nombre FROM usuario WHERE pin = ? AND id != ?', [cleanPin, id]);
+      const pinConflict = await userRepository.findExistingPin(cleanPin, id);
       if (pinConflict) {
         return res.status(400).json({ error: `El PIN ${cleanPin} ya está asignado a ${pinConflict.nombre}.` });
       }
-      targetPin = cleanPin;
+      updateFields.pin = cleanPin;
     }
 
-    await db.run(
-      `UPDATE usuario
-       SET nombre = ?,
-           rol = ?,
-           pin = ?,
-           activo = ?,
-           password_hash = ?
-       WHERE id = ?`,
-      [
-        nombre !== undefined ? nombre.trim() : user.nombre,
-        rol !== undefined ? rol : user.rol,
-        targetPin,
-        activo !== undefined ? (activo ? 1 : 0) : user.activo,
-        passwordHash,
-        id
-      ]
-    );
-
-    const updated = await db.get(
-      'SELECT id, username, pin, nombre, rol, activo, creado_en FROM usuario WHERE id = ?',
-      [id]
-    );
-
+    const updated = await userRepository.update(id, updateFields);
     return res.json({ success: true, user: updated });
   } catch (err) {
     console.error('Error en PATCH /api/users/:id:', err);

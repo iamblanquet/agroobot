@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db/database');
+const issueRepository = require('../repositories/issueRepository');
 const { authenticateJWT } = require('../middleware/auth');
 
 /**
@@ -10,27 +10,7 @@ const { authenticateJWT } = require('../middleware/auth');
 router.get('/', authenticateJWT, async (req, res) => {
   try {
     const { estado, obra_id } = req.query;
-    let query = `
-      SELECT i.*, o.nombre AS obra_nombre, p.nombre AS proyecto_nombre
-      FROM incidencia i
-      JOIN obra o ON i.obra_id = o.id
-      JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE 1=1
-    `;
-    const params = [];
-
-    if (estado) {
-      query += ` AND i.estado = ?`;
-      params.push(estado);
-    }
-    if (obra_id) {
-      query += ` AND i.obra_id = ?`;
-      params.push(obra_id);
-    }
-
-    query += ` ORDER BY CASE WHEN i.estado = 'cerrada' THEN 1 ELSE 0 END, i.abierta_en DESC`;
-
-    const issues = await db.all(query, params);
+    const issues = await issueRepository.findAll({ estado, obra_id });
     return res.json({ issues });
   } catch (err) {
     console.error('Error en GET /api/issues:', err);
@@ -50,28 +30,14 @@ router.post('/', authenticateJWT, async (req, res) => {
       return res.status(400).json({ error: 'El tipo de incidencia y la obra son obligatorios.' });
     }
 
-    // Generar Folio único INC-YYYY-XXX
-    const year = new Date().getFullYear();
-    const countRes = await db.get(
-      "SELECT COUNT(*) as total FROM incidencia WHERE folio LIKE ?",
-      [`INC-${year}-%`]
-    );
-    const seq = String((countRes?.total || 0) + 1).padStart(3, '0');
-    const folio = `INC-${year}-${seq}`;
-
-    const insertRes = await db.run(
-      `INSERT INTO incidencia (folio, tipo, obra_id, estado, abierta_en, causa_raiz)
-       VALUES (?, ?, ?, 'abierta', datetime('now'), ?)`,
-      [folio, tipo.trim(), obra_id, causa_raiz || null]
-    );
-
-    const newIssue = await db.get(
-      `SELECT i.*, o.nombre AS obra_nombre
-       FROM incidencia i
-       JOIN obra o ON i.obra_id = o.id
-       WHERE i.id = ?`,
-      [insertRes.lastID]
-    );
+    const folio = await issueRepository.generateNextFolio();
+    const newIssue = await issueRepository.create({
+      folio,
+      tipo: tipo.trim(),
+      obra_id,
+      causa_raiz: causa_raiz || null,
+      estado: 'abierta'
+    });
 
     // Notificar automáticamente al tema #Incidencias de Telegram
     try {
@@ -107,7 +73,7 @@ router.post('/:id/close', authenticateJWT, async (req, res) => {
       });
     }
 
-    const issue = await db.get('SELECT * FROM incidencia WHERE id = ?', [id]);
+    const issue = await issueRepository.findById(id);
     if (!issue) {
       return res.status(404).json({ error: 'Incidencia no encontrada.' });
     }
@@ -116,22 +82,7 @@ router.post('/:id/close', authenticateJWT, async (req, res) => {
       return res.status(400).json({ error: 'La incidencia ya se encuentra cerrada.' });
     }
 
-    await db.run(
-      `UPDATE incidencia
-       SET estado = 'cerrada',
-           cerrada_en = datetime('now'),
-           causa_raiz = ?
-       WHERE id = ?`,
-      [causa_raiz.trim(), id]
-    );
-
-    const updated = await db.get(
-      `SELECT i.*, o.nombre AS obra_nombre
-       FROM incidencia i
-       JOIN obra o ON i.obra_id = o.id
-       WHERE i.id = ?`,
-      [id]
-    );
+    const updated = await issueRepository.close(id, causa_raiz.trim());
 
     return res.json({
       success: true,
@@ -160,9 +111,7 @@ router.patch('/:id/status', authenticateJWT, async (req, res) => {
       });
     }
 
-    await db.run('UPDATE incidencia SET estado = ? WHERE id = ?', [estado, id]);
-    const updated = await db.get('SELECT * FROM incidencia WHERE id = ?', [id]);
-
+    const updated = await issueRepository.updateStatus(id, estado);
     return res.json({ success: true, issue: updated });
   } catch (err) {
     console.error('Error en PATCH /api/issues/:id/status:', err);

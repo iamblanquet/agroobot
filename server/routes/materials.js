@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db/database');
+const materialRepository = require('../repositories/materialRepository');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 const { getOperationalDate } = require('../utils/operationalDate');
 
@@ -11,23 +11,7 @@ const { getOperationalDate } = require('../utils/operationalDate');
 router.get('/', authenticateJWT, async (req, res) => {
   try {
     const { obra_id, solo_bloqueados } = req.query;
-    let query = `
-      SELECT m.*, o.nombre AS obra_nombre, p.nombre AS proyecto_nombre
-      FROM material m
-      JOIN obra o ON m.obra_id = o.id
-      JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE 1=1
-    `;
-    const params = [];
-
-    if (obra_id) {
-      query += ` AND m.obra_id = ?`;
-      params.push(obra_id);
-    }
-
-    query += ` ORDER BY m.obra_id ASC, m.nombre ASC`;
-
-    const rows = await db.all(query, params);
+    const rows = await materialRepository.findAll({ obra_id });
     const todayStr = getOperationalDate();
 
     const materials = rows.map((m) => {
@@ -63,13 +47,16 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it'), async (req, r
       return res.status(400).json({ error: 'Obra y nombre del material son obligatorios.' });
     }
 
-    const result = await db.run(
-      `INSERT INTO material (obra_id, nombre, requerido, en_sitio, pedido, unidad, eta)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [obra_id, nombre.trim(), requerido, en_sitio, pedido, unidad, eta || null]
-    );
+    const newMaterial = await materialRepository.create({
+      obra_id,
+      nombre: nombre.trim(),
+      requerido,
+      en_sitio,
+      pedido,
+      unidad,
+      eta: eta || null
+    });
 
-    const newMaterial = await db.get('SELECT * FROM material WHERE id = ?', [result.lastID]);
     return res.status(201).json({ success: true, material: newMaterial });
   } catch (err) {
     console.error('Error en POST /api/materials:', err);
@@ -91,15 +78,11 @@ router.patch('/:id/receive', authenticateJWT, async (req, res) => {
       return res.status(400).json({ error: 'La cantidad recibida debe ser mayor a 0.' });
     }
 
-    await db.run(
-      `UPDATE material
-       SET en_sitio = en_sitio + ?,
-           pedido = CASE WHEN pedido >= ? THEN pedido - ? ELSE 0 END
-       WHERE id = ?`,
-      [cant, cant, cant, id]
-    );
+    const updated = await materialRepository.receive(id, cant);
+    if (!updated) {
+      return res.status(404).json({ error: 'Material no encontrado.' });
+    }
 
-    const updated = await db.get('SELECT * FROM material WHERE id = ?', [id]);
     return res.json({ success: true, material: updated });
   } catch (err) {
     console.error('Error en PATCH /api/materials/:id/receive:', err);

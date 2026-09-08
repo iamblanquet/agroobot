@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { db } = require('../db/database');
+const userRepository = require('../repositories/userRepository');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -23,7 +23,7 @@ async function authenticateJWT(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, requireJwtSecret());
-    const user = await db.get('SELECT id, username, nombre, rol, tg_user_id, tg_chat_id, activo FROM usuario WHERE id = ?', [decoded.id]);
+    const user = await userRepository.findById(decoded.id);
 
     if (!user || !user.activo) {
       return res.status(401).json({ error: 'Usuario no encontrado o inactivo.' });

@@ -7,6 +7,7 @@ require('dotenv').config();
 const { initDatabase, db } = require('./db/database');
 const { initTelegramBot } = require('./bot/bot');
 const { requireJwtSecret } = require('./middleware/auth');
+const { isSupabaseConfigured, checkSupabaseConnection } = require('./db/supabase');
 
 const authRoutes = require('./routes/auth');
 const reportsRoutes = require('./routes/reports');
@@ -22,10 +23,8 @@ const PORT = process.env.PORT || 3000;
 
 // Configuración de Seguridad y Cabeceras para Telegram WebApp (Mini Apps)
 app.use((req, res, next) => {
-  // Remover X-Frame-Options para permitir incrustación dentro de Telegram Desktop y Mobile Web
   res.removeHeader('X-Frame-Options');
 
-  // CSP configurado con frame-ancestors según especificación
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; " +
@@ -66,6 +65,16 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development'
   });
+});
+
+// Diagnóstico independiente de Supabase
+app.get('/api/health/supabase', async (req, res) => {
+  try {
+    const result = await checkSupabaseConnection();
+    res.status(result.connected || !result.configured ? 200 : 503).json(result);
+  } catch (error) {
+    res.status(503).json({ configured: isSupabaseConfigured(), connected: false, message: error.message });
+  }
 });
 
 // Servir frontend compilado (Producción / Render)
@@ -114,14 +123,19 @@ if (fs.existsSync(clientDistPath)) {
 async function startServer() {
   try {
     requireJwtSecret();
-    await initDatabase();
+    const isSupabaseOnly = process.env.DISABLE_SQLITE === 'true' || process.env.SUPABASE_ONLY === 'true';
+    if (!isSupabaseOnly) {
+      await initDatabase();
 
-    // Auto-seed si no hay usuarios
-    const userCount = await db.get('SELECT COUNT(*) as count FROM usuario');
-    if (userCount?.count === 0) {
-      console.warn('⚠️ Base de datos SQLite vacía: creando datos iniciales temporales. Configure un disco persistente para conservarlos entre despliegues.');
-      const seed = require('./db/seed');
-      await seed();
+      // Auto-seed si no hay usuarios (solo desarrollo local SQLite)
+      const userCount = await db.get('SELECT COUNT(*) as count FROM usuario');
+      if (userCount?.count === 0) {
+        console.warn('⚠️ Base de datos SQLite vacía: creando datos iniciales temporales. Configure un disco persistente para conservarlos entre despliegues.');
+        const seed = require('./db/seed');
+        await seed();
+      }
+    } else {
+      console.log('⚡ Modo exclusivo Supabase / PostgreSQL activo. Inicialización de SQLite omitida.');
     }
 
     // Inicializar Bot de Telegram y Planificador de Tareas Cron (Docs 2 §4)
@@ -141,6 +155,8 @@ async function startServer() {
   }
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;

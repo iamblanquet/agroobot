@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db/database');
+const machineRepository = require('../repositories/machineRepository');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 
 /**
@@ -9,7 +9,7 @@ const { authenticateJWT, requireRole } = require('../middleware/auth');
  */
 router.get('/entidades', authenticateJWT, async (req, res) => {
   try {
-    const entidades = await db.all('SELECT * FROM entidad ORDER BY nombre ASC');
+    const entidades = await machineRepository.findAllEntidades();
     return res.json({ entidades });
   } catch (err) {
     console.error('Error al consultar entidades:', err);
@@ -23,15 +23,7 @@ router.get('/entidades', authenticateJWT, async (req, res) => {
  */
 router.get('/', authenticateJWT, async (req, res) => {
   try {
-    const rows = await db.all(`
-      SELECT m.*,
-             ep.nombre AS propietaria_nombre,
-             eo.nombre AS operadora_nombre
-      FROM maquina m
-      LEFT JOIN entidad ep ON m.propietaria_id = ep.id
-      LEFT JOIN entidad eo ON m.operadora_id = eo.id
-      ORDER BY m.id ASC
-    `);
+    const rows = await machineRepository.findAllMachines();
 
     const machines = rows.map((m) => {
       const umbral = m.umbral_servicio_hrs || 300;
@@ -91,32 +83,18 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), 
     const umbral = parseFloat(umbral_servicio_hrs) || 300;
     const alerta = (hActual - uServicio) >= (umbral - 20) ? 1 : 0;
 
-    const result = await db.run(
-      `INSERT INTO maquina (codigo, nombre, tipo, modelo, propietaria_id, operadora_id, umbral_servicio_hrs, horometro_actual, ultimo_servicio_hr, alerta_mantenimiento)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        codFinal,
-        nombre.trim(),
-        tipo,
-        modFinal,
-        propietaria_id ? parseInt(propietaria_id, 10) : null,
-        operadora_id ? parseInt(operadora_id, 10) : null,
-        umbral,
-        hActual,
-        uServicio,
-        alerta
-      ]
-    );
-
-    const newMachine = await db.get(`
-      SELECT m.*,
-             ep.nombre AS propietaria_nombre,
-             eo.nombre AS operadora_nombre
-      FROM maquina m
-      LEFT JOIN entidad ep ON m.propietaria_id = ep.id
-      LEFT JOIN entidad eo ON m.operadora_id = eo.id
-      WHERE m.id = ?
-    `, [result.lastID]);
+    const newMachine = await machineRepository.createMachine({
+      codigo: codFinal,
+      nombre: nombre.trim(),
+      tipo,
+      modelo: modFinal,
+      propietaria_id: propietaria_id ? parseInt(propietaria_id, 10) : null,
+      operadora_id: operadora_id ? parseInt(operadora_id, 10) : null,
+      umbral_servicio_hrs: umbral,
+      horometro_actual: hActual,
+      ultimo_servicio_hr: uServicio,
+      alerta_mantenimiento: alerta
+    });
 
     return res.status(201).json({ success: true, machine: newMachine });
   } catch (err) {
@@ -132,7 +110,7 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), 
 router.patch('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
     const { id } = req.params;
-    const machine = await db.get('SELECT * FROM maquina WHERE id = ?', [id]);
+    const machine = await machineRepository.findMachineById(id);
     if (!machine) {
       return res.status(404).json({ error: 'Máquina no encontrada.' });
     }
@@ -160,23 +138,18 @@ router.patch('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion
     const uServicio = ultimo_servicio_hr !== undefined ? parseFloat(ultimo_servicio_hr) : machine.ultimo_servicio_hr;
     const alerta = (hActual - uServicio) >= (umbral - 20) ? 1 : 0;
 
-    await db.run(
-      `UPDATE maquina
-       SET codigo = ?, nombre = ?, tipo = ?, modelo = ?, propietaria_id = ?, operadora_id = ?,
-           umbral_servicio_hrs = ?, horometro_actual = ?, ultimo_servicio_hr = ?, alerta_mantenimiento = ?
-       WHERE id = ?`,
-      [codFinal, nomFinal, tipoFinal, modFinal, propId, operId, umbral, hActual, uServicio, alerta, id]
-    );
-
-    const updated = await db.get(`
-      SELECT m.*,
-             ep.nombre AS propietaria_nombre,
-             eo.nombre AS operadora_nombre
-      FROM maquina m
-      LEFT JOIN entidad ep ON m.propietaria_id = ep.id
-      LEFT JOIN entidad eo ON m.operadora_id = eo.id
-      WHERE m.id = ?
-    `, [id]);
+    const updated = await machineRepository.updateMachine(id, {
+      codigo: codFinal,
+      nombre: nomFinal,
+      tipo: tipoFinal,
+      modelo: modFinal,
+      propietaria_id: propId,
+      operadora_id: operId,
+      umbral_servicio_hrs: umbral,
+      horometro_actual: hActual,
+      ultimo_servicio_hr: uServicio,
+      alerta_mantenimiento: alerta
+    });
 
     return res.json({ success: true, machine: updated });
   } catch (err) {
@@ -192,8 +165,7 @@ router.patch('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion
 router.delete('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
     const { id } = req.params;
-    await db.run('DELETE FROM lectura_maquina WHERE maquina_id = ?', [id]);
-    await db.run('DELETE FROM maquina WHERE id = ?', [id]);
+    await machineRepository.deleteMachine(id);
     return res.json({ success: true, message: 'Máquina eliminada del catálogo correctamente.' });
   } catch (err) {
     console.error('Error al eliminar máquina:', err);
@@ -208,32 +180,14 @@ router.delete('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccio
 router.post('/:id/service', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
     const { id } = req.params;
-    const machine = await db.get('SELECT * FROM maquina WHERE id = ?', [id]);
-    if (!machine) {
+    const updated = await machineRepository.recordService(id);
+    if (!updated) {
       return res.status(404).json({ error: 'Máquina no encontrada.' });
     }
 
-    await db.run(
-      `UPDATE maquina
-       SET ultimo_servicio_hr = horometro_actual,
-           alerta_mantenimiento = 0
-       WHERE id = ?`,
-      [id]
-    );
-
-    const updated = await db.get(`
-      SELECT m.*,
-             ep.nombre AS propietaria_nombre,
-             eo.nombre AS operadora_nombre
-      FROM maquina m
-      LEFT JOIN entidad ep ON m.propietaria_id = ep.id
-      LEFT JOIN entidad eo ON m.operadora_id = eo.id
-      WHERE m.id = ?
-    `, [id]);
-
     return res.json({
       success: true,
-      message: `Mantenimiento preventivo aplicado a ${machine.nombre || machine.codigo}. Horómetro de servicio reseteado a ${machine.horometro_actual} hrs.`,
+      message: `Mantenimiento preventivo aplicado a ${updated.nombre || updated.codigo}. Horómetro de servicio reseteado a ${updated.horometro_actual} hrs.`,
       machine: updated
     });
   } catch (err) {

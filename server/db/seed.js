@@ -31,7 +31,7 @@ async function seed() {
   await db.run('DELETE FROM usuario');
   try {
     await db.run("DELETE FROM sqlite_sequence");
-  } catch (e) {}
+  } catch (e) { }
 
   console.log('🧹 Tablas anteriores limpiadas correctamente.');
 
@@ -288,17 +288,15 @@ async function seed() {
     const projId = pRes.lastID;
     projMap[pd.key] = projId;
 
-    // Usar el hilo canónico asignado al proyecto/predio para evitar saturar el supergrupo con temas duplicados
+    // Intentar crear/vincular el tema real en Telegram Supergrupo
     let threadId = pd.defaultThread;
-    if (!threadId && process.env.SEED_CREATE_TELEGRAM_TOPICS === 'true') {
-      try {
-        const tgThread = await createObraForumTopic(pd.obraNombre, pd.nombre, pd.predios, { defaultThread: pd.defaultThread });
-        if (tgThread) {
-          threadId = String(tgThread);
-        }
-      } catch (tgErr) {
-        console.warn(`⚠️ No se pudo crear tema en Telegram para "${pd.obraNombre}": ${tgErr.message}. Usando thread ID: ${threadId}`);
+    try {
+      const tgThread = await createObraForumTopic(pd.obraNombre, pd.nombre, pd.predios);
+      if (tgThread) {
+        threadId = String(tgThread);
       }
+    } catch (tgErr) {
+      console.warn(`⚠️ No se pudo crear tema en Telegram para "${pd.obraNombre}": ${tgErr.message}. Usando thread ID: ${threadId}`);
     }
 
     const oRes = await db.run(

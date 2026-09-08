@@ -12,6 +12,7 @@
     "seed": "node server/db/seed.js",
     "migrate:supabase": "node server/db/migrate-to-supabase.js",
     "backup:export": "node server/db/export-backup.js",
+    "db:clear": "node server/db/clear-operational-data.js",
     "test": "node server/test_auth_flow.js && node server/test_http_endpoints.js",
     "client": "npm --prefix client run dev",
     "client:build": "npm --prefix client run build",

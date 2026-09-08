@@ -51,9 +51,9 @@ const projectRepository = {
     `, [id]);
   },
 
-  async createProject({ nombre, tipo, ciclo, superficie_meta_ha = 0, gerente_id = null, fecha_inicio = null, fecha_fin = null, estado = 'activo' }) {
+  async createProject({ nombre, tipo, ciclo, superficie_meta_ha = 0, fase_catalogo = 'Planificación Inicial', gerente_id = null, fecha_inicio = null, fecha_fin = null, estado = 'activo' }) {
     if (useSupabase()) {
-      return supabase.insertRow('proyecto', {
+      const payload = {
         nombre,
         tipo,
         ciclo,
@@ -62,13 +62,29 @@ const projectRepository = {
         fecha_inicio: fecha_inicio || null,
         fecha_fin: fecha_fin || null,
         estado
-      });
+      };
+      return supabase.insertRow('proyecto', payload);
     }
 
-    const res = await db.run(`
-      INSERT INTO proyecto (nombre, tipo, ciclo, superficie_meta_ha, gerente_id, fecha_inicio, fecha_fin, estado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [nombre, tipo, ciclo, superficie_meta_ha, gerente_id, fecha_inicio, fecha_fin, estado]);
+    let res;
+    try {
+      res = await db.run(`
+        INSERT INTO proyecto (nombre, tipo, ciclo, superficie_meta_ha, fase_catalogo, gerente_id, fecha_inicio, fecha_fin, estado)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [nombre, tipo, ciclo, superficie_meta_ha, fase_catalogo, gerente_id, fecha_inicio, fecha_fin, estado]);
+    } catch (_) {
+      try {
+        res = await db.run(`
+          INSERT INTO proyecto (nombre, tipo, ciclo, superficie_meta_ha, fase_catalogo, gerente_id, fecha_inicio, fecha_fin)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [nombre, tipo, ciclo, superficie_meta_ha, fase_catalogo, gerente_id, fecha_inicio, fecha_fin]);
+      } catch (fallbackErr) {
+        res = await db.run(`
+          INSERT INTO proyecto (nombre, tipo, ciclo, superficie_meta_ha, gerente_id, fecha_inicio, fecha_fin)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [nombre, tipo, ciclo, superficie_meta_ha, gerente_id, fecha_inicio, fecha_fin]);
+      }
+    }
 
     return this.findProjectById(res.lastID);
   },

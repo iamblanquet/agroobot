@@ -60,7 +60,7 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), 
     return res.status(201).json({ success: true, project: newProject });
   } catch (err) {
     console.error('Error al crear proyecto:', err);
-    return res.status(500).json({ error: 'Error al crear el proyecto.' });
+    return res.status(500).json({ error: 'Error al crear el proyecto: ' + err.message });
   }
 });
 

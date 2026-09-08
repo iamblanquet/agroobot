@@ -409,12 +409,14 @@ async function initDatabase() {
       }
     } catch (e) {}
 
-    // Columnas referenciales para Odoo
+    // Columnas referenciales para Odoo y Estados
     try { await db.run("ALTER TABLE entidad ADD COLUMN odoo_company_id INTEGER"); } catch (e) {}
     try { await db.run("ALTER TABLE predio ADD COLUMN odoo_partner_id INTEGER"); } catch (e) {}
     try { await db.run("ALTER TABLE maquina ADD COLUMN odoo_fleet_id INTEGER"); } catch (e) {}
     try { await db.run("ALTER TABLE material ADD COLUMN odoo_po_id INTEGER"); } catch (e) {}
     try { await db.run("ALTER TABLE usuario ADD COLUMN odoo_user_id INTEGER"); } catch (e) {}
+    try { await db.run("ALTER TABLE proyecto ADD COLUMN estado TEXT DEFAULT 'activo'"); } catch (e) {}
+    try { await db.run("ALTER TABLE proyecto ADD COLUMN fase_catalogo TEXT DEFAULT 'Planificación Inicial'"); } catch (e) {}
 
     // Sembrar Activos Fijos Canónicos (Plan Maestro §4.4)
     try {

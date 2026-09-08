@@ -100,6 +100,9 @@ async function testHttpEndpoints() {
       const repListRes = await requestJson('http://localhost:3099/api/reports?limit=5', 'GET', null, token);
       const repWithFotos = repListRes.reports?.find(r => r.client_uuid === syncUUID);
       console.log('   ✅ Reportes consultados:', repListRes.reports?.length, '| Fotos:', repWithFotos?.fotos?.length, '| Hora Offline:', repWithFotos?.hora_offline);
+      if (repWithFotos?.fotos?.length > 0) {
+        console.log('   📸 URL de Evidencia:', repWithFotos.fotos[0].url);
+      }
 
       // 6c. CRUD de Predios
       console.log('\n6c. Probando CRUD de Predios (/api/projects/predios)...');

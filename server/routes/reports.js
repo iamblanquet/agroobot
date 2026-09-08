@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const reportRepository = require('../repositories/reportRepository');
 const projectRepository = require('../repositories/projectRepository');
+const supabase = require('../db/supabase');
 const { authenticateJWT } = require('../middleware/auth');
 const { getOperationalDate } = require('../utils/operationalDate');
 
@@ -26,7 +27,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
     let syncedCount = 0;
     let ignoredCount = 0;
 
-    for (const item of reports) {
+    for (const reportData of reports) {
       const {
         client_uuid,
         proyecto_id,
@@ -45,23 +46,24 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         cuadrilla = [],
         maquinaria = [],
         fotos = []
-      } = item;
+      } = reportData;
 
       if (!client_uuid) {
-        results.push({ client_uuid: null, status: 'error', message: 'client_uuid es requerido.' });
+        results.push({ client_uuid: null, status: 'error', error: 'client_uuid es requerido' });
         continue;
       }
 
-      // Verificar si ya existe este client_uuid (idempotencia)
+      // Idempotencia: Verificar si ya existe este reporte
       const existing = await reportRepository.findByClientUuid(client_uuid);
       if (existing) {
         ignoredCount++;
-        results.push({ client_uuid, status: 'ignored', message: 'Reporte ya existía previamente en el servidor.' });
+        results.push({ client_uuid, id: existing.id, status: 'ignored_duplicate' });
         continue;
       }
 
+      // Validar estructuras mínimas
       if (!Array.isArray(lineas) || !Array.isArray(cuadrilla) || !Array.isArray(maquinaria) || !Array.isArray(fotos)) {
-        results.push({ client_uuid, status: 'error', message: 'Formato de reporte inválido.' });
+        results.push({ client_uuid, status: 'error', error: 'Formato inválido de arrays relacionales' });
         continue;
       }
 
@@ -73,17 +75,22 @@ router.post('/sync', authenticateJWT, async (req, res) => {
       }
 
       const opDate = fecha_operativa || getOperationalDate();
-      const author = autor_nombre || req.user.nombre || 'Operador de Campo';
-      const horaOff = hora_offline || null;
-      const creadoOff = creado_offline || null;
+      const horaOff = hora_offline || new Date().toTimeString().split(' ')[0];
+      const creadoOff = creado_offline || new Date().toISOString();
+      const author = autor_nombre || req.user?.nombre || req.user?.username || 'Anónimo';
 
-      // Procesar y guardar evidencias fotográficas en disco
+      // Procesar y guardar evidencias fotográficas (Soporte Supabase Storage y Disco Local)
       const uploadsDir = path.join(__dirname, '../uploads');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
       const savedFotos = [];
+      const useCloudStorage = Boolean(
+        process.env.SUPABASE_AUTH_ENABLED === 'true' &&
+        supabase.isSupabaseConfigured()
+      );
+
       if (Array.isArray(fotos) && fotos.length > 0) {
         for (let i = 0; i < fotos.length; i++) {
           const fotoItem = fotos[i];
@@ -95,17 +102,40 @@ router.post('/sync', authenticateJWT, async (req, res) => {
               const matches = dataUri.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
               if (matches) {
                 const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+                const mimeType = matches[1] === 'jpg' ? 'image/jpeg' : `image/${matches[1]}`;
                 const base64Data = matches[2];
+                const buffer = Buffer.from(base64Data, 'base64');
                 const filename = `foto_${client_uuid}_${Date.now()}_${i}.${ext}`;
                 const filePath = path.join(uploadsDir, filename);
-                fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
 
-                const publicUrl = `/uploads/${filename}`;
+                // Guardar copia local en uploads si se tiene acceso al sistema de archivos
+                try {
+                  fs.writeFileSync(filePath, buffer);
+                } catch (fsErr) {
+                  console.warn('⚠️ No se pudo guardar copia local en disco:', fsErr.message);
+                }
+
+                let publicUrl = `/uploads/${filename}`;
+
+                // Si Supabase Storage está activo, subir a bucket 'reportes'
+                if (useCloudStorage) {
+                  try {
+                    const storagePath = `evidencias/${filename}`;
+                    const uploaded = await supabase.uploadStorageFile('reportes', storagePath, buffer, mimeType);
+                    publicUrl = uploaded.publicUrl;
+                    console.log(`📷 [Supabase Storage] Evidencia subida: ${publicUrl}`);
+                  } catch (storageErr) {
+                    console.warn('⚠️ Error al subir a Supabase Storage, manteniendo copia local:', storageErr.message);
+                  }
+                }
+
                 savedFotos.push({ url: publicUrl, filePath, descripcion });
               }
             } catch (err) {
               console.warn('⚠️ Error al procesar imagen base64:', err.message);
             }
+          } else if (dataUri && (dataUri.startsWith('http://') || dataUri.startsWith('https://'))) {
+            savedFotos.push({ url: dataUri, filePath: dataUri, descripcion });
           } else if (dataUri && dataUri.startsWith('/uploads/')) {
             savedFotos.push({ url: dataUri, filePath: path.join(uploadsDir, path.basename(dataUri)), descripcion });
           }

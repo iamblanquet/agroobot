@@ -159,11 +159,12 @@ async function notifyReporte(reportData) {
   // Si hay bot y supergrupo configurado, enviar al tema específico de la obra
   if (botInstance && supergroupId) {
     const fs = require('fs');
-    const validFiles = (fotos || []).filter(f => f.filePath && fs.existsSync(f.filePath));
+    const validFiles = (fotos || []).filter(f => (f.filePath && fs.existsSync(f.filePath)) || (f.url && f.url.startsWith('http')));
     if (validFiles.length > 0) {
       try {
+        const getMediaSource = (f) => (f.filePath && fs.existsSync(f.filePath)) ? f.filePath : f.url;
         if (validFiles.length === 1) {
-          return await botInstance.sendPhoto(supergroupId, validFiles[0].filePath, {
+          return await botInstance.sendPhoto(supergroupId, getMediaSource(validFiles[0]), {
             caption: text,
             parse_mode: 'Markdown',
             ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
@@ -172,7 +173,7 @@ async function notifyReporte(reportData) {
           // Grupo de fotos (álbum)
           const mediaGroup = validFiles.slice(0, 10).map((f, idx) => ({
             type: 'photo',
-            media: f.filePath,
+            media: getMediaSource(f),
             caption: idx === 0 ? text : undefined,
             parse_mode: 'Markdown'
           }));

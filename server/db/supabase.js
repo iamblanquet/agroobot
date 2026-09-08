@@ -131,6 +131,76 @@ async function findUserById(id) {
   return rows[0] || null;
 }
 
+/**
+ * Gestión de Supabase Storage para Evidencias Fotográficas
+ */
+async function ensureBucket(bucketName = 'reportes', isPublic = true) {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+      }
+    });
+    if (!res.ok) return;
+    const buckets = await res.json();
+    if (!Array.isArray(buckets)) return;
+    const exists = buckets.some(b => b.name === bucketName || b.id === bucketName);
+    if (!exists) {
+      await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: bucketName,
+          name: bucketName,
+          public: isPublic,
+          file_size_limit: 10485760, // 10MB
+          allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+        })
+      });
+    }
+  } catch (err) {
+    console.warn(`[Supabase Storage] Error verificando/creando bucket '${bucketName}':`, err.message);
+  }
+}
+
+async function uploadStorageFile(bucketName, storagePath, fileBuffer, contentType = 'image/jpeg') {
+  if (!isSupabaseConfigured()) throw new Error('Supabase no está configurado.');
+  
+  const cleanPath = storagePath.replace(/^\//, '');
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucketName}/${cleanPath}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': contentType,
+      'x-upsert': 'true'
+    },
+    body: fileBuffer
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Error subiendo archivo a Supabase Storage: ${response.status} ${errorText}`);
+  }
+
+  const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${cleanPath}`;
+  return {
+    path: cleanPath,
+    publicUrl
+  };
+}
+
+function getStoragePublicUrl(bucketName, storagePath) {
+  const cleanPath = storagePath.replace(/^\//, '');
+  return `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${cleanPath}`;
+}
+
 module.exports = {
   isSupabaseConfigured,
   checkSupabaseConnection,
@@ -141,6 +211,10 @@ module.exports = {
   findUserByPin,
   findUserByUsername,
   findUserByTelegramId,
-  findUserById
+  findUserById,
+  ensureBucket,
+  uploadStorageFile,
+  getStoragePublicUrl
 };
+
 

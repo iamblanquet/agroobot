@@ -54,13 +54,15 @@ async function insertCronogramaProject() {
   const obraNombre = 'Frente Maíz Mecanizado Project';
   let obra = await db.get('SELECT id, tg_thread_id FROM obra WHERE nombre = ?', [obraNombre]);
   let obraId = null;
-  let threadId = '101';
+  let threadId = obra?.tg_thread_id || '153';
 
-  try {
-    const newThread = await createObraForumTopic(obraNombre, projNombre, [predio.nombre]);
-    if (newThread) threadId = String(newThread);
-  } catch (e) {
-    console.warn('⚠️ No se pudo crear tema en Telegram:', e.message);
+  if (!obra || !obra.tg_thread_id) {
+    try {
+      const newThread = await createObraForumTopic(obraNombre, projNombre, [predio.nombre]);
+      if (newThread) threadId = String(newThread);
+    } catch (e) {
+      console.warn('⚠️ No se pudo crear tema en Telegram:', e.message);
+    }
   }
 
   if (obra) {

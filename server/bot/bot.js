@@ -1054,7 +1054,30 @@ function initTelegramBot(app) {
  * @param {string[]} predioNombres
  * @returns {Promise<number|null>} message_thread_id creado o null
  */
-async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = []) {
+async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = [], options = {}) {
+  // 1. Si la creación de temas está explícitamente desactivada por configuración
+  if (process.env.DISABLE_TELEGRAM_TOPIC_CREATION === 'true') {
+    console.log(`ℹ️ [Telegram] Creación de temas desactivada por entorno. Omitiendo "${obraNombre}".`);
+    return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
+  }
+
+  // 2. Comprobar en base de datos si la obra ya existe con un tema asignado
+  if (!options.forceCreate) {
+    try {
+      const projectRepository = require('../repositories/projectRepository');
+      const existingObra = await projectRepository.findObraByName(obraNombre);
+      if (existingObra && existingObra.tg_thread_id) {
+        const threadNum = parseInt(existingObra.tg_thread_id, 10);
+        if (!isNaN(threadNum) && threadNum > 0) {
+          console.log(`ℹ️ [Telegram] Frente "${obraNombre}" ya tiene tema asignado (#${existingObra.tg_thread_id}). Reutilizando tema.`);
+          return threadNum;
+        }
+      }
+    } catch (_) {
+      // Continuar si la BD no está disponible en este momento
+    }
+  }
+
   if (!botInstance) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (token) {
@@ -1070,13 +1093,13 @@ async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = 
 
   if (!botInstance) {
     console.warn('⚠️ [createObraForumTopic] El bot de Telegram no está inicializado ni configurado en .env.');
-    return null;
+    return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
   }
 
   const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
   if (!supergroupId) {
-    console.warn(`⚠️ [createObraForumTopic] TELEGRAM_SUPERGROUP_ID no está configurado en .env ni detectado. No se puede crear el tema para "${obraNombre}".`);
-    return null;
+    console.warn(`⚠️ [createObraForumTopic] TELEGRAM_SUPERGROUP_ID no está configurado en .env. No se puede crear el tema para "${obraNombre}".`);
+    return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
   }
 
   try {
@@ -1110,12 +1133,16 @@ async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = 
       return threadId;
     }
   } catch (err) {
-    console.error(`❌ [Telegram] Error al crear tema para "${obraNombre}":`, err.message);
-    if (err.message && err.message.includes('not enough rights')) {
-      console.warn('👉 Asegúrate de que el bot tenga el permiso de Administrador: "Administrar Temas / Manage Topics" en el grupo de Telegram.');
+    if (err.message && err.message.includes('429')) {
+      console.warn(`⚠️ [Telegram Rate Limit] Límite de creación de temas alcanzado para "${obraNombre}". Se recomienda reutilizar temas existentes.`);
+    } else {
+      console.error(`❌ [Telegram] Error al crear tema para "${obraNombre}":`, err.message);
+      if (err.message && err.message.includes('not enough rights')) {
+        console.warn('👉 Asegúrate de que el bot tenga el permiso de Administrador: "Administrar Temas / Manage Topics" en el grupo de Telegram.');
+      }
     }
   }
-  return null;
+  return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
 }
 
 module.exports = {

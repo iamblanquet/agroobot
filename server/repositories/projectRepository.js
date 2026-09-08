@@ -282,6 +282,20 @@ const projectRepository = {
     return db.get('SELECT * FROM obra WHERE id = ?', [id]);
   },
 
+  async findObraByName(nombre) {
+    if (!nombre) return null;
+    const cleanName = nombre.trim();
+    if (useSupabase()) {
+      const rows = await supabase.selectRows('obra', {
+        select: '*',
+        filters: { nombre: `eq.${cleanName}`, limit: '1' }
+      });
+      return rows[0] || null;
+    }
+
+    return db.get('SELECT * FROM obra WHERE nombre = ? LIMIT 1', [cleanName]);
+  },
+
   async createObra({ nombre, proyecto_id, fase_actual = 'Inicio', estado = 'operacion', tg_thread_id = null }) {
     if (useSupabase()) {
       return supabase.insertRow('obra', {

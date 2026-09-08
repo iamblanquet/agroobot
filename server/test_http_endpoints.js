@@ -110,7 +110,8 @@ async function testHttpEndpoints() {
         nombre: 'Rancho Santa Fe Test',
         superficie_legal_ha: 25.5,
         superficie_util_ha: 20.0,
-        regimen: 'Propiedad Privada'
+        regimen: 'Propiedad Privada',
+        crear_frente_telegram: false
       }, token);
       console.log('   ✅ Predio Creado:', newPredioRes.predio?.nombre, '| ID:', newPredioRes.predio?.id);
 
@@ -126,6 +127,7 @@ async function testHttpEndpoints() {
         proyecto_id: 1,
         fase_actual: 'Habilitación',
         estado: 'operacion',
+        tg_thread_id: '999',
         predio_ids: [newPredioRes.predio.id]
       }, token);
       console.log('   ✅ Frente Creado:', newObraRes.obra?.nombre, '| ID:', newObraRes.obra?.id);

@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db/database');
 const { parseFreeTextReport, KNOWN_PREDIOS } = require('./parser');
 const { getOperationalDate } = require('../utils/operationalDate');
+const { formatCrew } = require('./formatCrew');
 
 let botInstance = null;
 
@@ -127,10 +128,7 @@ async function notifyReporte(reportData) {
       avanceTxt = `\n📊 *Avance:* ` + lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha || l.cantidad} ${l.unidad || 'ha'} (${l.actividad_id || 'Labor'})`).join(' · ');
     }
 
-    let cuadrillaTxt = '';
-    if (cuadrilla.length > 0) {
-      cuadrillaTxt = `\n👥 *Cuadrilla:* ` + cuadrilla.map(c => `${c.role_text || c.rol_id}: ${c.headcount}`).join(' · ');
-    }
+    const cuadrillaTxt = formatCrew(cuadrilla);
 
     let maqTxt = '';
     if (maquinaria && (Array.isArray(maquinaria) ? maquinaria.length > 0 : (typeof maquinaria === 'object' && maquinaria.codigo))) {
@@ -162,38 +160,36 @@ async function notifyReporte(reportData) {
     const validFiles = (fotos || []).filter(f => (f.filePath && fs.existsSync(f.filePath)) || (f.url && f.url.startsWith('http')));
     if (validFiles.length > 0) {
       try {
+        // Las listas de personal pueden superar el límite de pie de foto.
+        const separateText = text.length > 1000;
+        const caption = separateText ? '📷 Evidencias del reporte de campo' : text;
         const getMediaSource = (f) => (f.filePath && fs.existsSync(f.filePath)) ? f.filePath : f.url;
         if (validFiles.length === 1) {
-          return await botInstance.sendPhoto(supergroupId, getMediaSource(validFiles[0]), {
-            caption: text,
+          const sent = await botInstance.sendPhoto(supergroupId, getMediaSource(validFiles[0]), {
+            caption,
             parse_mode: 'Markdown',
             ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
           });
+          if (!separateText) return sent;
         } else {
           // Grupo de fotos (álbum)
           const mediaGroup = validFiles.slice(0, 10).map((f, idx) => ({
             type: 'photo',
             media: getMediaSource(f),
-            caption: idx === 0 ? text : undefined,
+            caption: idx === 0 ? caption : undefined,
             parse_mode: 'Markdown'
           }));
-          return await botInstance.sendMediaGroup(supergroupId, mediaGroup, {
+          const sent = await botInstance.sendMediaGroup(supergroupId, mediaGroup, {
             ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
           });
+          if (!separateText) return sent;
         }
       } catch (err) {
         console.warn('⚠️ Error al enviar fotos a Telegram, enviando texto alternativo:', err.message);
       }
     }
 
-    try {
-      return await botInstance.sendMessage(supergroupId, text, {
-        parse_mode: 'Markdown',
-        ...(targetThreadId ? { message_thread_id: targetThreadId } : {})
-      });
-    } catch (err) {
-      console.warn(`⚠️ Error al enviar reporte al tema del frente [thread_id: ${targetThreadId}]:`, err.message);
-    }
+    return sendTopicMessage('reportes', text, targetThreadId ? { message_thread_id: targetThreadId } : {});
   }
 
   return sendTopicMessage('reportes', text);

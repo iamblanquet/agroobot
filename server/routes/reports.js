@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
 const { authenticateJWT } = require('../middleware/auth');
+const { resolveCrew } = require('../services/crew');
 
 /**
  * POST /api/reports/sync
@@ -50,6 +51,14 @@ router.post('/sync', authenticateJWT, async (req, res) => {
       if (existing) {
         ignoredCount++;
         results.push({ client_uuid, status: 'ignored', message: 'Reporte ya existía previamente en el servidor.' });
+        continue;
+      }
+
+      let resolvedCrew;
+      try {
+        resolvedCrew = es_sin_actividad ? [] : await resolveCrew(cuadrilla);
+      } catch (err) {
+        results.push({ client_uuid, status: 'error', message: err.message });
         continue;
       }
 
@@ -116,13 +125,13 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         }
 
         // 2. Cuadrilla
-        for (const c of cuadrilla) {
+        for (const c of resolvedCrew) {
           const count = parseInt(c.headcount, 10) || 0;
           if (count > 0) {
             await db.run(
-              `INSERT INTO reporte_cuadrilla (reporte_id, rol_id, headcount)
-               VALUES (?, ?, ?)`,
-              [reporteId, c.rol_id, count]
+              `INSERT INTO reporte_cuadrilla (reporte_id, rol_id, headcount, empleados)
+               VALUES (?, ?, ?, ?)`,
+              [reporteId, c.rol_id, count, JSON.stringify(c.empleados || [])]
             );
           }
         }
@@ -176,7 +185,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           esSinActividad: !!es_sin_actividad,
           motivoSinActividad: motivo_sin_actividad,
           lineas,
-          cuadrilla,
+          cuadrilla: resolvedCrew,
           maquinaria,
           clientUuid: client_uuid
         });
@@ -244,6 +253,7 @@ router.get('/', authenticateJWT, async (req, res) => {
     for (const r of reports) {
       r.lineas = await db.all('SELECT * FROM reporte_linea WHERE reporte_id = ?', [r.id]);
       r.cuadrilla = await db.all('SELECT * FROM reporte_cuadrilla WHERE reporte_id = ?', [r.id]);
+      r.cuadrilla = r.cuadrilla.map(group => ({ ...group, empleados: JSON.parse(group.empleados) }));
       r.maquinaria = await db.all(`
         SELECT lm.*, m.codigo AS maquina_codigo, m.modelo AS maquina_modelo
         FROM lectura_maquina lm

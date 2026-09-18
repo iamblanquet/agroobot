@@ -48,6 +48,7 @@ app.use('/api/issues', issuesRoutes);
 app.use('/api/machines', machinesRoutes);
 app.use('/api/materials', materialsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/employees', require('./routes/employees'));
 app.use('/api/stats', statsRoutes);
 
 // Health check

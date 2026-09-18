@@ -6,6 +6,7 @@ import CampoView from './views/CampoView';
 import SupervisorView from './views/SupervisorView';
 import DireccionView from './views/DireccionView';
 import AdminView from './views/AdminView';
+import EmployeesView from './views/EmployeesView';
 
 export default function App() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
         {currentView === 'supervisor' && <SupervisorView />}
         {currentView === 'direccion' && <DireccionView />}
         {currentView === 'it' && <AdminView />}
+        {currentView === 'empleados' && ['supervisor', 'direccion', 'it'].includes(user.rol) && <EmployeesView />}
       </main>
     </div>
   );

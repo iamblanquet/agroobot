@@ -275,6 +275,12 @@ const DDL_SCHEMA = `
     FOREIGN KEY (proyecto_id) REFERENCES proyecto(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS empleado (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL CHECK(length(trim(nombre)) BETWEEN 1 AND 150),
+    puesto TEXT NOT NULL CHECK(length(trim(puesto)) BETWEEN 1 AND 100)
+  );
+
   -- Índices de Rendimiento
   CREATE INDEX IF NOT EXISTS idx_tarea_hito ON tarea(hito_id);
   CREATE INDEX IF NOT EXISTS idx_tarea_proyecto ON tarea(proyecto_id);
@@ -288,10 +294,18 @@ const DDL_SCHEMA = `
 async function initDatabase() {
   try {
     await db.exec(DDL_SCHEMA);
+    const employeeColumns = await db.all('PRAGMA table_info(empleado)');
+    if (!employeeColumns.some(column => column.name === 'roles')) {
+      await db.run("ALTER TABLE empleado ADD COLUMN roles TEXT NOT NULL DEFAULT '[]'");
+    }
+    const crewColumns = await db.all('PRAGMA table_info(reporte_cuadrilla)');
+    if (!crewColumns.some(column => column.name === 'empleados')) {
+      await db.run("ALTER TABLE reporte_cuadrilla ADD COLUMN empleados TEXT NOT NULL DEFAULT '[]'");
+    }
     try {
       await db.run("ALTER TABLE usuario ADD COLUMN pin TEXT");
     } catch (e) {}
-    console.log('✅ Esquema DDL de SQLite inicializado correctamente (15 tablas relacionales).');
+    console.log('✅ Esquema DDL de SQLite inicializado correctamente.');
   } catch (err) {
     console.error('❌ Error al inicializar esquema DDL:', err);
     throw err;

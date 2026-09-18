@@ -36,7 +36,7 @@ async function migrate() {
   const usuarios = await db.all('SELECT id, username, password_hash, nombre, rol, pin, activo, tg_user_id, tg_chat_id, creado_en FROM usuario');
   const proyectos = await db.all('SELECT id, nombre, tipo, ciclo, fecha_inicio, fecha_fin, superficie_meta_ha, gerente_id FROM proyecto');
   const hitos = await db.all('SELECT id, proyecto_id, nombre, descripcion, orden, fecha_meta, superficie_meta_ha, estado FROM hito');
-  const tareas = await db.all('SELECT id, hito_id, proyecto_id, predio_id, nombre, actividad_id, unidad, cantidad_meta, cantidad_acumulada, estado, responsable FROM tarea');
+  const tareas = await db.all('SELECT id, hito_id, proyecto_id, predio_id, nombre, actividad_id, unidad, cantidad_meta, cantidad_acumulada, estado, responsable, fecha_inicio, fecha_fin, dependencias FROM tarea');
   const predios = await db.all('SELECT id, nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson FROM predio');
   const obras = await db.all('SELECT id, nombre, proyecto_id, fase_actual, estado, tg_thread_id FROM obra');
   const obraPredios = await db.all('SELECT * FROM obra_predio');
@@ -57,7 +57,7 @@ async function migrate() {
   await upsert('usuario', usuarios.map((row) => ({ ...row, activo: Boolean(row.activo) })));
   await upsert('proyecto', proyectos);
   await upsert('hito', hitos);
-  await upsert('tarea', tareas);
+  await upsert('tarea', tareas.map(row => ({ ...row, dependencias: JSON.parse(row.dependencias || '[]') })));
   await upsert('predio', predios);
   await upsert('entidad', entidades.map((row) => ({ ...row, activo: Boolean(row.activo) })));
   await upsert('obra', obras);

@@ -26,7 +26,7 @@ export default function GanttView({ initialProjectId = null, onNavigateBack = nu
     setIsLoading(true);
     setError(null);
     try {
-      const resp = await api.get('/projects');
+      const resp = await api.get('/gantt');
       setProjects(resp.projects || []);
     } catch (err) {
       setError(err.message || 'Error al cargar proyectos e hitos para el Diagrama de Gantt.');
@@ -71,6 +71,7 @@ export default function GanttView({ initialProjectId = null, onNavigateBack = nu
 
   return (
     <div className="w-full h-full flex-1 flex flex-col overflow-hidden">
+      {error && <p role="alert" className="p-3 text-sm text-red-600">{error}</p>}
       {/* Diagrama de Gantt Principal Integrado Nativamente */}
       <GanttChart
         projects={projects}

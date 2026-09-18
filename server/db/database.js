@@ -360,6 +360,10 @@ const DDL_SCHEMA = `
 async function initDatabase() {
   try {
     await db.exec(DDL_SCHEMA);
+    const taskColumns = await db.all('PRAGMA table_info(tarea)');
+    for (const [name, type] of [['fecha_inicio', 'TEXT'], ['fecha_fin', 'TEXT'], ['dependencias', "TEXT NOT NULL DEFAULT '[]'"]]) {
+      if (!taskColumns.some(column => column.name === name)) await db.run(`ALTER TABLE tarea ADD COLUMN ${name} ${type}`);
+    }
     const employeeColumns = await db.all('PRAGMA table_info(empleado)');
     if (!employeeColumns.some(column => column.name === 'roles')) {
       await db.run("ALTER TABLE empleado ADD COLUMN roles TEXT NOT NULL DEFAULT '[]'");

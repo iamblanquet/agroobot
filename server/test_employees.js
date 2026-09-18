@@ -35,35 +35,35 @@ async function run() {
   try {
     assert.equal((await request('GET', '', undefined, null)).status, 401);
     for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
-      assert.equal((await request(method, ['PATCH', 'DELETE'].includes(method) ? '/1' : '', method === 'GET' ? undefined : { nombre: 'Ana', puesto: 'Operadora', roles: ['operadores'] }, 'campo')).status, 403);
+      assert.equal((await request(method, ['PATCH', 'DELETE'].includes(method) ? '/1' : '', method === 'GET' ? undefined : { nombre: 'Ana', roles: ['operadores'] }, 'campo')).status, 403);
     }
     assert.deepEqual((await request('GET')).data.employees, []);
-    for (const body of [{}, { nombre: ' ', puesto: 'Operador' }, { nombre: 123, puesto: 'Operador' }, { nombre: 'Ana', puesto: 'x'.repeat(101) }]) {
+    for (const body of [{}, { nombre: ' ', puesto: 'Operador' }, { nombre: 123, puesto: 'Operador' }, { nombre: 'x'.repeat(151), roles: ['operadores'] }]) {
       assert.equal((await request('POST', '', body)).status, 400);
     }
-    const created = await request('POST', '', { nombre: ' Ana Pérez ', puesto: ' Operadora ', roles: ['operadores', 'tecnicos'] });
+    const created = await request('POST', '', { nombre: ' Ana Pérez ', roles: ['operadores', 'tecnicos'] });
     assert.equal(created.status, 201);
     assert.equal(created.data.employee.nombre, 'Ana Pérez');
     assert.deepEqual(created.data.employee.roles, ['operadores', 'tecnicos']);
     const id = created.data.employee.id;
-    assert.equal((await request('PATCH', `/${id}`, { nombre: 'Ana Pérez', puesto: 'Supervisora', roles: ['tecnicos', 'auxiliares'] }, 'direccion')).status, 200);
+    assert.equal((await request('PATCH', `/${id}`, { nombre: 'Ana Pérez', roles: ['tecnicos', 'auxiliares'] }, 'direccion')).status, 200);
     await initDatabase();
     const list = await request('GET', '', undefined, 'it');
-    assert.equal(list.data.employees[0].puesto, 'Supervisora');
+    assert.equal('puesto' in list.data.employees[0], false);
     assert.deepEqual(list.data.employees[0].roles, ['tecnicos', 'auxiliares']);
     for (const roles of [[], ['administrador'], 'operadores', null, ['operadores', 1]]) {
-      assert.equal((await request('POST', '', { nombre: 'Ana', puesto: 'Operadora', roles })).status, 400);
-      assert.equal((await request('PATCH', `/${id}`, { nombre: 'Ana', puesto: 'Operadora', roles })).status, 400);
+      assert.equal((await request('POST', '', { nombre: 'Ana', roles })).status, 400);
+      assert.equal((await request('PATCH', `/${id}`, { nombre: 'Ana', roles })).status, 400);
     }
     const allRoles = ['operadores', 'tecnicos', 'auxiliares'];
-    assert.equal((await request('PATCH', `/${id}`, { nombre: 'Ana', puesto: 'Operadora', roles: allRoles })).status, 200);
+    assert.equal((await request('PATCH', `/${id}`, { nombre: 'Ana', roles: allRoles })).status, 200);
     assert.deepEqual((await request('GET')).data.employees[0].roles, allRoles);
     assert.equal((await request('DELETE', '/invalid')).status, 400);
     assert.equal((await request('DELETE', `/${id}`, undefined, 'it')).status, 200);
     assert.deepEqual((await request('GET')).data.employees, []);
     assert.equal((await request('DELETE', `/${id}`)).status, 404);
-    assert.equal((await request('PATCH', '/99999', { nombre: 'Ana', puesto: 'Operadora', roles: ['operadores'] })).status, 404);
-    assert.equal((await request('PATCH', '/invalid', { nombre: 'Ana', puesto: 'Operadora', roles: ['operadores'] })).status, 400);
+    assert.equal((await request('PATCH', '/99999', { nombre: 'Ana', roles: ['operadores'] })).status, 404);
+    assert.equal((await request('PATCH', '/invalid', { nombre: 'Ana', roles: ['operadores'] })).status, 400);
     console.log('Empleados: CRUD, roles múltiples, validación, permisos y migración sin pérdida de datos correctos.');
   } finally {
     await new Promise(resolve => server.close(resolve));

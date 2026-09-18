@@ -37,7 +37,7 @@ async function run() {
     assert.equal((await request('/reports/sync', valid)).ignoredCount, 1);
     const saved = (await request('/reports')).reports[0].cuadrilla[0];
     assert.equal(saved.headcount, 1);
-    assert.deepEqual(saved.empleados, [{ id: employeeId, nombre: 'Ana Pérez', puesto: 'Maquinaria' }]);
+    assert.deepEqual(saved.empleados, [{ id: employeeId, nombre: 'Ana Pérez' }]);
 
     for (const [uuid, cuadrilla] of [
       ['duplicate', [{ rol_id: 'operador', empleados: [{ id: employeeId }] }, { rol_id: 'tecnico', empleados: [{ id: employeeId }] }]],

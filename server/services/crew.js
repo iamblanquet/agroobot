@@ -17,11 +17,11 @@ async function resolveCrew(crew) {
     for (const selection of group.empleados) {
       const id = selection?.id;
       if (!Number.isSafeInteger(id) || id < 1 || selectedIds.has(id)) throw new Error('Cada empleado debe seleccionarse una sola vez en la cuadrilla.');
-      const employee = await db.get('SELECT id, nombre, puesto, roles FROM empleado WHERE id = ?', [id]);
+      const employee = await db.get('SELECT id, nombre, roles FROM empleado WHERE id = ?', [id]);
       if (!employee) throw new Error('Un empleado seleccionado ya no está registrado. Actualiza el catálogo y revisa la cuadrilla.');
       if (!JSON.parse(employee.roles).includes(roleMap[group.rol_id])) throw new Error(`${employee.nombre} no tiene el rol seleccionado. Revisa la cuadrilla.`);
       selectedIds.add(id);
-      employees.push({ id: employee.id, nombre: employee.nombre, puesto: employee.puesto });
+      employees.push({ id: employee.id, nombre: employee.nombre });
     }
     resolved.push({ rol_id: group.rol_id, headcount: employees.length, empleados: employees });
   }

@@ -203,9 +203,9 @@ export default function CampoView() {
         : [],
       cuadrilla: !esSinActividad
         ? [
-            { rol_id: 'operador', headcount: cuadrilla.operadores.length, empleados: cuadrilla.operadores.map(({ id, nombre, puesto }) => ({ id, nombre, puesto })) },
-            { rol_id: 'tecnico', headcount: cuadrilla.tecnicos.length, empleados: cuadrilla.tecnicos.map(({ id, nombre, puesto }) => ({ id, nombre, puesto })) },
-            { rol_id: 'auxiliar', headcount: cuadrilla.auxiliares.length, empleados: cuadrilla.auxiliares.map(({ id, nombre, puesto }) => ({ id, nombre, puesto })) }
+            { rol_id: 'operador', headcount: cuadrilla.operadores.length, empleados: cuadrilla.operadores.map(({ id, nombre }) => ({ id, nombre })) },
+            { rol_id: 'tecnico', headcount: cuadrilla.tecnicos.length, empleados: cuadrilla.tecnicos.map(({ id, nombre }) => ({ id, nombre })) },
+            { rol_id: 'auxiliar', headcount: cuadrilla.auxiliares.length, empleados: cuadrilla.auxiliares.map(({ id, nombre }) => ({ id, nombre })) }
           ]
         : [],
       maquinaria: !esSinActividad && incluirMaquinaria && selectedMaquinaId

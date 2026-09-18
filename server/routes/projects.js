@@ -357,7 +357,7 @@ router.get('/cascade-options', authenticateJWT, async (req, res) => {
     const obras = await db.all('SELECT id, proyecto_id, nombre, fase_actual, estado FROM obra ORDER BY nombre ASC');
     const predios = await db.all('SELECT id, nombre, superficie_legal_ha, superficie_util_ha, regimen FROM predio ORDER BY nombre ASC');
     const maquinas = await db.all('SELECT id, codigo, modelo, horometro_actual, alerta_mantenimiento FROM maquina ORDER BY codigo ASC');
-    const empleados = await db.all('SELECT id, nombre, puesto, roles FROM empleado ORDER BY nombre COLLATE NOCASE, id');
+    const empleados = await db.all('SELECT id, nombre, roles FROM empleado ORDER BY nombre COLLATE NOCASE, id');
 
     return res.json({
       proyectos,

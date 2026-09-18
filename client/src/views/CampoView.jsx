@@ -154,9 +154,6 @@ export default function CampoView() {
 
   // Selección automática de primeros elementos
   useEffect(() => {
-    if (catalog.proyectos.length > 0 && !selectedProyectoId) {
-      setSelectedProyectoId(catalog.proyectos[0].id);
-    }
     if (catalog.predios.length > 0 && !selectedPredioId) {
       setSelectedPredioId(catalog.predios[0].id);
     }
@@ -169,23 +166,30 @@ export default function CampoView() {
     }
   }, [catalog]);
 
+  const filteredProyectos = catalog.proyectos.filter(project =>
+    (project.predio_ids || []).map(String).includes(String(selectedPredioId)));
+  useEffect(() => {
+    if (!filteredProyectos.some(p => String(p.id) === String(selectedProyectoId))) setSelectedProyectoId('');
+    setSelectedObraId('');
+  }, [selectedPredioId, catalog.proyectos]);
+
   // Filtrar Hitos según Proyecto
   const filteredHitos = catalog.hitos.filter(
     (h) => String(h.proyecto_id) === String(selectedProyectoId)
   );
   const filteredObras = catalog.obras.filter(
-    (obra) => String(obra.proyecto_id) === String(selectedProyectoId)
+    (obra) => String(obra.proyecto_id) === String(selectedProyectoId) && (obra.predios || []).some(p => String(p.id) === String(selectedPredioId))
   );
 
   useEffect(() => {
     if (filteredObras.length > 0) {
       if (!filteredObras.some((obra) => String(obra.id) === String(selectedObraId))) {
-        setSelectedObraId(filteredObras[0].id);
+        setSelectedObraId('');
       }
     } else {
       setSelectedObraId('');
     }
-  }, [selectedProyectoId, catalog.obras]);
+  }, [selectedProyectoId, selectedPredioId, catalog.obras]);
 
   useEffect(() => {
     if (filteredHitos.length > 0) {
@@ -199,7 +203,7 @@ export default function CampoView() {
 
   // Filtrar Tareas según Hito
   const filteredTareas = catalog.tareas.filter(
-    (t) => String(t.hito_id) === String(selectedHitoId)
+    (t) => String(t.hito_id) === String(selectedHitoId) && (!t.predio_id || String(t.predio_id) === String(selectedPredioId))
   );
 
   useEffect(() => {
@@ -210,7 +214,7 @@ export default function CampoView() {
     } else {
       setSelectedTareaId('');
     }
-  }, [selectedHitoId, catalog.tareas]);
+  }, [selectedHitoId, selectedPredioId, catalog.tareas]);
 
   // Manejo de cambio de máquina
   const handleMaquinaChange = (maqId) => {
@@ -258,6 +262,7 @@ export default function CampoView() {
     const reportPayload = {
       client_uuid: clientUuid,
       obra_id: parseInt(selectedObraId, 10) || null,
+      predio_id: parseInt(selectedPredioId, 10) || null,
       proyecto_id: parseInt(selectedProyectoId, 10) || null,
       hito_id: parseInt(selectedHitoId, 10) || null,
       tarea_id: parseInt(selectedTareaId, 10) || null,
@@ -407,17 +412,38 @@ export default function CampoView() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Predio */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                Predio / Lote
+              </label>
+              <select
+                required
+                value={selectedPredioId}
+                onChange={(e) => setSelectedPredioId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none"
+              >
+                {catalog.predios.map((pr) => (
+                  <option key={pr.id} value={pr.id}>
+                    {pr.nombre} ({pr.superficie_util_ha} ha útiles)
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Proyecto */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Proyecto
               </label>
               <select
+                required
                 value={selectedProyectoId}
                 onChange={(e) => setSelectedProyectoId(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none"
               >
-                {catalog.proyectos.map((p) => (
+                <option value="">Selecciona un proyecto del predio...</option>
+                {filteredProyectos.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nombre} ({p.ciclo})
                   </option>
@@ -493,10 +519,12 @@ export default function CampoView() {
                 Frente / Obra
               </label>
               <select
+                required
                 value={selectedObraId}
                 onChange={(e) => setSelectedObraId(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none"
               >
+                <option value="">Selecciona un frente de obra...</option>
                 {filteredObras.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.nombre} ({o.fase_actual})
@@ -505,23 +533,7 @@ export default function CampoView() {
               </select>
             </div>
 
-            {/* Predio */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                Predio / Lote
-              </label>
-              <select
-                value={selectedPredioId}
-                onChange={(e) => setSelectedPredioId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none"
-              >
-                {catalog.predios.map((pr) => (
-                  <option key={pr.id} value={pr.id}>
-                    {pr.nombre} ({pr.superficie_util_ha} ha útiles)
-                  </option>
-                ))}
-              </select>
-            </div>
+
           </div>
         </div>
 

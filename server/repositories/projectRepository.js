@@ -227,21 +227,22 @@ const projectRepository = {
     return db.get('SELECT * FROM predio WHERE id = ?', [id]);
   },
 
-  async createPredio({ nombre, superficie_legal_ha = 0, superficie_util_ha = 0, regimen = '', poligono_geojson = null }) {
+  async createPredio({ nombre, superficie_legal_ha = 0, superficie_util_ha = 0, regimen = '', poligono_geojson = null, tg_thread_id = null }) {
     if (useSupabase()) {
       return supabase.insertRow('predio', {
         nombre,
         superficie_legal_ha,
         superficie_util_ha,
         regimen,
-        poligono_geojson
+        poligono_geojson,
+        tg_thread_id
       });
     }
 
     const res = await db.run(`
-      INSERT INTO predio (nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson)
-      VALUES (?, ?, ?, ?, ?)
-    `, [nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson]);
+      INSERT INTO predio (nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson, tg_thread_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson, tg_thread_id]);
 
     return this.findPredioById(res.lastID);
   },
@@ -358,14 +359,14 @@ const projectRepository = {
   async findPrediosByObraId(obraId) {
     if (useSupabase()) {
       const rows = await supabase.selectRows('obra_predio', {
-        select: 'predio:predio_id(id,nombre,superficie_util_ha,regimen)',
+        select: 'predio:predio_id(id,nombre,superficie_util_ha,regimen,tg_thread_id)',
         filters: { obra_id: `eq.${obraId}` }
       });
       return (rows || []).map(r => r.predio).filter(Boolean);
     }
 
     return db.all(`
-      SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
+      SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen, pr.tg_thread_id
       FROM predio pr
       JOIN obra_predio op ON pr.id = op.predio_id
       WHERE op.obra_id = ?
@@ -374,18 +375,7 @@ const projectRepository = {
   },
 
   async setObraPredios(obraId, predioIds = []) {
-    if (useSupabase()) {
-      await supabase.deleteRows('obra_predio', { obra_id: `eq.${obraId}` });
-      for (const pid of predioIds) {
-        await supabase.insertRow('obra_predio', { obra_id: obraId, predio_id: pid });
-      }
-      return this.findPrediosByObraId(obraId);
-    }
-
-    await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [obraId]);
-    for (const pid of predioIds) {
-      await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [obraId, pid]);
-    }
+    await require('./catalogRepository').save('obra', obraId, {}, [...new Set(predioIds)]);
     return this.findPrediosByObraId(obraId);
   },
 

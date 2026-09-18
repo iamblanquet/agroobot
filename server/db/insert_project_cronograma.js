@@ -1,5 +1,5 @@
 const { db, initDatabase } = require('./database');
-const { createObraForumTopic } = require('../bot/bot');
+const { createPredioForumTopic } = require('../bot/bot');
 
 async function insertCronogramaProject() {
   console.log('🌾 Insertando Proyecto estructurado desde "Cronograma Maíz Mecanizado - Project.xlsx"...');
@@ -9,9 +9,9 @@ async function insertCronogramaProject() {
   const supervisor = await db.get("SELECT id FROM usuario WHERE rol = 'supervisor' LIMIT 1");
   const supervisorId = supervisor ? supervisor.id : 1;
 
-  let predio = await db.get("SELECT id, nombre, superficie_util_ha FROM predio WHERE nombre = 'Guayeme'");
+  let predio = await db.get("SELECT id, nombre, superficie_util_ha, tg_thread_id FROM predio WHERE nombre = 'Guayeme'");
   if (!predio) {
-    predio = await db.get("SELECT id, nombre, superficie_util_ha FROM predio LIMIT 1");
+    predio = await db.get("SELECT id, nombre, superficie_util_ha, tg_thread_id FROM predio LIMIT 1");
   }
   const predioId = predio.id;
   const supMeta = predio.superficie_util_ha || 37.67;
@@ -54,15 +54,11 @@ async function insertCronogramaProject() {
   const obraNombre = 'Frente Maíz Mecanizado Project';
   let obra = await db.get('SELECT id, tg_thread_id FROM obra WHERE nombre = ?', [obraNombre]);
   let obraId = null;
-  let threadId = obra?.tg_thread_id || '153';
-
-  if (!obra || !obra.tg_thread_id) {
-    try {
-      const newThread = await createObraForumTopic(obraNombre, projNombre, [predio.nombre]);
-      if (newThread) threadId = String(newThread);
-    } catch (e) {
-      console.warn('⚠️ No se pudo crear tema en Telegram:', e.message);
-    }
+  const threadId = null;
+  await db.run('INSERT OR IGNORE INTO proyecto_predio(proyecto_id,predio_id) VALUES (?,?)', [projId, predioId]);
+  if (!predio.tg_thread_id) {
+    const topicId = await createPredioForumTopic(predio);
+    if (topicId) await db.run('UPDATE predio SET tg_thread_id=? WHERE id=?', [String(topicId), predioId]);
   }
 
   if (obra) {

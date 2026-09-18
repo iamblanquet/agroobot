@@ -201,7 +201,23 @@ function getStoragePublicUrl(bucketName, storagePath) {
   return `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${cleanPath}`;
 }
 
+async function rpc(name, args) {
+  if (!isSupabaseConfigured()) throw new Error('Supabase no está configurado.');
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(args)
+  });
+  if (!response.ok) throw new Error(`Supabase RPC ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  return response.json();
+}
+
 module.exports = {
+  rpc,
   isSupabaseConfigured,
   checkSupabaseConnection,
   selectRows,

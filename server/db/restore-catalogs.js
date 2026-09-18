@@ -18,6 +18,10 @@ async function restoreCatalogs() {
 
   const backup = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
   const { entidad, predio, maquina, proyecto, obra, obra_predio } = backup.tables;
+  const projectPlots = backup.tables.proyecto_predio || [...new Map(obra_predio.map(link => {
+    const projectId = obra.find(front => front.id === link.obra_id)?.proyecto_id;
+    return [`${projectId}:${link.predio_id}`, { proyecto_id: projectId, predio_id: link.predio_id }];
+  })).values()].filter(link => link.proyecto_id);
 
   console.log(`📦 Datos a restaurar: ${entidad.length} entidades, ${predio.length} predios, ${maquina.length} máquinas, ${proyecto.length} proyectos, ${obra.length} obras, ${obra_predio.length} relaciones.`);
 
@@ -36,9 +40,9 @@ async function restoreCatalogs() {
   // B. Predios
   for (const p of predio) {
     await db.run(
-      `INSERT OR REPLACE INTO predio (id, nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [p.id, p.nombre, p.superficie_legal_ha, p.superficie_util_ha, p.regimen, p.poligono_geojson]
+      `INSERT OR REPLACE INTO predio (id, nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson, tg_thread_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [p.id, p.nombre, p.superficie_legal_ha, p.superficie_util_ha, p.regimen, p.poligono_geojson, p.tg_thread_id || null]
     );
   }
   console.log(`   ✓ SQLite: ${predio.length} predios restaurados.`);
@@ -90,6 +94,8 @@ async function restoreCatalogs() {
   }
   console.log(`   ✓ SQLite: ${obra_predio.length} relaciones obra-predio restauradas.`);
 
+  for (const link of projectPlots) await db.run('INSERT OR IGNORE INTO proyecto_predio(proyecto_id,predio_id) VALUES (?,?)', [link.proyecto_id, link.predio_id]);
+
   // 2. Restaurar en Supabase (si está configurado)
   if (supabase.isSupabaseConfigured()) {
     console.log('\n2. Restaurando en Supabase Cloud...');
@@ -111,7 +117,8 @@ async function restoreCatalogs() {
           superficie_legal_ha: p.superficie_legal_ha,
           superficie_util_ha: p.superficie_util_ha,
           regimen: p.regimen,
-          poligono_geojson: p.poligono_geojson
+          poligono_geojson: p.poligono_geojson,
+          tg_thread_id: p.tg_thread_id || null
         });
       } catch (_) {}
     }
@@ -180,6 +187,9 @@ async function restoreCatalogs() {
       } catch (_) {}
     }
     console.log(`   ✓ Supabase: relaciones obra-predio restauradas.`);
+    for (const link of projectPlots) {
+      try { await supabase.insertRow('proyecto_predio', link); } catch (error) { console.warn('No se pudo restaurar asignación proyecto-predio:', error.message); }
+    }
   }
 
   console.log('\n✅ CATÁLOGOS BASE RESTAURADOS EXITOSAMENTE EN SQLITE Y SUPABASE.');

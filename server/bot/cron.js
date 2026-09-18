@@ -29,18 +29,21 @@ async function runEveningCheck() {
         sinReporte.push(o);
 
         // Si la obra tiene un tema específico en Telegram, enviar aviso directo a su tema
-        if (bot && supergroupId && o.tg_thread_id) {
+        const predios = await projectRepository.findPrediosByObraId(o.id);
+        for (const predio of predios.filter(p => p.tg_thread_id)) {
+        if (bot && supergroupId) {
           const threadMsg = `🔴 *AVISO OPERATIVO DE LAS 21:00*\n` +
-                            `🏢 *Frente:* ${o.nombre}\n\n` +
+                            `📍 *Predio:* ${predio.nombre}\n🏢 *Frente:* ${o.nombre} (#${o.id})\n\n` +
                             `⚠️ No se ha registrado reporte de actividades para el día de hoy (\`${today}\`).\n\n` +
                             `Por favor envía tu reporte o declara:\n` +
-                            `• \`/sin_actividad [motivo]\` (ej. por lluvia o paro)\n` +
+                            `• \`/sin_actividad [motivo]\` y en otra línea \`Frente: #${o.id}\`\n` +
                             `• O pulsa *🚀 ABRIR MINI APP*`;
 
           bot.sendMessage(supergroupId, threadMsg, {
             parse_mode: 'Markdown',
-            message_thread_id: parseInt(o.tg_thread_id, 10)
+            message_thread_id: parseInt(predio.tg_thread_id, 10)
           }).catch(e => console.warn(`Aviso cron 21:00 para ${o.nombre}:`, e.message));
+        }
         }
       }
     }

@@ -69,9 +69,12 @@ router.post('/sync', authenticateJWT, async (req, res) => {
       }
 
       let resolvedCrew;
+      let location;
       try {
+        location = await require('../services/reportLocation').resolveReportLocation(reportData);
+        for (const line of lineas) line.predio_id = location.predio.id;
         resolvedCrew = es_sin_actividad ? [] : await resolveCrew(cuadrilla);
-        await reportRepository.validateReferences({ proyecto_id, hito_id, tarea_id, obra_id, lineas, maquinaria });
+        await reportRepository.validateReferences({ proyecto_id: location.project.id, predio_id: location.predio.id, hito_id, tarea_id, obra_id, lineas, maquinaria });
       } catch (validationError) {
         results.push({ client_uuid, status: 'error', message: validationError.message });
         continue;
@@ -148,10 +151,11 @@ router.post('/sync', authenticateJWT, async (req, res) => {
       // Guardar mediante repositorio (soporte dual SQLite / Supabase)
       const reporteId = await reportRepository.syncReport({
         client_uuid,
-        proyecto_id,
+        proyecto_id: location.project.id,
         hito_id,
         tarea_id,
         obra_id,
+        predio_id: location.predio.id,
         fecha_operativa: opDate,
         hora_offline: horaOff,
         creado_offline: creadoOff,
@@ -166,14 +170,14 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         savedFotos
       });
 
-      // Notificar al tema #Reportes de Telegram si está configurado
+      // El destino pertenece al predio, nunca al proyecto o al frente.
       try {
         const { notifyReporte } = require('../bot/bot');
-        const obraObj = obra_id ? await projectRepository.findObraById(obra_id) : null;
-        const projObj = proyecto_id ? await projectRepository.findProjectById(proyecto_id) : null;
-        notifyReporte({
-          obraNombre: obraObj?.nombre,
-          proyectoNombre: projObj?.nombre,
+        await notifyReporte({
+          predioId: location.predio.id,
+          obraId: location.obra.id,
+          obraNombre: location.obra.nombre,
+          proyectoNombre: location.project.nombre,
           fechaOperativa: opDate,
           horaOffline: horaOff,
           creadoOffline: creadoOff,
@@ -186,7 +190,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           fotos: savedFotos,
           clientUuid: client_uuid
         });
-      } catch (e) {}
+      } catch (e) { console.warn('Reporte guardado; notificación pendiente:', e.message); }
 
       syncedCount++;
       results.push({ client_uuid, id: reporteId, status: 'synced', fotosCount: savedFotos.length });

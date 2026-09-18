@@ -80,7 +80,7 @@ async function sendTopicMessage(topicKey, text, extraOptions = {}) {
 }
 
 /**
- * Notificar un nuevo reporte al tema del frente correspondiente o #Reportes
+ * Notificar un reporte exclusivamente al tema del predio seleccionado
  */
 async function notifyReporte(reportData) {
   let {
@@ -100,23 +100,21 @@ async function notifyReporte(reportData) {
     clientUuid
   } = reportData;
 
-  // Si no se proporcionó explícitamente obraThreadId, buscarlo por nombre de obra
-  if (!obraThreadId && obraNombre) {
-    try {
-      const o = await db.get('SELECT tg_thread_id FROM obra WHERE nombre = ? LIMIT 1', [obraNombre]);
-      if (o && o.tg_thread_id) {
-        obraThreadId = o.tg_thread_id;
-      }
-    } catch (e) {}
+  const projectRepository = require('../repositories/projectRepository');
+  const predio = reportData.predioId ? await projectRepository.findPredioById(reportData.predioId) : null;
+  if (!predio || !predio.tg_thread_id) {
+    console.warn('Reporte sin destino Telegram: el predio no tiene grupo vinculado.');
+    return null;
   }
-
+  obraThreadId = predio.tg_thread_id;
   const horaTxt = horaOffline ? `\n⏰ *Hora Captura (Sin Internet):* \`${horaOffline} hrs\`` : '';
 
   let text = '';
   if (esSinActividad) {
     text = `🌧️ *DÍA SIN ACTIVIDAD REPORTADO*\n\n` +
-           `🏢 *Obra:* ${obraNombre || 'General'}\n` +
-           `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
+           `📍 *Predio:* ${predio.nombre}\n` +
+           `🏢 *Frente de obra:* ${obraNombre || 'General'}\n` +
+           `🌾 *Proyecto:* ${proyectoNombre || 'Sin proyecto'}\n` +
            `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
            horaTxt + `\n` +
            `📝 *Motivo:* ${motivoSinActividad || 'Paro operativo'}\n` +
@@ -139,8 +137,9 @@ async function notifyReporte(reportData) {
     const fotosTxt = fotos.length > 0 ? `\n📷 *Evidencias fotográficas:* ${fotos.length} adjunta(s)` : '';
 
     text = `📋 *REPORTE DE CAMPO OFICIAL*\n\n` +
-           `🏢 *Obra:* ${obraNombre || 'General'}\n` +
-           `🌾 *Proyecto:* ${proyectoNombre || 'Maíz 2026'}\n` +
+           `📍 *Predio:* ${predio.nombre}\n` +
+           `🏢 *Frente de obra:* ${obraNombre || 'General'}\n` +
+           `🌾 *Proyecto:* ${proyectoNombre || 'Sin proyecto'}\n` +
            `📅 *Fecha Operativa:* \`${fechaOperativa}\`` +
            horaTxt + `\n` +
            `👤 *Autor:* ${autorNombre || 'Operador'}` +
@@ -630,20 +629,22 @@ function initTelegramBot(app) {
       try {
         if (data.startsWith('confirm_rep:')) {
           const repId = parseInt(data.replace('confirm_rep:', ''), 10);
-          const rep = await db.get('SELECT r.*, o.nombre AS obra_nombre, p.nombre AS proyecto_nombre FROM reporte r LEFT JOIN obra o ON r.obra_id = o.id LEFT JOIN proyecto p ON r.proyecto_id = p.id WHERE r.id = ?', [repId]);
+          const reportRepository = require('../repositories/reportRepository');
+          const rep = await reportRepository.findById(repId);
 
-          if (rep) {
-            await db.run("UPDATE reporte SET estado = 'confirmado' WHERE id = ?", [repId]);
+          if (rep && rep.estado === 'borrador') {
+            await reportRepository.confirmTelegramDraft(repId);
 
             // Obtener líneas y cuadrilla
-            const lineas = await db.all('SELECT rl.*, p.nombre AS predio_nombre FROM reporte_linea rl LEFT JOIN predio p ON rl.predio_id = p.id WHERE rl.reporte_id = ?', [repId]);
-            const cuadrilla = await db.all('SELECT * FROM reporte_cuadrilla WHERE reporte_id = ?', [repId]);
-            const maqs = await db.all('SELECT lm.*, m.codigo FROM lectura_maquina lm LEFT JOIN maquina m ON lm.maquina_id = m.id WHERE lm.reporte_id = ?', [repId]);
+            const lineas = await reportRepository.findLinesByReportId(repId);
+            const cuadrilla = await reportRepository.findCrewByReportId(repId);
+            const maqs = await reportRepository.findMachineReadingsByReportId(repId);
 
             // Actualizar el mensaje del chat para reflejar confirmación
             botInstance.editMessageText(
               `✅ *REPORTE CONFIRMADO OFICIALMENTE*\n\n` +
-              `🏢 *Obra:* ${rep.obra_nombre || 'General'}\n` +
+              `🌾 *Proyecto:* ${rep.proyecto_nombre || 'Sin proyecto'}\n` +
+              `🏢 *Frente de obra:* ${rep.obra_nombre || 'General'}\n` +
               `📅 *Fecha:* \`${rep.fecha_operativa}\`\n` +
               `👤 *Autor:* ${rep.autor_nombre || 'Operador'}\n` +
               `📊 *Avance:* ` + lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha} ha (${l.actividad_id})`).join(' · ') + `\n\n` +
@@ -656,7 +657,9 @@ function initTelegramBot(app) {
             );
 
             // Publicar automáticamente en el tema #Reportes
-            notifyReporte({
+            await notifyReporte({
+              predioId: rep.predio_id,
+              obraId: rep.obra_id,
               obraNombre: rep.obra_nombre,
               proyectoNombre: rep.proyecto_nombre,
               fechaOperativa: rep.fecha_operativa,
@@ -841,27 +844,34 @@ function initTelegramBot(app) {
 
         const authUser = await getAuthUser(msg);
         const author = authUser?.nombre || `${msg.from.first_name || 'Operador'}`;
-        const obra = await db.get("SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.estado = 'operacion' LIMIT 1");
+        let location;
+        try {
+          const front = text.match(/^\s*frente(?: de obra)?\s*:\s*(.+)$/im)?.[1]?.trim();
+          location = await require('../services/reportLocation').resolveIncomingFront(threadId, front);
+        } catch (error) {
+          return botInstance.sendMessage(chatId, error.message, { message_thread_id: threadId });
+        }
+        const obra = { ...location.obra, proyecto_nombre: location.project.nombre };
 
         const clientUuid = `tg-paro-${uuidv4()}`;
         const today = getOperationalDate();
 
         try {
-          await db.run(
-            `INSERT INTO reporte (
-              client_uuid, obra_id, fecha_operativa, autor_nombre, texto_original,
-              nota, estado, es_sin_actividad, motivo_sin_actividad, tg_chat_id, tg_message_id
-            ) VALUES (?, ?, ?, ?, ?, ?, 'confirmado', 1, ?, ?, ?)`,
-            [clientUuid, obra?.id || null, today, author, msg.text, 'Declarado vía Telegram', motivo, String(chatId), msg.message_id]
-          );
+          await require('../repositories/reportRepository').syncReport({
+            client_uuid: clientUuid, obra_id: obra.id, proyecto_id: obra.proyecto_id, predio_id: location.predio.id,
+            fecha_operativa: today, autor_nombre: author, texto_original: msg.text,
+            nota: 'Declarado vía Telegram', es_sin_actividad: true, motivo_sin_actividad: motivo
+          });
 
           botInstance.sendMessage(
             chatId,
-            `🌧️ *DÍA SIN ACTIVIDAD REGISTRADO*\n\n🏢 *Obra:* ${obra?.nombre || 'General'}\n📅 *Fecha:* \`${today}\`\n📝 *Motivo:* ${motivo}\n👤 *Autor:* ${author}`,
+            `🌧️ *DÍA SIN ACTIVIDAD REGISTRADO*\n\n📍 *Predio:* ${location.predio.nombre}\n🌾 *Proyecto:* ${location.project.nombre}\n🏢 *Frente de obra:* ${obra?.nombre || 'General'}\n📅 *Fecha:* \`${today}\`\n📝 *Motivo:* ${motivo}\n👤 *Autor:* ${author}`,
             { parse_mode: 'Markdown', message_thread_id: threadId, ...mainKeyboard }
           );
 
-          notifyReporte({
+          await notifyReporte({
+            predioId: location.predio.id,
+            obraId: obra.id,
             obraNombre: obra?.nombre,
             proyectoNombre: obra?.proyecto_nombre,
             fechaOperativa: today,
@@ -926,85 +936,31 @@ function initTelegramBot(app) {
           const author = authUser?.nombre || `${msg.from.first_name || 'Operador'}`;
           const opDate = parsed.fecha_operativa || getOperationalDate();
 
-          // Buscar obra correspondiente por nombre o por thread
-          let obra = null;
-          if (parsed.obra_nombre) {
-            obra = await db.get('SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.nombre LIKE ?', [`%${parsed.obra_nombre}%`]);
+          let location;
+          try {
+            const explicitFront = text.match(/^\s*frente(?: de obra)?\s*:\s*(.+)$/im)?.[1]?.trim();
+            location = await require('../services/reportLocation').resolveIncomingFront(threadId, explicitFront || parsed.obra_nombre);
+          } catch (error) {
+            await botInstance.sendMessage(chatId, error.message, { message_thread_id: threadId, reply_to_message_id: msg.message_id });
+            return;
           }
-          if (!obra && threadId) {
-            obra = await db.get('SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.tg_thread_id = ?', [String(threadId)]);
+          const obra = { ...location.obra, proyecto_nombre: location.project.nombre };
+          const conflictingPlot = parsed.lineas.find(line => line.predio_nombre && line.predio_nombre.toLowerCase() !== location.predio.nombre.toLowerCase());
+          if (conflictingPlot) {
+            await botInstance.sendMessage(chatId, 'El reporte menciona otro predio. Envíalo en el grupo correspondiente o corrige el predio.', { message_thread_id: threadId });
+            return;
           }
-          if (!obra) {
-            obra = await db.get("SELECT o.*, p.nombre AS proyecto_nombre FROM obra o LEFT JOIN proyecto p ON o.proyecto_id = p.id WHERE o.estado = 'operacion' LIMIT 1");
-          }
-
-          // Guardar reporte en estado 'borrador'
-          const repRes = await db.run(
-            `INSERT INTO reporte (
-              client_uuid, obra_id, proyecto_id, fecha_operativa, autor_nombre,
-              texto_original, nota, estado, es_sin_actividad, motivo_sin_actividad, tg_chat_id, tg_message_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?)`,
-            [
-              clientUuid,
-              obra?.id || null,
-              obra?.proyecto_id || null,
-              opDate,
-              author,
-              text,
-              parsed.nota || 'Reportado vía Telegram',
-              parsed.es_sin_actividad ? 1 : 0,
-              parsed.motivo_sin_actividad || null,
-              String(chatId),
-              msg.message_id
-            ]
-          );
-
-          const reporteId = repRes.lastID;
-
-          // Guardar líneas multi-predio
-          for (const line of parsed.lineas) {
-            let predio = null;
-            if (line.predio_nombre) {
-              predio = await db.get('SELECT id FROM predio WHERE nombre LIKE ?', [`%${line.predio_nombre}%`]);
-            }
-            if (!predio && obra) {
-              const op = await db.get('SELECT predio_id FROM obra_predio WHERE obra_id = ? LIMIT 1', [obra.id]);
-              if (op) predio = { id: op.predio_id };
-            }
-
-            await db.run(
-              `INSERT INTO reporte_linea (reporte_id, predio_id, actividad_id, cantidad, unidad, cantidad_ha, fuente)
-               VALUES (?, ?, ?, ?, ?, ?, 'campo')`,
-              [reporteId, predio?.id || null, line.actividad_id || 'siembra', line.cantidad, line.unidad, line.cantidad_ha]
-            );
-          }
-
-          // Guardar cuadrilla
-          for (const c of parsed.cuadrilla) {
-            await db.run(
-              `INSERT INTO reporte_cuadrilla (reporte_id, rol_id, headcount) VALUES (?, ?, ?)`,
-              [reporteId, c.rol_id, c.headcount]
-            );
-          }
-
-          // Guardar maquinaria si viene
-          if (parsed.maquinaria && parsed.maquinaria.codigo) {
-            const maq = await db.get('SELECT id FROM maquina WHERE codigo LIKE ? OR modelo LIKE ?', [`%${parsed.maquinaria.codigo}%`, `%${parsed.maquinaria.codigo}%`]);
-            if (maq) {
-              await db.run(
-                `INSERT INTO lectura_maquina (reporte_id, maquina_id, horometro_inicio, horometro_fin, horas_trabajadas, litros_diesel)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [reporteId, maq.id, parsed.maquinaria.horometro_inicio || 0, parsed.maquinaria.horometro_fin || 0, parsed.maquinaria.horas_trabajadas || 0, parsed.maquinaria.litros_diesel || 0]
-              );
-            }
-          }
+          const reporteId = await require('../repositories/reportRepository').createTelegramDraft({
+            client_uuid: clientUuid, location, parsed, fecha_operativa: opDate, autor_nombre: author, texto_original: text
+          });
 
           // Ficha de Confirmación según especificación (Docs 2 §2)
           let cuadrillaTxt = parsed.cuadrilla.map(c => `${c.role_text || c.rol_id} ${c.headcount}`).join(' · ');
           let actividadesTxt = parsed.actividades.length > 0 ? parsed.actividades.map(a => a.actividad_id).join(' · ') : 'labores de campo';
           let avanceTxt = parsed.lineas.map(l => `${l.predio_nombre ? l.predio_nombre + ' ' : ''}${l.cantidad_ha || l.cantidad} ${l.unidad}`).join(' · ');
 
-          const confirmMsg = `📋 *Reporte · ${obra?.nombre || 'General'} · ${opDate} · ${author}*\n\n` +
+          const confirmMsg = `📋 *Reporte · ${location.predio.nombre} · ${opDate} · ${author}*\n\n` +
+                             `🌾 *Proyecto:* ${location.project.nombre}\n🏢 *Frente de obra:* ${obra.nombre} (#${obra.id})\n` +
                              `👥 *Cuadrilla:* ${cuadrillaTxt}\n` +
                              `🌾 *Actividades:* ${actividadesTxt}\n` +
                              `📊 *Avance:* ${avanceTxt || 'Sin avance de superficie'}\n` +
@@ -1041,143 +997,31 @@ function initTelegramBot(app) {
   return botInstance;
 }
 
-/**
- * Crear automáticamente un tema en Telegram para una obra / frente de trabajo
-/**
- * Crear dinámicamente un Tema/Hilo en el Supergrupo de Telegram para un frente/obra
- * @param {string} obraNombre
- * @param {string} proyectoNombre
- * @param {string[]} predioNombres
- * @returns {Promise<number|null>} message_thread_id creado o null
- */
-async function createObraForumTopic(obraNombre, proyectoNombre, predioNombres = [], options = {}) {
-  // 1. Si la creación de temas está explícitamente desactivada por configuración
-  if (process.env.DISABLE_TELEGRAM_TOPIC_CREATION === 'true') {
-    console.log(`ℹ️ [Telegram] Creación de temas desactivada por entorno. Omitiendo "${obraNombre}".`);
-    return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
-  }
-
-  // 2. Comprobar en base de datos si la obra, predios o proyecto ya tienen un tema asignado
-  if (!options.forceCreate) {
-    try {
-      const projectRepository = require('../repositories/projectRepository');
-      // A. Buscar por nombre de obra exacto
-      const existingObra = await projectRepository.findObraByName(obraNombre);
-      if (existingObra && existingObra.tg_thread_id) {
-        const threadNum = parseInt(existingObra.tg_thread_id, 10);
-        if (!isNaN(threadNum) && threadNum > 0) {
-          console.log(`ℹ️ [Telegram] Frente "${obraNombre}" ya tiene tema asignado (#${existingObra.tg_thread_id}). Reutilizando tema.`);
-          return threadNum;
-        }
-      }
-
-      // B. Buscar si alguno de los predios vinculados ya tiene un frente con tema asignado
-      if (predioNombres && predioNombres.length > 0) {
-        const allPredios = await projectRepository.findAllPredios();
-        for (const pName of predioNombres) {
-          const matchedPredio = (allPredios || []).find(p => p.nombre && p.nombre.toLowerCase() === pName.toLowerCase());
-          if (matchedPredio) {
-            const predioObras = await projectRepository.findObrasByPredioId(matchedPredio.id);
-            const obraWithThread = (predioObras || []).find(o => o.tg_thread_id && parseInt(o.tg_thread_id, 10) > 0);
-            if (obraWithThread) {
-              const threadNum = parseInt(obraWithThread.tg_thread_id, 10);
-              console.log(`ℹ️ [Telegram] Predio "${pName}" ya está asociado al tema #${threadNum} (${obraWithThread.nombre}). Reutilizando tema.`);
-              return threadNum;
-            }
-          }
-        }
-      }
-
-      // C. Si el proyecto ya tiene un tema asignado en otra obra, reutilizar para evitar saturar el supergrupo
-      if (proyectoNombre) {
-        const allObras = await projectRepository.findAllObras();
-        const sameProjectObra = (allObras || []).find(o => 
-          (o.proyecto_nombre === proyectoNombre || o.nombre?.toLowerCase() === obraNombre?.toLowerCase()) &&
-          o.tg_thread_id && parseInt(o.tg_thread_id, 10) > 0
-        );
-        if (sameProjectObra) {
-          const threadNum = parseInt(sameProjectObra.tg_thread_id, 10);
-          console.log(`ℹ️ [Telegram] Proyecto "${proyectoNombre}" ya cuenta con tema #${threadNum} (${sameProjectObra.nombre}). Reutilizando tema.`);
-          return threadNum;
-        }
-      }
-    } catch (_) {
-      // Continuar si la BD no está disponible en este momento
-    }
-  }
-
-  if (!botInstance) {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (token) {
-      try {
-        const TelegramBot = require('node-telegram-bot-api');
-        botInstance = new TelegramBot(token, { polling: false });
-        console.log('🤖 Bot de Telegram auto-inicializado para creación de tema.');
-      } catch (e) {
-        console.warn('⚠️ [createObraForumTopic] Error al instanciar bot:', e.message);
-      }
-    }
-  }
-
-  if (!botInstance) {
-    console.warn('⚠️ [createObraForumTopic] El bot de Telegram no está inicializado ni configurado en .env.');
-    return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
-  }
-
+/** Crear un tema por predio, compartido por todos sus proyectos y frentes. */
+async function createPredioForumTopic(predio) {
+  if (predio.tg_thread_id) return Number(predio.tg_thread_id);
+  if (process.env.DISABLE_TELEGRAM_TOPIC_CREATION === 'true') return null;
+  if (!botInstance && process.env.TELEGRAM_BOT_TOKEN) botInstance = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
   const supergroupId = process.env.TELEGRAM_SUPERGROUP_ID;
-  if (!supergroupId) {
-    console.warn(`⚠️ [createObraForumTopic] TELEGRAM_SUPERGROUP_ID no está configurado en .env. No se puede crear el tema para "${obraNombre}".`);
-    return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
-  }
-
+  if (!botInstance || !supergroupId) return null;
+  const topic = await botInstance.createForumTopic(supergroupId, `Predio · ${predio.nombre}`.substring(0, 128));
+  const threadId = topic?.message_thread_id;
+  if (!threadId) return null;
+  // The topic already exists even if its welcome message or pin fails.
   try {
-    const topicTitle = `${obraNombre} · ${proyectoNombre || 'Operación'}`.substring(0, 64);
-    console.log(`📡 [Telegram] Creando tema "${topicTitle}" en Supergrupo: ${supergroupId}...`);
-    const topic = await botInstance.createForumTopic(supergroupId, topicTitle);
-
-    if (topic && topic.message_thread_id) {
-      const threadId = topic.message_thread_id;
-      const prediosText = predioNombres && predioNombres.length > 0
-        ? `\n🗺️ <b>Predios vinculados:</b> ${predioNombres.join(', ')}`
-        : '';
-
-      // Mensaje de bienvenida fijado en el nuevo tema
-      const welcomeText = `🌾 <b>FRENTE OPERATIVO HABILITADO EN TELEGRAM</b>\n\n` +
-                          `🏢 <b>Frente:</b> ${obraNombre}\n` +
-                          `📋 <b>Proyecto:</b> ${proyectoNombre || 'General'}${prediosText}\n\n` +
-                          `📌 <b>Operación:</b> Cualquier reporte de jornada, horas máquina o aviso enviado en este tema será asociado automáticamente a este frente.\n\n` +
-                          `💡 <i>Puedes enviar texto libre con el formato de cuadrilla y avances o usar</i> <code>/sin_actividad</code>.`;
-
-      const welcomeMsg = await botInstance.sendMessage(supergroupId, welcomeText, {
-        parse_mode: 'HTML',
-        message_thread_id: threadId
-      });
-
-      if (welcomeMsg?.message_id) {
-        botInstance.pinChatMessage(supergroupId, welcomeMsg.message_id).catch(() => {});
-      }
-
-      console.log(`✅ [Telegram] Tema creado exitosamente para "${obraNombre}" con thread_id: ${threadId}`);
-      return threadId;
-    }
-  } catch (err) {
-    if (err.message && err.message.includes('429')) {
-      console.warn(`⚠️ [Telegram Rate Limit] Límite de creación de temas alcanzado para "${obraNombre}". Se recomienda reutilizar temas existentes.`);
-    } else {
-      console.error(`❌ [Telegram] Error al crear tema para "${obraNombre}":`, err.message);
-      if (err.message && err.message.includes('not enough rights')) {
-        console.warn('👉 Asegúrate de que el bot tenga el permiso de Administrador: "Administrar Temas / Manage Topics" en el grupo de Telegram.');
-      }
-    }
-  }
-  return options.defaultThread ? parseInt(options.defaultThread, 10) : null;
+    const welcome = await botInstance.sendMessage(supergroupId,
+      `PREDIO: ${predio.nombre}\n\nEste grupo reúne los reportes de todos los proyectos del predio.\nIndica el frente de obra en cada reporte con una línea: Frente: #ID.`,
+      { message_thread_id: threadId });
+    if (welcome?.message_id) await botInstance.pinChatMessage(supergroupId, welcome.message_id);
+  } catch (error) { console.warn('Grupo creado; bienvenida pendiente:', error.message); }
+  return threadId;
 }
 
 module.exports = {
   initTelegramBot,
   getBotInstance: () => botInstance,
   sendTopicMessage,
-  createObraForumTopic,
+  createPredioForumTopic,
   notifyReporte,
   notifyIncidencia,
   generateTableroText,

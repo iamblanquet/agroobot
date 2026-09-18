@@ -66,6 +66,14 @@ const machineRepository = {
     `, [id]);
   },
 
+  async findMachineByCode(codigo) {
+    if (useSupabase()) {
+      const rows = await supabase.selectRows('maquina', { filters: { codigo: `eq.${codigo}` }, limit: 1 });
+      return rows[0] || null;
+    }
+    return db.get('SELECT * FROM maquina WHERE codigo = ?', [codigo]);
+  },
+
   async createMachine(data) {
     if (useSupabase()) {
       return supabase.insertRow('maquina', data);
@@ -93,6 +101,8 @@ const machineRepository = {
       const updated = await supabase.updateRows('maquina', { id: `eq.${id}` }, fields);
       return updated[0] || null;
     }
+    fields = { ...fields };
+    if (fields.alerta_mantenimiento !== undefined) fields.alerta_mantenimiento = fields.alerta_mantenimiento ? 1 : 0;
     const keys = Object.keys(fields);
     if (keys.length === 0) return this.findMachineById(id);
     const setClause = keys.map(k => `${k} = ?`).join(', ');

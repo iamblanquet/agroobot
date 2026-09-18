@@ -6,6 +6,42 @@ function useSupabase() {
 }
 
 const reportRepository = {
+  async createTelegramDraft({ client_uuid, location, parsed, fecha_operativa, autor_nombre, texto_original }) {
+    const save = async () => {
+      const insert = async (table, fields) => {
+        if (useSupabase()) return supabase.insertRow(table, fields);
+        const keys = Object.keys(fields);
+        const result = await db.run(`INSERT INTO ${table} (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`, Object.values(fields));
+        return { id: result.lastID };
+      };
+      const report = await insert('reporte', {
+        client_uuid, obra_id: location.obra.id, proyecto_id: location.project.id, predio_id: location.predio.id,
+        fecha_operativa, autor_nombre, texto_original, nota: parsed.nota || 'Reportado vía Telegram',
+        estado: 'borrador', es_sin_actividad: useSupabase() ? Boolean(parsed.es_sin_actividad) : parsed.es_sin_actividad ? 1 : 0,
+        motivo_sin_actividad: parsed.motivo_sin_actividad || null
+      });
+      for (const line of parsed.lineas) await insert('reporte_linea', {
+        reporte_id: report.id, predio_id: location.predio.id, actividad_id: line.actividad_id || 'labor_campo',
+        cantidad: line.cantidad, unidad: line.unidad, cantidad_ha: line.cantidad_ha, fuente: 'campo'
+      });
+      for (const crew of parsed.cuadrilla) await insert('reporte_cuadrilla', { reporte_id: report.id, rol_id: crew.rol_id, headcount: crew.headcount });
+      if (parsed.maquinaria?.codigo) {
+        const machine = await require('./machineRepository').findMachineByCode(parsed.maquinaria.codigo);
+        if (machine) await insert('lectura_maquina', {
+          reporte_id: report.id, maquina_id: machine.id, horometro_inicio: parsed.maquinaria.horometro_inicio || 0,
+          horometro_fin: parsed.maquinaria.horometro_fin || 0, horas_trabajadas: parsed.maquinaria.horas_trabajadas || 0,
+          litros_diesel: parsed.maquinaria.litros_diesel || 0
+        });
+      }
+      return report.id;
+    };
+    return useSupabase() ? save() : db.transaction(save);
+  },
+
+  async confirmTelegramDraft(id) {
+    if (useSupabase()) return supabase.updateRows('reporte', { id: `eq.${id}`, estado: 'eq.borrador' }, { estado: 'confirmado' });
+    return db.run("UPDATE reporte SET estado = 'confirmado' WHERE id = ? AND estado = 'borrador'", [id]);
+  },
   async findByClientUuid(client_uuid) {
     if (useSupabase()) {
       const rows = await supabase.selectRows('reporte', {
@@ -162,7 +198,7 @@ const reportRepository = {
     `, [reporteId]);
   },
 
-  async validateReferences({ proyecto_id, hito_id, tarea_id, obra_id, lineas = [], maquinaria = [] }) {
+  async validateReferences({ predio_id, proyecto_id, hito_id, tarea_id, obra_id, lineas = [], maquinaria = [] }) {
     const projectId = proyecto_id ? Number(proyecto_id) : null;
     const hitoId = hito_id ? Number(hito_id) : null;
     const tareaId = tarea_id ? Number(tarea_id) : null;
@@ -178,10 +214,11 @@ const reportRepository = {
         if (!rows.length || (projectId && Number(rows[0].proyecto_id) !== projectId)) throw new Error('Hito no válido para el proyecto.');
       }
       if (tareaId) {
-        const rows = await supabase.selectRows('tarea', { select: 'proyecto_id,hito_id', filters: { id: `eq.${tareaId}`, limit: '1' } });
+        const rows = await supabase.selectRows('tarea', { select: 'proyecto_id,hito_id,predio_id', filters: { id: `eq.${tareaId}`, limit: '1' } });
         if (!rows.length || (projectId && Number(rows[0].proyecto_id) !== projectId) || (hitoId && Number(rows[0].hito_id) !== hitoId)) {
           throw new Error('Tarea no válida para el proyecto o hito.');
         }
+        if (predio_id && rows[0].predio_id && Number(rows[0].predio_id) !== Number(predio_id)) throw new Error('Tarea no válida para el predio.');
       }
       if (obraId) {
         const rows = await supabase.selectRows('obra', { select: 'proyecto_id', filters: { id: `eq.${obraId}`, limit: '1' } });
@@ -207,8 +244,9 @@ const reportRepository = {
       if (!hito || (projectId && hito.proyecto_id !== projectId)) throw new Error('Hito no válido para el proyecto.');
     }
     if (tareaId) {
-      const tarea = await db.get('SELECT proyecto_id, hito_id FROM tarea WHERE id = ?', [tareaId]);
+      const tarea = await db.get('SELECT proyecto_id, hito_id, predio_id FROM tarea WHERE id = ?', [tareaId]);
       if (!tarea || (projectId && tarea.proyecto_id !== projectId) || (hitoId && tarea.hito_id !== hitoId)) throw new Error('Tarea no válida para el proyecto o hito.');
+      if (predio_id && tarea.predio_id && Number(tarea.predio_id) !== Number(predio_id)) throw new Error('Tarea no válida para el predio.');
     }
     if (obraId) {
       const obra = await db.get('SELECT proyecto_id FROM obra WHERE id = ?', [obraId]);
@@ -229,6 +267,7 @@ const reportRepository = {
     hito_id,
     tarea_id,
     obra_id,
+    predio_id,
     fecha_operativa,
     hora_offline,
     creado_offline,
@@ -249,6 +288,7 @@ const reportRepository = {
         hito_id: hito_id || null,
         tarea_id: tarea_id || null,
         obra_id: obra_id || null,
+        predio_id: predio_id || null,
         recibido_en: new Date().toISOString(),
         fecha_operativa,
         hora_offline: hora_offline || null,
@@ -355,16 +395,17 @@ const reportRepository = {
     await db.transaction(async () => {
       const repRes = await db.run(
         `INSERT INTO reporte (
-          client_uuid, proyecto_id, hito_id, tarea_id, obra_id,
+          client_uuid, proyecto_id, hito_id, tarea_id, obra_id, predio_id,
           recibido_en, fecha_operativa, hora_offline, creado_offline, autor_nombre, texto_original,
           nota, estado, es_sin_actividad, motivo_sin_actividad
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, 'confirmado', ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, 'confirmado', ?, ?)`,
         [
           client_uuid,
           proyecto_id || null,
           hito_id || null,
           tarea_id || null,
           obra_id || null,
+          predio_id || null,
           fecha_operativa,
           hora_offline || null,
           creado_offline || null,

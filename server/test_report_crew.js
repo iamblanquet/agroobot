@@ -9,6 +9,11 @@ const { db, initDatabase, getDb } = require('./db/database');
 async function run() {
   await initDatabase();
   const user = await db.run('INSERT INTO usuario (username, password_hash, nombre, rol) VALUES (?, ?, ?, ?)', ['crew-test', 'unused', 'Campo', 'campo']);
+  await db.run("INSERT INTO proyecto(id,nombre,tipo,ciclo) VALUES(1,'Proyecto','maiz','2026')");
+  await db.run("INSERT INTO predio(id,nombre) VALUES(1,'Predio')");
+  await db.run("INSERT INTO obra(id,nombre,proyecto_id) VALUES(1,'Frente',1)");
+  await db.run('INSERT INTO proyecto_predio VALUES(1,1)');
+  await db.run('INSERT INTO obra_predio VALUES(1,1)');
   const token = jwt.sign({ id: user.lastID }, process.env.JWT_SECRET);
   const employee = await db.run('INSERT INTO empleado (nombre, puesto, roles) VALUES (?, ?, ?)', ['Ana Pérez', 'Maquinaria', '["operadores","tecnicos"]']);
   const employeeId = employee.lastID;
@@ -22,6 +27,7 @@ async function run() {
   await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}/api`;
   async function request(path, body) {
+    if (path === '/reports/sync' && body) body = { obra_id: 1, proyecto_id: 1, predio_id: 1, ...body };
     const response = await fetch(base + path, {
       method: body ? 'POST' : 'GET',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

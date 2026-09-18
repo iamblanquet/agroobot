@@ -360,6 +360,35 @@ const DDL_SCHEMA = `
 async function initDatabase() {
   try {
     await db.exec(DDL_SCHEMA);
+    const plotColumns = await db.all('PRAGMA table_info(predio)');
+    if (!plotColumns.some(column => column.name === 'tg_thread_id')) await db.run('ALTER TABLE predio ADD COLUMN tg_thread_id TEXT');
+    const reportColumns = await db.all('PRAGMA table_info(reporte)');
+    if (!reportColumns.some(column => column.name === 'predio_id')) await db.run('ALTER TABLE reporte ADD COLUMN predio_id INTEGER REFERENCES predio(id) ON DELETE SET NULL');
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS proyecto_predio (
+        proyecto_id INTEGER NOT NULL REFERENCES proyecto(id) ON DELETE CASCADE,
+        predio_id INTEGER NOT NULL REFERENCES predio(id) ON DELETE CASCADE,
+        PRIMARY KEY(proyecto_id, predio_id)
+      );
+      CREATE TABLE IF NOT EXISTS schema_migration (name TEXT PRIMARY KEY);
+    `);
+    if (!await db.get("SELECT name FROM schema_migration WHERE name = 'predio_topics_v1'")) {
+      await db.transaction(async () => {
+        await db.run('INSERT OR IGNORE INTO proyecto_predio SELECT DISTINCT o.proyecto_id, op.predio_id FROM obra o JOIN obra_predio op ON op.obra_id = o.id');
+        // Only reuse an old topic when it belongs unambiguously to one plot.
+        await db.run(`WITH candidates AS (
+          SELECT op.predio_id, MIN(o.tg_thread_id) AS thread_id FROM obra o JOIN obra_predio op ON op.obra_id=o.id
+          WHERE o.tg_thread_id IS NOT NULL AND o.tg_thread_id != '' GROUP BY op.predio_id HAVING COUNT(DISTINCT o.tg_thread_id)=1
+        ), owners AS (
+          SELECT o.tg_thread_id, COUNT(DISTINCT op.predio_id) AS n FROM obra o JOIN obra_predio op ON op.obra_id=o.id GROUP BY o.tg_thread_id
+        ) UPDATE predio SET tg_thread_id=(SELECT c.thread_id FROM candidates c JOIN owners x ON x.tg_thread_id=c.thread_id WHERE c.predio_id=predio.id AND x.n=1) WHERE tg_thread_id IS NULL`);
+
+        await db.run(`UPDATE reporte SET predio_id=(SELECT MIN(predio_id) FROM reporte_linea WHERE reporte_id=reporte.id HAVING COUNT(DISTINCT predio_id)=1) WHERE predio_id IS NULL`);
+        await db.run(`UPDATE reporte SET predio_id=(SELECT MIN(predio_id) FROM obra_predio WHERE obra_id=reporte.obra_id HAVING COUNT(DISTINCT predio_id)=1) WHERE predio_id IS NULL AND NOT EXISTS(SELECT 1 FROM reporte_linea WHERE reporte_id=reporte.id AND predio_id IS NOT NULL)`);
+        await db.run("INSERT INTO schema_migration(name) VALUES ('predio_topics_v1')");
+      });
+    }
+    await db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_predio_telegram ON predio(tg_thread_id) WHERE tg_thread_id IS NOT NULL AND tg_thread_id != ''");
     const taskColumns = await db.all('PRAGMA table_info(tarea)');
     for (const [name, type] of [['fecha_inicio', 'TEXT'], ['fecha_fin', 'TEXT'], ['dependencias', "TEXT NOT NULL DEFAULT '[]'"]]) {
       if (!taskColumns.some(column => column.name === name)) await db.run(`ALTER TABLE tarea ADD COLUMN ${name} ${type}`);

@@ -1,6 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const machineRepository = require('../repositories/machineRepository');
+const validate = require('../services/catalogValidation');
+
+async function validateMachine(body, current) {
+  const fields = validate.machine(body, current);
+  const entities = await machineRepository.findAllEntidades();
+  for (const key of ['propietaria_id', 'operadora_id']) {
+    if (fields[key] !== null && !entities.some(entity => Number(entity.id) === fields[key])) validate.invalid('La entidad seleccionada no existe.');
+  }
+  const duplicate = await machineRepository.findMachineByCode(fields.codigo);
+  if (duplicate && Number(duplicate.id) !== Number(current?.id)) {
+    const error = new Error('Ya existe una máquina con ese código.'); error.status = 409; throw error;
+  }
+  return fields;
+}
+
+function machineError(res, error) {
+  const duplicate = /unique|duplicate/i.test(error.message);
+  return res.status(error.status || (duplicate ? 409 : 500)).json({ error: error.status ? error.message : duplicate ? 'Ya existe una máquina con ese código.' : 'No se pudo guardar la máquina.' });
+}
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 
 /**
@@ -60,46 +79,13 @@ router.get('/', authenticateJWT, async (req, res) => {
  */
 router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
   try {
-    const {
-      codigo,
-      nombre,
-      tipo = 'tractor',
-      modelo,
-      propietaria_id,
-      operadora_id,
-      umbral_servicio_hrs = 300,
-      horometro_actual = 0,
-      ultimo_servicio_hr = 0
-    } = req.body;
-
-    if (!nombre) {
-      return res.status(400).json({ error: 'El nombre descriptivo de la máquina es obligatorio.' });
-    }
-
-    const codFinal = codigo?.trim() ? codigo.trim().toUpperCase() : `MAQ-${Date.now().toString().slice(-4)}`;
-    const modFinal = modelo?.trim() || nombre.trim();
-    const hActual = parseFloat(horometro_actual) || 0;
-    const uServicio = parseFloat(ultimo_servicio_hr) || 0;
-    const umbral = parseFloat(umbral_servicio_hrs) || 300;
-    const alerta = (hActual - uServicio) >= (umbral - 20) ? 1 : 0;
-
-    const newMachine = await machineRepository.createMachine({
-      codigo: codFinal,
-      nombre: nombre.trim(),
-      tipo,
-      modelo: modFinal,
-      propietaria_id: propietaria_id ? parseInt(propietaria_id, 10) : null,
-      operadora_id: operadora_id ? parseInt(operadora_id, 10) : null,
-      umbral_servicio_hrs: umbral,
-      horometro_actual: hActual,
-      ultimo_servicio_hr: uServicio,
-      alerta_mantenimiento: alerta
-    });
+    const fields = await validateMachine(req.body);
+    const newMachine = await machineRepository.createMachine(fields);
 
     return res.status(201).json({ success: true, machine: newMachine });
   } catch (err) {
-    console.error('Error en POST /api/machines:', err);
-    return res.status(500).json({ error: 'Error al registrar máquina: ' + err.message });
+    if (!err.status) console.error('Error en POST /api/machines:', err);
+    return machineError(res, err);
   }
 });
 
@@ -115,46 +101,13 @@ router.patch('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion
       return res.status(404).json({ error: 'Máquina no encontrada.' });
     }
 
-    const {
-      codigo,
-      nombre,
-      tipo,
-      modelo,
-      propietaria_id,
-      operadora_id,
-      umbral_servicio_hrs,
-      horometro_actual,
-      ultimo_servicio_hr
-    } = req.body;
-
-    const codFinal = codigo !== undefined ? codigo.trim().toUpperCase() : machine.codigo;
-    const nomFinal = nombre !== undefined ? nombre.trim() : (machine.nombre || machine.modelo);
-    const tipoFinal = tipo !== undefined ? tipo : (machine.tipo || 'tractor');
-    const modFinal = modelo !== undefined ? modelo.trim() : machine.modelo;
-    const propId = propietaria_id !== undefined ? (propietaria_id ? parseInt(propietaria_id, 10) : null) : machine.propietaria_id;
-    const operId = operadora_id !== undefined ? (operadora_id ? parseInt(operadora_id, 10) : null) : machine.operadora_id;
-    const umbral = umbral_servicio_hrs !== undefined ? parseFloat(umbral_servicio_hrs) : (machine.umbral_servicio_hrs || 300);
-    const hActual = horometro_actual !== undefined ? parseFloat(horometro_actual) : machine.horometro_actual;
-    const uServicio = ultimo_servicio_hr !== undefined ? parseFloat(ultimo_servicio_hr) : machine.ultimo_servicio_hr;
-    const alerta = (hActual - uServicio) >= (umbral - 20) ? 1 : 0;
-
-    const updated = await machineRepository.updateMachine(id, {
-      codigo: codFinal,
-      nombre: nomFinal,
-      tipo: tipoFinal,
-      modelo: modFinal,
-      propietaria_id: propId,
-      operadora_id: operId,
-      umbral_servicio_hrs: umbral,
-      horometro_actual: hActual,
-      ultimo_servicio_hr: uServicio,
-      alerta_mantenimiento: alerta
-    });
+    const fields = await validateMachine(req.body, machine);
+    const updated = await machineRepository.updateMachine(id, fields);
 
     return res.json({ success: true, machine: updated });
   } catch (err) {
-    console.error('Error al actualizar máquina:', err);
-    return res.status(500).json({ error: 'Error al actualizar máquina: ' + err.message });
+    if (!err.status) console.error('Error al actualizar máquina:', err);
+    return machineError(res, err);
   }
 });
 

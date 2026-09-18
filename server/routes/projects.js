@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
 const projectRepository = require('../repositories/projectRepository');
+const catalog = require('../repositories/catalogRepository');
+const validate = require('../services/catalogValidation');
 const employeeRepository = require('../repositories/employeeRepository');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 
@@ -14,6 +16,8 @@ router.get('/', authenticateJWT, async (req, res) => {
     const projects = await projectRepository.findAllProjects();
 
     for (const p of projects) {
+      p.predios = await catalog.projectPredios(p.id);
+      p.predio_ids = p.predios.map(predio => predio.id);
       p.hitos = await projectRepository.findMilestonesByProjectId(p.id);
       for (const h of p.hitos) {
         h.tareas = await projectRepository.findTasksByMilestoneId(h.id);
@@ -46,7 +50,9 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), 
 
     const gerente = gerente_id ? parseInt(gerente_id, 10) : req.user.id;
 
-    const newProject = await projectRepository.createProject({
+    const predioIds = validate.predioIds(req.body.predio_ids ?? []);
+    for (const pid of predioIds) if (!await projectRepository.findPredioById(pid)) validate.invalid('Predio no encontrado.');
+    const saved = await catalog.save('proyecto', null, {
       nombre: nombre.trim(),
       tipo: tipo.trim(),
       ciclo: ciclo.trim(),
@@ -56,12 +62,13 @@ router.post('/', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), 
       fecha_inicio: fecha_inicio || new Date().toISOString().split('T')[0],
       fecha_fin: fecha_fin || null,
       estado: 'activo'
-    });
+    }, predioIds);
+    const newProject = { ...saved.project, predio_ids: predioIds };
 
     return res.status(201).json({ success: true, project: newProject });
   } catch (err) {
     console.error('Error al crear proyecto:', err);
-    return res.status(500).json({ error: 'Error al crear el proyecto: ' + err.message });
+    return res.status(err.status || 500).json({ error: 'Error al crear el proyecto: ' + err.message });
   }
 });
 
@@ -74,34 +81,19 @@ router.patch('/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion
     const { id } = req.params;
     const { nombre, tipo, ciclo, superficie_meta_ha, fase_catalogo, gerente_id, fecha_inicio, fecha_fin } = req.body;
 
-    const proj = await db.get('SELECT * FROM proyecto WHERE id = ?', [id]);
-    if (!proj) {
-      return res.status(404).json({ error: 'Proyecto no encontrado.' });
+    const proj = await projectRepository.findProjectById(validate.id(id));
+    if (!proj) return res.status(404).json({ error: 'Proyecto no encontrado.' });
+    const fields = {};
+    for (const key of ['nombre', 'tipo', 'ciclo', 'fase_catalogo', 'gerente_id', 'fecha_inicio', 'fecha_fin', 'superficie_meta_ha']) {
+      if (req.body[key] !== undefined) fields[key] = req.body[key] === '' && ['gerente_id', 'fecha_fin'].includes(key) ? null : req.body[key];
     }
-
-    await db.run(
-      `UPDATE proyecto
-       SET nombre = ?, tipo = ?, ciclo = ?, superficie_meta_ha = ?,
-           fase_catalogo = ?, gerente_id = ?, fecha_inicio = ?, fecha_fin = ?
-       WHERE id = ?`,
-      [
-        nombre !== undefined ? nombre.trim() : proj.nombre,
-        tipo !== undefined ? tipo.trim() : proj.tipo,
-        ciclo !== undefined ? ciclo.trim() : proj.ciclo,
-        superficie_meta_ha !== undefined ? parseFloat(superficie_meta_ha) : proj.superficie_meta_ha,
-        fase_catalogo !== undefined ? fase_catalogo : proj.fase_catalogo,
-        gerente_id !== undefined ? gerente_id : proj.gerente_id,
-        fecha_inicio !== undefined ? fecha_inicio : proj.fecha_inicio,
-        fecha_fin !== undefined ? fecha_fin : proj.fecha_fin,
-        id
-      ]
-    );
-
-    const updated = await db.get('SELECT * FROM proyecto WHERE id = ?', [id]);
-    return res.json({ success: true, project: updated });
+    const predioIds = req.body.predio_ids === undefined ? null : validate.predioIds(req.body.predio_ids);
+    if (predioIds !== null) for (const pid of predioIds) if (!await projectRepository.findPredioById(pid)) validate.invalid('Predio no encontrado.');
+    const saved = await catalog.save('proyecto', proj.id, fields, predioIds);
+    return res.json({ success: true, project: saved.project });
   } catch (err) {
-    console.error('Error al actualizar proyecto:', err);
-    return res.status(500).json({ error: 'Error al actualizar proyecto.' });
+    if (!err.status) console.error('Error al actualizar proyecto:', err);
+    return res.status(err.status || 500).json({ error: err.status ? err.message : 'Error al actualizar proyecto.' });
   }
 });
 
@@ -320,116 +312,15 @@ router.delete('/tareas/:id', authenticateJWT, requireRole('supervisor', 'it', 'd
 });
 
 /**
-/**
- * POST /api/projects/:id/obras
- * Crear un nuevo frente/obra en un proyecto (compatible con frontend anidado)
- */
-router.post('/:id/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const proyecto_id = req.params.id;
-    const { nombre, fase_actual = 'operacion', estado = 'operacion', tg_thread_id, predio_id, predio_ids = [] } = req.body;
-
-    if (!nombre || !nombre.trim()) {
-      return res.status(400).json({ error: 'El nombre de la obra o frente es requerido.' });
-    }
-
-    const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [parseInt(proyecto_id, 10)]);
-
-    // Obtener lista consolidada de predio_ids
-    let consolidatedPredioIds = Array.isArray(predio_ids) ? [...predio_ids] : (predio_ids ? [predio_ids] : []);
-    if (predio_id && !consolidatedPredioIds.includes(predio_id)) {
-      consolidatedPredioIds.push(predio_id);
-    }
-
-    // Obtener nombres de predios para incluirlos en el mensaje de bienvenida de Telegram
-    let predioNombres = [];
-    if (consolidatedPredioIds.length > 0) {
-      const placeholders = consolidatedPredioIds.map(() => '?').join(',');
-      const rows = await db.all(`SELECT nombre FROM predio WHERE id IN (${placeholders})`, consolidatedPredioIds);
-      predioNombres = rows.map(r => r.nombre);
-    }
-
-    // Creación automática del tema en Telegram si no se especificó un ID manual
-    let finalThreadId = tg_thread_id || null;
-    if (!finalThreadId) {
-      try {
-        const { createObraForumTopic } = require('../bot/bot');
-        const autoThreadId = await createObraForumTopic(nombre.trim(), proj?.nombre || 'General', predioNombres);
-        if (autoThreadId) {
-          finalThreadId = String(autoThreadId);
-        }
-      } catch (botErr) {
-        console.warn('⚠️ No se pudo generar el tema automático en Telegram:', botErr.message);
-      }
-    }
-
-    const result = await db.run(
-      `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nombre.trim(), parseInt(proyecto_id, 10), fase_actual, estado, finalThreadId]
-    );
-
-    const obraId = result.lastID;
-
-    // Vincular predios
-    for (const pId of consolidatedPredioIds) {
-      if (pId) {
-        await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [obraId, parseInt(pId, 10)]);
-      }
-    }
-
-    const newObra = await db.get(`
-      SELECT o.*, p.nombre AS proyecto_nombre
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE o.id = ?
-    `, [obraId]);
-
-    newObra.predios = await db.all(`
-      SELECT pr.id, pr.nombre, pr.superficie_util_ha
-      FROM predio pr
-      JOIN obra_predio op ON pr.id = op.predio_id
-      WHERE op.obra_id = ?
-    `, [obraId]);
-
-    return res.status(201).json({ success: true, obra: newObra });
-  } catch (err) {
-    console.error('Error al crear obra:', err);
-    return res.status(500).json({ error: 'Error al crear frente de obra.' });
-  }
-});
-
-/**
  * GET /api/projects/cascade-options
  * Opciones para los selectores en cascada del rol Campo:
  * Proyectos -> Hitos -> Tareas (con meta y acumulado) + Obras + Predios
  */
 router.get('/cascade-options', authenticateJWT, async (req, res) => {
   try {
-    const proyectos = await db.all('SELECT id, nombre, tipo, ciclo FROM proyecto ORDER BY nombre ASC');
-    const hitos = await db.all('SELECT id, proyecto_id, nombre, orden, superficie_meta_ha, estado FROM hito ORDER BY orden ASC');
-    const tareas = await db.all(`
-      SELECT t.id, t.hito_id, t.proyecto_id, t.predio_id, t.nombre, t.actividad_id,
-             t.unidad, t.cantidad_meta, t.cantidad_acumulada, t.estado, t.responsable,
-             pr.nombre AS predio_nombre
-      FROM tarea t
-      LEFT JOIN predio pr ON t.predio_id = pr.id
-      ORDER BY t.nombre ASC
-    `);
-    const obras = await db.all('SELECT id, proyecto_id, nombre, fase_actual, estado FROM obra ORDER BY nombre ASC');
-    const predios = await db.all('SELECT id, nombre, superficie_legal_ha, superficie_util_ha, regimen FROM predio ORDER BY nombre ASC');
-    const maquinas = await db.all('SELECT id, codigo, modelo, horometro_actual, alerta_mantenimiento FROM maquina ORDER BY codigo ASC');
+    const options = await require('../repositories/catalogRepository').options();
     const empleados = await employeeRepository.findAll();
-
-    return res.json({
-      proyectos,
-      hitos,
-      tareas,
-      obras,
-      predios,
-      maquinas,
-      empleados
-    });
+    return res.json({ ...options, empleados });
   } catch (err) {
     console.error('Error en /cascade-options:', err);
     return res.status(500).json({ error: 'Error al obtener catálogo cascada.' });
@@ -442,444 +333,7 @@ router.get('/cascade-options', authenticateJWT, async (req, res) => {
  * ==========================================
  */
 
-/**
- * GET /api/projects/predios
- * Listar todos los predios con sus frentes/obras asociadas
- */
-router.get('/predios', authenticateJWT, async (req, res) => {
-  try {
-    const predios = await projectRepository.findAllPredios();
-
-    for (const pr of predios) {
-      pr.obras = await projectRepository.findObrasByPredioId(pr.id);
-    }
-
-    return res.json({ predios });
-  } catch (err) {
-    console.error('Error al obtener predios:', err);
-    return res.status(500).json({ error: 'Error al obtener predios.' });
-  }
-});
-
-/**
- * POST /api/projects/predios
- * Crear nuevo predio (con creación opcional/automática de Frente y Tema en Telegram)
- */
-router.post('/predios', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const {
-      nombre,
-      superficie_legal_ha = 0,
-      superficie_util_ha = 0,
-      regimen = 'Propiedad Privada',
-      poligono_geojson,
-      crear_frente_telegram = true,
-      proyecto_id
-    } = req.body;
-
-    if (!nombre || !nombre.trim()) {
-      return res.status(400).json({ error: 'El nombre del predio es obligatorio.' });
-    }
-
-    const supLegal = parseFloat(superficie_legal_ha) || 0;
-    const supUtil = parseFloat(superficie_util_ha) || supLegal;
-
-    const newPredio = await projectRepository.createPredio({
-      nombre: nombre.trim(),
-      superficie_legal_ha: supLegal,
-      superficie_util_ha: supUtil,
-      regimen: regimen.trim(),
-      poligono_geojson: poligono_geojson || null
-    });
-    newPredio.obras = [];
-
-    let createdObra = null;
-    let autoThreadId = null;
-
-    // Si se solicitó crear automáticamente Frente y Tema en Telegram para este Predio
-    if (crear_frente_telegram) {
-      try {
-        let targetProjId = proyecto_id ? parseInt(proyecto_id, 10) : null;
-        let proj = null;
-        if (targetProjId) {
-          proj = await projectRepository.findProjectById(targetProjId);
-        }
-        if (!proj) {
-          const allProjs = await projectRepository.findAllProjects();
-          proj = allProjs[0] || null;
-        }
-
-        if (proj) {
-          const obraNombre = nombre.trim();
-          const { createObraForumTopic } = require('../bot/bot');
-          autoThreadId = await createObraForumTopic(obraNombre, proj.nombre, [nombre.trim()]);
-
-          createdObra = await projectRepository.createObra({
-            nombre: obraNombre,
-            proyecto_id: proj.id,
-            fase_actual: 'operacion',
-            estado: 'operacion',
-            tg_thread_id: autoThreadId ? String(autoThreadId) : null
-          });
-
-          await projectRepository.setObraPredios(createdObra.id, [newPredio.id]);
-          createdObra.predios = [{ id: newPredio.id, nombre: newPredio.nombre, superficie_util_ha: newPredio.superficie_util_ha }];
-          newPredio.obras = [{ id: createdObra.id, nombre: createdObra.nombre, estado: createdObra.estado, tg_thread_id: createdObra.tg_thread_id }];
-        }
-      } catch (tgErr) {
-        console.warn('⚠️ Error al auto-crear frente o tema de Telegram para el nuevo predio:', tgErr.message);
-      }
-    }
-
-    return res.status(201).json({
-      success: true,
-      predio: newPredio,
-      obra: createdObra,
-      tg_thread_id: autoThreadId ? String(autoThreadId) : null,
-      message: autoThreadId
-        ? `Predio registrado y Tema #${autoThreadId} creado en Telegram para el frente "${nombre.trim()}".`
-        : `Predio registrado correctamente.`
-    });
-  } catch (err) {
-    console.error('Error al crear predio:', err);
-    return res.status(500).json({ error: 'Error al crear el predio: ' + err.message });
-  }
-});
-
-/**
- * PATCH /api/projects/predios/:id
- * Editar predio existente
- */
-router.patch('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nombre, superficie_legal_ha, superficie_util_ha, regimen, poligono_geojson } = req.body;
-
-    const predio = await projectRepository.findPredioById(id);
-    if (!predio) {
-      return res.status(404).json({ error: 'Predio no encontrado.' });
-    }
-
-    const fields = {};
-    if (nombre !== undefined) fields.nombre = nombre.trim();
-    if (superficie_legal_ha !== undefined) fields.superficie_legal_ha = parseFloat(superficie_legal_ha) || 0;
-    if (superficie_util_ha !== undefined) fields.superficie_util_ha = parseFloat(superficie_util_ha) || 0;
-    if (regimen !== undefined) fields.regimen = regimen.trim();
-    if (poligono_geojson !== undefined) fields.poligono_geojson = poligono_geojson;
-
-    const updated = await projectRepository.updatePredio(id, fields);
-    return res.json({ success: true, predio: updated });
-  } catch (err) {
-    console.error('Error al actualizar predio:', err);
-    return res.status(500).json({ error: 'Error al actualizar el predio.' });
-  }
-});
-
-/**
- * DELETE /api/projects/predios/:id
- * Eliminar predio
- */
-router.delete('/predios/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    await projectRepository.deletePredio(id);
-    return res.json({ success: true, message: 'Predio eliminado correctamente.' });
-  } catch (err) {
-    console.error('Error al eliminar predio:', err);
-    return res.status(500).json({ error: 'Error al eliminar el predio.' });
-  }
-});
-
-/**
- * ==========================================
- * CRUD DE OBRAS Y FRENTES DE TRABAJO
- * ==========================================
- */
-
-/**
- * GET /api/projects/obras
- * Listar todas las obras/frentes con proyecto y predios asociados
- */
-router.get('/obras', authenticateJWT, async (req, res) => {
-  try {
-    const obras = await projectRepository.findAllObras();
-
-    for (const ob of obras) {
-      ob.predios = await projectRepository.findPrediosByObraId(ob.id);
-    }
-
-    return res.json({ obras });
-  } catch (err) {
-    console.error('Error al obtener obras:', err);
-    return res.status(500).json({ error: 'Error al obtener obras.' });
-  }
-});
-
-/**
- * POST /api/projects/obras
- * Crear nueva obra / frente (directamente o asociada a un proyecto)
- */
-router.post('/obras', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const { nombre, proyecto_id, fase_actual = 'operacion', estado = 'operacion', tg_thread_id, predio_ids = [] } = req.body;
-
-    if (!nombre || !nombre.trim()) {
-      return res.status(400).json({ error: 'El nombre del frente u obra es obligatorio.' });
-    }
-
-    if (!proyecto_id) {
-      return res.status(400).json({ error: 'El proyecto asignado es obligatorio.' });
-    }
-
-    const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [parseInt(proyecto_id, 10)]);
-
-    // Obtener nombres de los predios vinculados
-    const pIds = Array.isArray(predio_ids) ? predio_ids : [predio_ids];
-    let predioNombres = [];
-    if (pIds.length > 0) {
-      const placeholders = pIds.map(() => '?').join(',');
-      const rows = await db.all(`SELECT nombre FROM predio WHERE id IN (${placeholders})`, pIds);
-      predioNombres = rows.map(r => r.nombre);
-    }
-
-    // Creación automática del tema en Telegram si no se proporcionó manualmente
-    let finalThreadId = tg_thread_id || null;
-    if (!finalThreadId) {
-      try {
-        const { createObraForumTopic } = require('../bot/bot');
-        const autoThreadId = await createObraForumTopic(nombre.trim(), proj?.nombre || 'General', predioNombres);
-        if (autoThreadId) {
-          finalThreadId = String(autoThreadId);
-        }
-      } catch (botErr) {
-        console.warn('No se pudo generar el tema automático en Telegram:', botErr.message);
-      }
-    }
-
-    const newObra = await projectRepository.createObra({
-      nombre: nombre.trim(),
-      proyecto_id: parseInt(proyecto_id, 10),
-      fase_actual: fase_actual || 'Operación',
-      estado: estado || 'operacion',
-      tg_thread_id: finalThreadId
-    });
-
-    const validPids = pIds.map(id => parseInt(id, 10)).filter(Boolean);
-    if (validPids.length > 0) {
-      await projectRepository.setObraPredios(newObra.id, validPids);
-    }
-
-    newObra.predios = await projectRepository.findPrediosByObraId(newObra.id);
-    return res.status(201).json({ success: true, obra: newObra });
-  } catch (err) {
-    console.error('Error al crear obra:', err);
-    return res.status(500).json({ error: 'Error al crear frente u obra.' });
-  }
-});
-
-/**
- * POST /api/projects/obras/:id/create-telegram-topic
- * Forzar creación o sincronización de tema en Telegram para una obra existente
- */
-router.post('/obras/:id/create-telegram-topic', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const obra = await db.get(`
-      SELECT o.*, p.nombre AS proyecto_nombre
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE o.id = ?
-    `, [id]);
-
-    if (!obra) {
-      return res.status(404).json({ error: 'Frente u obra no encontrada.' });
-    }
-
-    const predios = await db.all(`
-      SELECT pr.nombre FROM predio pr
-      JOIN obra_predio op ON pr.id = op.predio_id
-      WHERE op.obra_id = ?
-    `, [id]);
-    const predioNombres = predios.map(p => p.nombre);
-
-    const { createObraForumTopic } = require('../bot/bot');
-    const autoThreadId = await createObraForumTopic(obra.nombre, obra.proyecto_nombre, predioNombres);
-
-    if (!autoThreadId) {
-      return res.status(502).json({
-        error: 'No se pudo crear el tema en Telegram. Verifica que el bot esté en el supergrupo como Administrador con permiso "Administrar Temas".'
-      });
-    }
-
-    await db.run('UPDATE obra SET tg_thread_id = ? WHERE id = ?', [String(autoThreadId), id]);
-
-    const updatedObra = await db.get(`
-      SELECT o.*, p.nombre AS proyecto_nombre
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE o.id = ?
-    `, [id]);
-    updatedObra.predios = predios;
-
-    return res.json({
-      success: true,
-      message: `Tema creado exitosamente en Telegram con ID #${autoThreadId}`,
-      tg_thread_id: String(autoThreadId),
-      obra: updatedObra
-    });
-  } catch (err) {
-    console.error('Error al crear tema de Telegram para la obra:', err);
-    return res.status(500).json({ error: 'Error al crear tema en Telegram: ' + err.message });
-  }
-});
-
-/**
- * POST /api/projects/sync-telegram-topics
- * Sincronizar y crear temas de Telegram para todas las obras que no tengan un tema real
- */
-router.post('/sync-telegram-topics', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const obras = await db.all(`
-      SELECT o.*, p.nombre AS proyecto_nombre
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE o.estado = 'operacion'
-      ORDER BY o.id ASC
-    `);
-
-    const { createObraForumTopic } = require('../bot/bot');
-    const results = [];
-
-    for (const obra of obras) {
-      // Si el thread_id es nulo o corresponde a los valores de prueba semilla ("101", "102", ...)
-      const isMockOrMissing = !obra.tg_thread_id || ['101', '102', '103', '104', '105', '106', '107'].includes(String(obra.tg_thread_id));
-      
-      if (isMockOrMissing) {
-        const predios = await db.all(`
-          SELECT pr.nombre FROM predio pr
-          JOIN obra_predio op ON pr.id = op.predio_id
-          WHERE op.obra_id = ?
-        `, [obra.id]);
-        const predioNombres = predios.map(p => p.nombre);
-
-        const newThreadId = await createObraForumTopic(obra.nombre, obra.proyecto_nombre, predioNombres);
-        if (newThreadId) {
-          await db.run('UPDATE obra SET tg_thread_id = ? WHERE id = ?', [String(newThreadId), obra.id]);
-          results.push({ id: obra.id, nombre: obra.nombre, status: 'creado', tg_thread_id: newThreadId });
-        } else {
-          results.push({ id: obra.id, nombre: obra.nombre, status: 'fallido', error: 'Sin permisos o error Telegram' });
-        }
-      } else {
-        results.push({ id: obra.id, nombre: obra.nombre, status: 'omitido_existente', tg_thread_id: obra.tg_thread_id });
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: 'Sincronización de temas de Telegram completada.',
-      results
-    });
-  } catch (err) {
-    console.error('Error al sincronizar temas de Telegram:', err);
-    return res.status(500).json({ error: 'Error al sincronizar temas: ' + err.message });
-  }
-});
-
-/**
- * PATCH /api/projects/obras/:id
- * Editar obra / frente de trabajo existente
- */
-router.patch('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nombre, proyecto_id, fase_actual, estado, tg_thread_id, predio_ids } = req.body;
-
-    const obra = await db.get('SELECT * FROM obra WHERE id = ?', [id]);
-    if (!obra) {
-      return res.status(404).json({ error: 'Frente u obra no encontrada.' });
-    }
-
-    // Actualizar predios vinculados si se proporcionaron
-    if (predio_ids !== undefined) {
-      const pIds = Array.isArray(predio_ids) ? predio_ids : [predio_ids];
-      await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [id]);
-      for (const pId of pIds) {
-        if (pId) {
-          await db.run('INSERT OR IGNORE INTO obra_predio (obra_id, predio_id) VALUES (?, ?)', [id, parseInt(pId, 10)]);
-        }
-      }
-    }
-
-    let finalThreadId = tg_thread_id !== undefined ? (tg_thread_id ? String(tg_thread_id).trim() : null) : obra.tg_thread_id;
-    const isMockOrMissing = !finalThreadId || ['101', '102', '103', '104', '105', '106', '107'].includes(String(finalThreadId));
-
-    // Si aún no tiene un tema real en Telegram, crearlo automáticamente
-    if (isMockOrMissing) {
-      try {
-        const projId = proyecto_id !== undefined ? parseInt(proyecto_id, 10) : obra.proyecto_id;
-        const proj = await db.get('SELECT nombre FROM proyecto WHERE id = ?', [projId]);
-        const predios = await db.all('SELECT pr.nombre FROM predio pr JOIN obra_predio op ON pr.id = op.predio_id WHERE op.obra_id = ?', [id]);
-        const predioNombres = predios.map(p => p.nombre);
-
-        const { createObraForumTopic } = require('../bot/bot');
-        const autoThreadId = await createObraForumTopic(nombre !== undefined ? nombre.trim() : obra.nombre, proj?.nombre || 'General', predioNombres);
-        if (autoThreadId) {
-          finalThreadId = String(autoThreadId);
-        }
-      } catch (tgErr) {
-        console.warn('⚠️ No se pudo auto-crear tema en Telegram durante PATCH obra:', tgErr.message);
-      }
-    }
-
-    await db.run(
-      `UPDATE obra
-       SET nombre = ?, proyecto_id = ?, fase_actual = ?, estado = ?, tg_thread_id = ?
-       WHERE id = ?`,
-      [
-        nombre !== undefined ? nombre.trim() : obra.nombre,
-        proyecto_id !== undefined ? parseInt(proyecto_id, 10) : obra.proyecto_id,
-        fase_actual !== undefined ? fase_actual : obra.fase_actual,
-        estado !== undefined ? estado : obra.estado,
-        finalThreadId,
-        id
-      ]
-    );
-
-    const updated = await db.get(`
-      SELECT o.*, p.nombre AS proyecto_nombre
-      FROM obra o
-      LEFT JOIN proyecto p ON o.proyecto_id = p.id
-      WHERE o.id = ?
-    `, [id]);
-
-    updated.predios = await db.all(`
-      SELECT pr.id, pr.nombre, pr.superficie_util_ha, pr.regimen
-      FROM predio pr
-      JOIN obra_predio op ON pr.id = op.predio_id
-      WHERE op.obra_id = ?
-    `, [id]);
-
-    return res.json({ success: true, obra: updated });
-  } catch (err) {
-    console.error('Error al actualizar obra:', err);
-    return res.status(500).json({ error: 'Error al actualizar la obra: ' + err.message });
-  }
-});
-
-/**
- * DELETE /api/projects/obras/:id
- * Eliminar obra / frente
- */
-router.delete('/obras/:id', authenticateJWT, requireRole('supervisor', 'it', 'direccion'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    await db.run('DELETE FROM obra_predio WHERE obra_id = ?', [id]);
-    await db.run('DELETE FROM obra WHERE id = ?', [id]);
-    return res.json({ success: true, message: 'Frente u obra eliminada correctamente.' });
-  } catch (err) {
-    console.error('Error al eliminar obra:', err);
-    return res.status(500).json({ error: 'Error al eliminar la obra.' });
-  }
-});
+// Catálogo operativo: validación y persistencia compartidas para ambos motores.
+router.use(require('./catalogs'));
 
 module.exports = router;

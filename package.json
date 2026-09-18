@@ -14,6 +14,7 @@
     "backup:export": "node server/db/export-backup.js",
     "db:clear": "node server/db/clear-operational-data.js",
     "test": "node server/test_auth_flow.js && node server/test_http_endpoints.js",
+    "test:catalogs": "node server/test_catalogs.js && node server/test_catalogs_supabase.js",
     "client": "npm --prefix client run dev",
     "client:build": "npm --prefix client run build",
     "dev": "node server/index.js",

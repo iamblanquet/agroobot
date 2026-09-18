@@ -17,6 +17,7 @@ async function exportBackup() {
     'predio',
     'obra',
     'obra_predio',
+    'proyecto_predio',
     'entidad',
     'maquina',
     'reporte',

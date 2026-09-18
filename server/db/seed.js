@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { db, initDatabase } = require('./database');
-const { createObraForumTopic } = require('../bot/bot');
+const { createPredioForumTopic } = require('../bot/bot');
 
 async function seed() {
   console.log('🌱 Iniciando siembra y estructuración integral de datos de AGROKOOL...');
@@ -288,18 +288,7 @@ async function seed() {
     const projId = pRes.lastID;
     projMap[pd.key] = projId;
 
-    // Usar defaultThread por defecto para evitar saturar el supergrupo de Telegram
-    let threadId = pd.defaultThread;
-    if (process.env.SEED_CREATE_TELEGRAM_TOPICS === 'true') {
-      try {
-        const tgThread = await createObraForumTopic(pd.obraNombre, pd.nombre, pd.predios);
-        if (tgThread) {
-          threadId = String(tgThread);
-        }
-      } catch (tgErr) {
-        console.warn(`⚠️ No se pudo crear tema en Telegram para "${pd.obraNombre}": ${tgErr.message}. Usando thread ID: ${threadId}`);
-      }
-    }
+    const threadId = null; // Telegram belongs to the plot, never the front.
 
     const oRes = await db.run(
       `INSERT INTO obra (nombre, proyecto_id, fase_actual, estado, tg_thread_id)
@@ -312,6 +301,12 @@ async function seed() {
     // Relación Obra - Predios
     for (const pName of pd.predios) {
       if (predioMap[pName]) {
+        await db.run('INSERT OR IGNORE INTO proyecto_predio(proyecto_id,predio_id) VALUES (?,?)', [projId, predioMap[pName]]);
+        if (process.env.SEED_CREATE_TELEGRAM_TOPICS === 'true') {
+          const predio = await db.get('SELECT * FROM predio WHERE id=?', [predioMap[pName]]);
+          const topicId = await createPredioForumTopic(predio);
+          if (topicId) await db.run('UPDATE predio SET tg_thread_id=? WHERE id=?', [String(topicId), predio.id]);
+        }
         await db.run(`INSERT INTO obra_predio (obra_id, predio_id) VALUES (?, ?)`, [obraId, predioMap[pName]]);
       }
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import StatCard from '../components/StatCard';
 import GanttChart from '../components/GanttChart';
@@ -52,6 +52,11 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   const [usersList, setUsersList] = useState([]);
   const [reportesList, setReportesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [savingCatalog, setSavingCatalog] = useState(false);
+  const catalogSaveLock = useRef(false);
+  const loadVersion = useRef(0);
+  const catalogData = useRef({ stats: null, proyectos: [], predios: [], reportes: [], maquinas: [], entidades: [], obras: [] });
 
   // Modal Diagrama de Gantt
   const [showGanttModal, setShowGanttModal] = useState(false);
@@ -100,6 +105,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
     nombre: '',
     tipo: 'Granos',
     ciclo: 'PV 2026',
+    predio_ids: [],
     superficie_meta_ha: 100,
     fase_catalogo: 'Habilitación y Siembra',
     gerente_id: '',
@@ -146,7 +152,6 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
     proyecto_id: '',
     fase_actual: 'Operación',
     estado: 'operacion',
-    tg_thread_id: '',
     predio_ids: []
   });
 
@@ -158,52 +163,44 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
     superficie_legal_ha: 15,
     superficie_util_ha: 15,
     regimen: 'Propiedad Privada',
-    proyecto_id: '',
-    crear_frente_telegram: true
+    tg_thread_id: '',
+    crear_grupo_telegram: true
   });
 
+  const availableObraPredios = prediosList.filter(pr => proyectosList.find(p => String(p.id) === String(obraForm.proyecto_id))?.predio_ids?.map(String).includes(String(pr.id)));
+
   const loadData = async () => {
+    const version = ++loadVersion.current;
     setIsLoading(true);
-    try {
-      const [statsData, projData, predData, repData, machData, entData, obrasData] = await Promise.all([
-        api.get('/stats/supervisor'),
-        api.get('/projects'),
-        api.get('/projects/predios'),
-        api.get('/reports?limit=50'),
-        api.get('/machines'),
-        api.get('/machines/entidades'),
-        api.get('/projects/obras')
-      ]);
-
-      setStats(statsData);
-      const prList = projData.projects || [];
-      const pdList = predData.predios || [];
-      const rpList = repData.reports || [];
-      const mcList = machData.machines || [];
-      const etList = entData.entidades || [];
-      const obList = obrasData.obras || [];
-      setProyectosList(prList);
-      setPrediosList(pdList);
-      setReportesList(rpList);
-      setMachinesList(mcList);
-      setEntidadesList(etList);
-      setObrasList(obList);
-
-      if (onRegisterMetadata) {
-        onRegisterMetadata({
-          proyectos: prList.length,
-          predios: pdList.length,
-          obras: obList.length || prList.reduce((acc, p) => acc + (p.obras?.length || 0), 0),
-          reportes: rpList.length,
-          maquinas: mcList.length,
-          reloadFn: loadData
-        });
+    setLoadError('');
+    const sources = [
+      ['stats', '/stats/supervisor', null, setStats, 'indicadores'],
+      ['proyectos', '/projects', 'projects', setProyectosList, 'proyectos'],
+      ['predios', '/projects/predios', 'predios', setPrediosList, 'predios'],
+      ['reportes', '/reports?limit=50', 'reports', setReportesList, 'reportes'],
+      ['maquinas', '/machines', 'machines', setMachinesList, 'maquinaria'],
+      ['entidades', '/machines/entidades', 'entidades', setEntidadesList, 'entidades'],
+      ['obras', '/projects/obras', 'obras', setObrasList, 'frentes']
+    ];
+    const results = await Promise.allSettled(sources.map(([, url]) => api.get(url)));
+    if (version !== loadVersion.current) return;
+    const failed = [];
+    results.forEach((result, index) => {
+      const [key, , field, setter, label] = sources[index];
+      if (result.status === 'fulfilled') {
+        const value = field ? result.value[field] || [] : result.value;
+        catalogData.current[key] = value;
+        setter(value);
+      } else {
+        failed.push(label);
       }
-
-    } catch (err) {
-      console.error('Error al cargar datos del supervisor:', err);
-    } finally {
-      setIsLoading(false);
+    });
+    setLoadError(failed.length ? `No se pudo actualizar: ${failed.join(', ')}. Los datos de esas secciones pueden estar incompletos o desactualizados.` : '');
+    setIsLoading(false);
+    if (onRegisterMetadata) {
+      const data = catalogData.current;
+      onRegisterMetadata({ proyectos: data.proyectos.length, predios: data.predios.length,
+        obras: data.obras.length, reportes: data.reportes.length, maquinas: data.maquinas.length, reloadFn: loadData });
     }
   };
 
@@ -243,6 +240,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         nombre: proj.nombre,
         tipo: proj.tipo,
         ciclo: proj.ciclo,
+        predio_ids: (proj.predio_ids || proj.predios?.map(p => p.id) || []).map(String),
         superficie_meta_ha: proj.superficie_meta_ha,
         fase_catalogo: proj.fase_catalogo || 'Operación',
         gerente_id: proj.gerente_id || '',
@@ -255,6 +253,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         nombre: '',
         tipo: 'Granos',
         ciclo: 'PV 2026',
+        predio_ids: [],
         superficie_meta_ha: 100,
         fase_catalogo: 'Habilitación y Siembra',
         gerente_id: '',
@@ -421,7 +420,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
   // --- CRUD OBRAS/FRENTES ---
   const handleOpenObraModal = (proj = null, obra = null) => {
-    setSelectedProjectForObra(proj || (obra?.proyecto_id ? proyectosList.find(p => p.id === obra.proyecto_id) : proyectosList[0]));
+    setSelectedProjectForObra(proj || (obra?.proyecto_id ? proyectosList.find(p => String(p.id) === String(obra.proyecto_id)) : null));
     setEditingObra(obra);
     if (obra) {
       setObraForm({
@@ -429,18 +428,16 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         proyecto_id: String(obra.proyecto_id || proj?.id || ''),
         fase_actual: obra.fase_actual || 'Operación',
         estado: obra.estado || 'operacion',
-        tg_thread_id: obra.tg_thread_id || '',
         predio_ids: obra.predios ? obra.predios.map(pr => String(pr.id)) : []
       });
     } else {
-      const parentProj = proj || proyectosList[0];
+      const parentProj = proj;
       setObraForm({
         nombre: parentProj ? `Frente ${parentProj.nombre} - Lote ${parentProj.obras?.length + 1 || 1}` : 'Nuevo Frente de Obra',
-        proyecto_id: parentProj ? String(parentProj.id) : (proyectosList[0]?.id ? String(proyectosList[0].id) : ''),
+        proyecto_id: parentProj ? String(parentProj.id) : '',
         fase_actual: 'Habilitación',
         estado: 'operacion',
-        tg_thread_id: '',
-        predio_ids: prediosList[0]?.id ? [String(prediosList[0].id)] : []
+        predio_ids: []
       });
     }
     setShowObraModal(true);
@@ -448,24 +445,25 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
   const handleSaveObra = async (e) => {
     e.preventDefault();
+    if (catalogSaveLock.current) return;
+    catalogSaveLock.current = true;
+    setSavingCatalog(true);
     try {
       if (editingObra) {
         await api.patch(`/projects/obras/${editingObra.id}`, obraForm);
         alert(`✅ Frente "${obraForm.nombre}" actualizado correctamente.`);
       } else {
-        const res = await api.post('/projects/obras', obraForm);
-        const threadId = res.obra?.tg_thread_id || res.tg_thread_id;
-        if (threadId) {
-          alert(`✅ ¡Frente de obra creado con éxito!\n\n🏢 Frente: "${obraForm.nombre}"\n📡 Tema de Telegram generado: #${threadId}\n\nSe ha fijado el mensaje de bienvenida operativo en Telegram.`);
-        } else {
-          alert(`✅ Frente de obra "${obraForm.nombre}" creado exitosamente.`);
-        }
+        await api.post('/projects/obras', obraForm);
+        alert(`✅ Frente de obra "${obraForm.nombre}" creado. Sus reportes se enviarán al grupo del predio seleccionado.`);
       }
       setShowObraModal(false);
       setEditingObra(null);
       await loadData();
     } catch (err) {
       alert('❌ Error al guardar frente de obra: ' + err.message);
+    } finally {
+      catalogSaveLock.current = false;
+      setSavingCatalog(false);
     }
   };
 
@@ -482,18 +480,18 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
   // --- SINCRONIZACIÓN Y CREACIÓN DINÁMICA DE TEMAS EN TELEGRAM ---
   const [syncingTelegram, setSyncingTelegram] = useState(false);
 
-  const handleCreateTelegramTopic = async (obraId, obraNombre) => {
+  const handleCreateTelegramTopic = async (predioId, predioNombre) => {
     try {
-      const res = await api.post(`/projects/obras/${obraId}/create-telegram-topic`);
-      alert(`✅ ${res.message || 'Tema creado en Telegram exitosamente'}`);
+      const res = await api.post(`/projects/predios/${predioId}/create-telegram-topic`);
+      alert(`${res.warning ? '⚠️' : '✅'} ${res.message || 'Tema creado en Telegram exitosamente'}`);
       await loadData();
     } catch (err) {
-      alert(`❌ Error al crear tema en Telegram para "${obraNombre}": ${err.message}`);
+      alert(`❌ Error al crear tema en Telegram para "${predioNombre}": ${err.message}`);
     }
   };
 
   const handleSyncAllTelegramTopics = async () => {
-    if (!window.confirm('¿Deseas crear y sincronizar automáticamente los temas en el Supergrupo de Telegram para todos los frentes y predios activos?')) return;
+    if (!window.confirm('¿Deseas crear y sincronizar automáticamente los temas en el Supergrupo de Telegram para todos los predios?')) return;
     setSyncingTelegram(true);
     try {
       const res = await api.post('/projects/sync-telegram-topics');
@@ -518,8 +516,8 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         superficie_legal_ha: predio.superficie_legal_ha || 0,
         superficie_util_ha: predio.superficie_util_ha || 0,
         regimen: predio.regimen || 'Propiedad Privada',
-        proyecto_id: '',
-        crear_frente_telegram: false
+        tg_thread_id: predio?.tg_thread_id || '',
+        crear_grupo_telegram: false
       });
     } else {
       setPredioForm({
@@ -527,8 +525,8 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         superficie_legal_ha: 15,
         superficie_util_ha: 15,
         regimen: 'Propiedad Privada',
-        proyecto_id: proyectosList[0]?.id ? String(proyectosList[0].id) : '',
-        crear_frente_telegram: true
+        tg_thread_id: predio?.tg_thread_id || '',
+        crear_grupo_telegram: true
       });
     }
     setShowPredioModal(true);
@@ -536,14 +534,19 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
   const handleSavePredio = async (e) => {
     e.preventDefault();
+    if (catalogSaveLock.current) return;
+    catalogSaveLock.current = true;
+    setSavingCatalog(true);
     try {
       if (editingPredio) {
         await api.patch(`/projects/predios/${editingPredio.id}`, predioForm);
         alert('✅ Predio actualizado correctamente');
       } else {
         const res = await api.post('/projects/predios', predioForm);
-        if (res.tg_thread_id) {
-          alert(`✅ ¡Predio registrado con éxito!\n\n🏢 Frente operativo creado: "${predioForm.nombre}"\n📡 Tema de Telegram generado en el Supergrupo: #${res.tg_thread_id}\n\nLas cuadrillas ya pueden enviar reportes en este tema.`);
+        if (res.warning) {
+          alert(`⚠️ ${res.warning}`);
+        } else if (res.tg_thread_id) {
+          alert(`✅ ¡Predio registrado con éxito!\n\n📍 Predio: "${predioForm.nombre}"\n📡 Tema de Telegram generado en el Supergrupo: #${res.tg_thread_id}\n\nLas cuadrillas ya pueden enviar reportes en este tema.`);
         } else {
           alert(`✅ ${res.message || 'Predio registrado correctamente'}`);
         }
@@ -553,6 +556,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       await loadData();
     } catch (err) {
       alert('❌ Error al guardar predio: ' + err.message);
+    } finally {
+      catalogSaveLock.current = false;
+      setSavingCatalog(false);
     }
   };
 
@@ -587,8 +593,8 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
         nombre: '',
         tipo: 'tractor',
         modelo: '',
-        propietaria_id: entidadesList.find(e => e.nombre.toLowerCase().includes('aspromex'))?.id ? String(entidadesList.find(e => e.nombre.toLowerCase().includes('aspromex')).id) : (entidadesList[0]?.id ? String(entidadesList[0].id) : ''),
-        operadora_id: entidadesList.find(e => e.nombre.toLowerCase().includes('agrokool'))?.id ? String(entidadesList.find(e => e.nombre.toLowerCase().includes('agrokool')).id) : (entidadesList[0]?.id ? String(entidadesList[0].id) : ''),
+        propietaria_id: '',
+        operadora_id: '',
         umbral_servicio_hrs: 300,
         horometro_actual: 0,
         ultimo_servicio_hr: 0
@@ -599,6 +605,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
   const handleSaveMachine = async (e) => {
     e.preventDefault();
+    if (catalogSaveLock.current) return;
+    catalogSaveLock.current = true;
+    setSavingCatalog(true);
     try {
       if (editingMachine) {
         await api.patch(`/machines/${editingMachine.id}`, machineForm);
@@ -610,6 +619,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       await loadData();
     } catch (err) {
       alert('Error al guardar maquinaria: ' + err.message);
+    } finally {
+      catalogSaveLock.current = false;
+      setSavingCatalog(false);
     }
   };
 
@@ -693,6 +705,10 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-24 space-y-6">
+      {loadError && <div role="alert" className="rounded-xl bg-amber-50 text-amber-900 p-3 text-sm">
+        {loadError}
+        <button type="button" onClick={loadData} disabled={isLoading} className="ml-3 underline font-semibold">Reintentar</button>
+      </div>}
       {/* Header y Selector de Sub-Pestañas */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2ebd3] dark:border-[#253905] pb-4">
         <div>
@@ -1975,16 +1991,16 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
       {/* ========================================================================= */}
       {activeTab === 'catalogos' && (() => {
         const allObras = obrasList.length > 0 ? obrasList : proyectosList.flatMap(p => (p.obras || []).map(o => ({ ...o, proyecto_nombre: p.nombre, proyecto_id: p.id })));
-        
-        const filteredPredios = prediosList.filter(pr => 
-          !catalogoSearch || 
-          pr.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) || 
+
+        const filteredPredios = prediosList.filter(pr =>
+          !catalogoSearch ||
+          pr.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
           pr.regimen?.toLowerCase().includes(catalogoSearch.toLowerCase())
         );
 
-        const filteredObras = allObras.filter(ob => 
-          !catalogoSearch || 
-          ob.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) || 
+        const filteredObras = allObras.filter(ob =>
+          !catalogoSearch ||
+          ob.nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
           ob.proyecto_nombre?.toLowerCase().includes(catalogoSearch.toLowerCase()) ||
           ob.fase_actual?.toLowerCase().includes(catalogoSearch.toLowerCase())
         );
@@ -2212,6 +2228,12 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                             </div>
                           </div>
 
+                          <div className="text-xs py-2 text-sky-700 dark:text-sky-300">
+                            {pr.tg_thread_id ? `Grupo del predio: #${pr.tg_thread_id}` : (
+                              <button type="button" onClick={() => handleCreateTelegramTopic(pr.id, pr.nombre)} className="underline font-semibold">Crear grupo de Telegram del predio</button>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">Proyectos: {proyectosList.filter(p => p.predio_ids?.map(String).includes(String(pr.id))).map(p => p.nombre).join(', ') || 'Sin proyectos asignados'}</p>
                           {/* Hectáreas Grid */}
                           <div className="grid grid-cols-2 gap-2 my-3">
                             <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850">
@@ -2262,8 +2284,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {filteredObras.map((ob) => {
-                    const isMockThread = ['101', '102', '103', '104', '105', '106', '107'].includes(String(ob.tg_thread_id));
-                    const hasRealThread = ob.tg_thread_id && !isMockThread;
+
 
                     return (
                     <div
@@ -2278,29 +2299,13 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusColors[ob.estado] || statusColors.operacion}`}>
                                 {ob.estado}
                               </span>
-                              {ob.tg_thread_id ? (
-                                <span className={`text-[10px] font-mono px-2 py-0.5 rounded flex items-center gap-1 font-bold ${hasRealThread ? 'bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'}`}>
-                                  <Send className="w-2.5 h-2.5 text-sky-500" /> #{ob.tg_thread_id}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 font-semibold">
-                                  Sin Tema TG
-                                </span>
-                              )}
+
                             </div>
                             <h5 className="text-sm font-bold text-slate-900 dark:text-white mt-1.5 flex items-center gap-1.5">
                               <Building className="w-4 h-4 text-purple-400" /> {ob.nombre}
                             </h5>
                           </div>
                           <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleCreateTelegramTopic(ob.id, ob.nombre)}
-                              className="p-1.5 rounded-lg text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950/60 transition"
-                              title={hasRealThread ? 'Recrear o actualizar tema en Telegram' : 'Crear tema en Telegram para este frente'}
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                            </button>
                             <button
                               type="button"
                               onClick={() => handleOpenObraModal(null, ob)}
@@ -2354,16 +2359,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                           )}
                         </div>
 
-                        {(!hasRealThread) && (
-                          <button
-                            type="button"
-                            onClick={() => handleCreateTelegramTopic(ob.id, ob.nombre)}
-                            className="w-full py-1 px-2 rounded-lg bg-sky-50 dark:bg-sky-950/80 hover:bg-sky-100 dark:hover:bg-sky-900 border border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 transition"
-                          >
-                            <Send className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-                            <span>Crear Tema en Telegram</span>
-                          </button>
-                        )}
+                        <p className="text-[11px] text-slate-500">Los reportes se envían al grupo del predio e indican este frente.</p>
                       </div>
                     </div>
                     );
@@ -2558,6 +2554,18 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
             </div>
 
             <form onSubmit={handleSaveProject} className="space-y-3">
+              <fieldset className="p-3 border rounded-xl space-y-2">
+                <legend className="text-xs font-semibold">Predios asignados al proyecto</legend>
+                <p className="text-xs text-slate-500">Un predio puede recibir varios proyectos. Sus reportes compartirán el grupo del predio.</p>
+                {prediosList.map(predio => (
+                  <label key={predio.id} className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={projectForm.predio_ids?.includes(String(predio.id)) || false}
+                      onChange={e => setProjectForm(prev => ({ ...prev, predio_ids: e.target.checked ? [...(prev.predio_ids || []), String(predio.id)] : prev.predio_ids.filter(id => id !== String(predio.id)) }))} />
+                    {predio.nombre}
+                  </label>
+                ))}
+                {!prediosList.length && <p className="text-xs">Primero registra un predio en Catálogos.</p>}
+              </fieldset>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Proyecto</label>
                 <input
@@ -2906,16 +2914,17 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 <Building className="w-5 h-5 text-purple-400" />
                 {editingObra ? `Editar Frente: ${editingObra.nombre}` : `Nuevo Frente de Obra: ${selectedProjectForObra?.nombre || ''}`}
               </h3>
-              <button type="button" onClick={() => { setShowObraModal(false); setEditingObra(null); }} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
+              <button type="button" disabled={savingCatalog} onClick={() => { setShowObraModal(false); setEditingObra(null); }} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSaveObra} className="space-y-3">
+              <fieldset disabled={savingCatalog} className="space-y-3 disabled:opacity-60">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Proyecto Asignado</label>
                 <select
                   required
                   value={obraForm.proyecto_id}
-                  onChange={(e) => setObraForm(prev => ({ ...prev, proyecto_id: e.target.value }))}
+                  onChange={(e) => setObraForm(prev => ({ ...prev, proyecto_id: e.target.value, predio_ids: [] }))}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-purple-500 focus:outline-none"
                 >
                   <option value="">Selecciona un proyecto...</option>
@@ -2969,13 +2978,13 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                   <span>Predios Vinculados ({obraForm.predio_ids?.length || 0})</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Selecciona 1 o varios predios</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Solo predios asignados al proyecto</span>
                 </label>
                 <div className="max-h-36 overflow-y-auto rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-2 space-y-1">
-                  {prediosList.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic p-1">No hay predios registrados aún.</p>
+                  {availableObraPredios.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic p-1">Asigna predios a este proyecto desde Editar Proyecto antes de crear el frente.</p>
                   ) : (
-                    prediosList.map(pr => {
+                    availableObraPredios.map(pr => {
                       const isSelected = obraForm.predio_ids?.map(String).includes(String(pr.id));
                       return (
                         <label
@@ -3012,35 +3021,26 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Thread / Tema de Telegram (Opcional)</label>
-                <input
-                  type="text"
-                  value={obraForm.tg_thread_id}
-                  onChange={(e) => setObraForm(prev => ({ ...prev, tg_thread_id: e.target.value }))}
-                  placeholder="ej. Dejar vacío para creación automática"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-purple-500 focus:outline-none"
-                />
-                <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
-                  💡 Si se deja vacío, el bot creará automáticamente el tema en el Supergrupo de Telegram con los predios seleccionados.
-                </p>
-              </div>
+
 
               <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => { setShowObraModal(false); setEditingObra(null); }}
+                  disabled={savingCatalog} onClick={() => { setShowObraModal(false); setEditingObra(null); }}
                   className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
                 <button
-                  type="submit"
+                  type="submit" disabled={!obraForm.predio_ids.length}
                   className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold"
                 >
                   {editingObra ? 'Guardar Cambios' : 'Crear Frente de Obra'}
                 </button>
               </div>
+
+              {savingCatalog && <p role="status" className="text-sm">Guardando...</p>}
+              </fieldset>
             </form>
           </div>
         </div>
@@ -3055,10 +3055,11 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 <MapPin className="w-5 h-5 text-emerald-500" />
                 {editingPredio ? `Editar Predio: ${editingPredio.nombre}` : 'Nuevo Predio Agrícola'}
               </h3>
-              <button type="button" onClick={() => { setShowPredioModal(false); setEditingPredio(null); }} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
+              <button type="button" disabled={savingCatalog} onClick={() => { setShowPredioModal(false); setEditingPredio(null); }} className="text-slate-600 dark:text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSavePredio} className="space-y-3">
+              <fieldset disabled={savingCatalog} className="space-y-3 disabled:opacity-60">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Predio / Rancho</label>
                 <input
@@ -3080,7 +3081,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                     min="0"
                     required
                     value={predioForm.superficie_legal_ha}
-                    onChange={(e) => setPredioForm(prev => ({ ...prev, superficie_legal_ha: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setPredioForm(prev => ({ ...prev, superficie_legal_ha: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
@@ -3092,8 +3093,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                     step="0.01"
                     min="0"
                     required
+                    max={predioForm.superficie_legal_ha}
                     value={predioForm.superficie_util_ha}
-                    onChange={(e) => setPredioForm(prev => ({ ...prev, superficie_util_ha: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setPredioForm(prev => ({ ...prev, superficie_util_ha: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
@@ -3110,45 +3112,34 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                 />
               </div>
 
+              <label className="block text-xs space-y-1">
+                <span>ID del tema de Telegram del predio (opcional)</span>
+                <input type="text" value={predioForm.tg_thread_id || ''}
+                  onChange={e => setPredioForm(prev => ({ ...prev, tg_thread_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border" />
+                <span className="text-slate-500">Para vincular un grupo existente, captura su ID. Los proyectos compartirán este destino.</span>
+              </label>
               {!editingPredio && (
                 <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={predioForm.crear_frente_telegram}
-                      onChange={(e) => setPredioForm(prev => ({ ...prev, crear_frente_telegram: e.target.checked }))}
+                      checked={predioForm.crear_grupo_telegram}
+                      onChange={(e) => setPredioForm(prev => ({ ...prev, crear_grupo_telegram: e.target.checked }))}
                       className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                     />
                     <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                      Crear Frente y Tema en Telegram automáticamente
+                      Crear grupo del predio en Telegram
                     </span>
                   </label>
-                  {predioForm.crear_frente_telegram && (
-                    <div>
-                      <label className="block text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 mb-1">
-                        Asignar al Proyecto:
-                      </label>
-                      <select
-                        value={predioForm.proyecto_id}
-                        onChange={(e) => setPredioForm(prev => ({ ...prev, proyecto_id: e.target.value }))}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-emerald-300 dark:border-emerald-800 text-xs text-slate-900 dark:text-white focus:outline-none"
-                      >
-                        {proyectosList.map(p => (
-                          <option key={p.id} value={p.id}>{p.nombre} ({p.ciclo})</option>
-                        ))}
-                      </select>
-                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1">
-                        📡 El bot creará el tema en el Supergrupo de Telegram para captura de reportes.
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-xs text-slate-500">El grupo reunirá los reportes de todos los proyectos asignados a este predio.</p>
                 </div>
               )}
 
               <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => { setShowPredioModal(false); setEditingPredio(null); }}
+                  disabled={savingCatalog} onClick={() => { setShowPredioModal(false); setEditingPredio(null); }}
                   className="px-4 py-2 rounded-lg bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
@@ -3160,6 +3151,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                   {editingPredio ? 'Guardar Cambios' : 'Crear Predio'}
                 </button>
               </div>
+
+              {savingCatalog && <p role="status" className="text-sm">Guardando...</p>}
+              </fieldset>
             </form>
           </div>
         </div>
@@ -3176,7 +3170,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               </h3>
               <button
                 type="button"
-                onClick={() => { setShowMachineModal(false); setEditingMachine(null); }}
+                disabled={savingCatalog} onClick={() => { setShowMachineModal(false); setEditingMachine(null); }}
                 className="text-slate-600 dark:text-slate-400 hover:text-white"
               >
                 ✕
@@ -3184,6 +3178,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
             </div>
 
             <form onSubmit={handleSaveMachine} className="space-y-3.5">
+              <fieldset disabled={savingCatalog} className="space-y-3 disabled:opacity-60">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -3246,7 +3241,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Entidad Propietaria *
+                    Entidad Propietaria (opcional)
                   </label>
                   <select
                     value={machineForm.propietaria_id}
@@ -3262,7 +3257,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Entidad Operadora *
+                    Entidad Operadora (opcional)
                   </label>
                   <select
                     value={machineForm.operadora_id}
@@ -3294,7 +3289,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                     min="10"
                     required
                     value={machineForm.umbral_servicio_hrs}
-                    onChange={(e) => setMachineForm(prev => ({ ...prev, umbral_servicio_hrs: parseFloat(e.target.value) || 300 }))}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, umbral_servicio_hrs: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-500">ej. 300 hrs</span>
@@ -3308,8 +3303,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                     type="number"
                     step="0.1"
                     min="0"
+                    required
                     value={machineForm.horometro_actual}
-                    onChange={(e) => setMachineForm(prev => ({ ...prev, horometro_actual: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, horometro_actual: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -3322,8 +3318,10 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                     type="number"
                     step="0.1"
                     min="0"
+                    required
+                    max={machineForm.horometro_actual}
                     value={machineForm.ultimo_servicio_hr}
-                    onChange={(e) => setMachineForm(prev => ({ ...prev, ultimo_servicio_hr: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setMachineForm(prev => ({ ...prev, ultimo_servicio_hr: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -3332,7 +3330,7 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
               <div className="flex justify-end gap-2 pt-3 border-t border-[#e2ebd3] dark:border-[#253905]">
                 <button
                   type="button"
-                  onClick={() => { setShowMachineModal(false); setEditingMachine(null); }}
+                  disabled={savingCatalog} onClick={() => { setShowMachineModal(false); setEditingMachine(null); }}
                   className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
@@ -3344,6 +3342,9 @@ export default function SupervisorView({ activeTab: externalActiveTab, onTabChan
                   {editingMachine ? 'Guardar Cambios' : 'Registrar Máquina'}
                 </button>
               </div>
+
+              {savingCatalog && <p role="status" className="text-sm">Guardando...</p>}
+              </fieldset>
             </form>
           </div>
         </div>

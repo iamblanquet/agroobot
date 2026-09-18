@@ -5,6 +5,7 @@ import OfflineBadge from './OfflineBadge';
 import {
   LogOut,
   User,
+  Users,
   Send,
   Shield,
   Activity,
@@ -47,6 +48,7 @@ export default function Navbar({
   const RoleIcon = currentRoleInfo.icon;
 
   const views = [
+    { id: 'empleados', label: 'Empleados', icon: Users, roles: ['supervisor', 'direccion', 'it'] },
     { id: 'campo', label: 'Campo', icon: HardHat, roles: ['campo', 'supervisor', 'direccion', 'it'] },
     { id: 'supervisor', label: 'Supervisor', icon: Activity, roles: ['supervisor', 'direccion', 'it'] },
     { id: 'direccion', label: 'Dirección', icon: BarChart3, roles: ['direccion', 'it'] },

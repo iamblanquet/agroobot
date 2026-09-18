@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db/database');
 const projectRepository = require('../repositories/projectRepository');
+const employeeRepository = require('../repositories/employeeRepository');
 const { authenticateJWT, requireRole } = require('../middleware/auth');
 
 /**
@@ -418,6 +419,7 @@ router.get('/cascade-options', authenticateJWT, async (req, res) => {
     const obras = await db.all('SELECT id, proyecto_id, nombre, fase_actual, estado FROM obra ORDER BY nombre ASC');
     const predios = await db.all('SELECT id, nombre, superficie_legal_ha, superficie_util_ha, regimen FROM predio ORDER BY nombre ASC');
     const maquinas = await db.all('SELECT id, codigo, modelo, horometro_actual, alerta_mantenimiento FROM maquina ORDER BY codigo ASC');
+    const empleados = await employeeRepository.findAll();
 
     return res.json({
       proyectos,
@@ -425,7 +427,8 @@ router.get('/cascade-options', authenticateJWT, async (req, res) => {
       tareas,
       obras,
       predios,
-      maquinas
+      maquinas,
+      empleados
     });
   } catch (err) {
     console.error('Error en /cascade-options:', err);

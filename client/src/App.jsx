@@ -7,6 +7,7 @@ import CampoView from './views/CampoView';
 import SupervisorView from './views/SupervisorView';
 import DireccionView from './views/DireccionView';
 import AdminView from './views/AdminView';
+import EmployeesView from './views/EmployeesView';
 import GanttView from './views/GanttView';
 import {
   Menu,
@@ -94,6 +95,7 @@ export default function App() {
 
   // Definición de ítems del Sidebar
   const navItems = [
+    { id: 'empleados', label: 'Empleados', icon: User, view: 'empleados', roles: ['supervisor', 'direccion', 'it'] },
     {
       id: 'inicio_widgets',
       label: 'Inicio (4 Widgets)',
@@ -583,6 +585,7 @@ export default function App() {
           )}
           {currentView === 'direccion' && <DireccionView />}
           {currentView === 'it' && <AdminView />}
+          {currentView === 'empleados' && ['supervisor', 'direccion', 'it'].includes(user.rol) && <EmployeesView />}
         </main>
       </div>
     </div>

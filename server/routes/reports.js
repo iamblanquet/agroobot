@@ -7,6 +7,7 @@ const projectRepository = require('../repositories/projectRepository');
 const supabase = require('../db/supabase');
 const { authenticateJWT } = require('../middleware/auth');
 const { getOperationalDate } = require('../utils/operationalDate');
+const { resolveCrew } = require('../services/crew');
 
 /**
  * POST /api/reports/sync
@@ -67,7 +68,9 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         continue;
       }
 
+      let resolvedCrew;
       try {
+        resolvedCrew = es_sin_actividad ? [] : await resolveCrew(cuadrilla);
         await reportRepository.validateReferences({ proyecto_id, hito_id, tarea_id, obra_id, lineas, maquinaria });
       } catch (validationError) {
         results.push({ client_uuid, status: 'error', message: validationError.message });
@@ -158,7 +161,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
         es_sin_actividad,
         motivo_sin_actividad,
         lineas,
-        cuadrilla,
+        cuadrilla: resolvedCrew,
         maquinaria,
         savedFotos
       });
@@ -178,7 +181,7 @@ router.post('/sync', authenticateJWT, async (req, res) => {
           esSinActividad: !!es_sin_actividad,
           motivoSinActividad: motivo_sin_actividad,
           lineas,
-          cuadrilla,
+          cuadrilla: resolvedCrew,
           maquinaria,
           fotos: savedFotos,
           clientUuid: client_uuid

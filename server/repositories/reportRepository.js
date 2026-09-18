@@ -127,7 +127,8 @@ const reportRepository = {
         filters: { reporte_id: `eq.${reporteId}` }
       });
     }
-    return db.all('SELECT * FROM reporte_cuadrilla WHERE reporte_id = ?', [reporteId]);
+    const rows = await db.all('SELECT * FROM reporte_cuadrilla WHERE reporte_id = ?', [reporteId]);
+    return rows.map(row => ({ ...row, empleados: JSON.parse(row.empleados || '[]') }));
   },
 
   async findPhotosByReportId(reporteId) {
@@ -298,7 +299,8 @@ const reportRepository = {
             await supabase.insertRow('reporte_cuadrilla', {
               reporte_id: reporteId,
               rol_id: c.rol_id,
-              headcount: count
+              headcount: count,
+              empleados: c.empleados || []
             });
           }
         }
@@ -401,7 +403,7 @@ const reportRepository = {
         for (const c of cuadrilla) {
           const count = parseInt(c.headcount, 10) || 0;
           if (count > 0) {
-            await db.run('INSERT INTO reporte_cuadrilla (reporte_id, rol_id, headcount) VALUES (?, ?, ?)', [reporteId, c.rol_id, count]);
+            await db.run('INSERT INTO reporte_cuadrilla (reporte_id, rol_id, headcount, empleados) VALUES (?, ?, ?, ?)', [reporteId, c.rol_id, count, JSON.stringify(c.empleados || [])]);
           }
         }
 

@@ -45,6 +45,7 @@ async function migrate() {
   const reportes = await db.all('SELECT * FROM reporte');
   const lineas = await db.all('SELECT * FROM reporte_linea');
   const cuadrillas = await db.all('SELECT * FROM reporte_cuadrilla');
+  const empleados = await db.all('SELECT id, nombre, roles FROM empleado');
   const lecturasMaquinas = await db.all('SELECT * FROM lectura_maquina');
   const incidencias = await db.all('SELECT * FROM incidencia');
   const materiales = await db.all('SELECT id, obra_id, nombre, requerido, en_sitio, pedido, unidad, eta FROM material');
@@ -64,7 +65,8 @@ async function migrate() {
   await upsert('maquina', maquinas.map((row) => ({ ...row, alerta_mantenimiento: Boolean(row.alerta_mantenimiento) })));
   await upsert('reporte', reportes.map((row) => ({ ...row, es_sin_actividad: Boolean(row.es_sin_actividad) })));
   await upsert('reporte_linea', lineas);
-  await upsert('reporte_cuadrilla', cuadrillas);
+  await upsert('empleado', empleados.map(row => ({ ...row, roles: JSON.parse(row.roles || '[]') })));
+  await upsert('reporte_cuadrilla', cuadrillas.map(row => ({ ...row, empleados: JSON.parse(row.empleados || '[]') })));
   await upsert('lectura_maquina', lecturasMaquinas);
   await upsert('incidencia', incidencias);
   await upsert('material', materiales);

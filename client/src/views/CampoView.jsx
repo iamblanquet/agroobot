@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import CrewPicker from '../components/CrewPicker';
 import { saveReportOffline, cacheCatalogData, getCachedCatalogData } from '../db/indexedDb';
 import { compressImage } from '../utils/imageCompressor';
 import {
@@ -10,8 +11,6 @@ import {
   CloudRain,
   CheckCircle,
   AlertTriangle,
-  Plus,
-  Minus,
   Save,
   Clock,
   Fuel,
@@ -33,7 +32,8 @@ export default function CampoView() {
     tareas: [],
     obras: [],
     predios: [],
-    maquinas: []
+    maquinas: [],
+    empleados: []
   });
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
@@ -49,9 +49,9 @@ export default function CampoView() {
 
   // Cuadrilla dinámica
   const [cuadrilla, setCuadrilla] = useState({
-    operadores: 2,
-    tecnicos: 1,
-    auxiliares: 1
+    operadores: [],
+    tecnicos: [],
+    auxiliares: []
   });
 
   // Toggle y motivos de "Sin Actividad"
@@ -223,15 +223,7 @@ export default function CampoView() {
     }
   };
 
-  // Ajuste de cuadrilla con steppers
-  const adjustCuadrilla = (field, delta) => {
-    setCuadrilla((prev) => ({
-      ...prev,
-      [field]: Math.max(0, prev[field] + delta)
-    }));
-  };
-
-  const totalHeadcount = cuadrilla.operadores + cuadrilla.tecnicos + cuadrilla.auxiliares;
+  const totalHeadcount = Object.values(cuadrilla).reduce((total, employees) => total + employees.length, 0);
 
   // Cálculo de horas trabajadas
   const hIni = parseFloat(horometroInicio) || 0;
@@ -291,9 +283,9 @@ export default function CampoView() {
         : [],
       cuadrilla: !esSinActividad
         ? [
-            { rol_id: 'operador', headcount: cuadrilla.operadores },
-            { rol_id: 'tecnico', headcount: cuadrilla.tecnicos },
-            { rol_id: 'auxiliar', headcount: cuadrilla.auxiliares }
+            { rol_id: 'operador', headcount: cuadrilla.operadores.length, empleados: cuadrilla.operadores.map(({ id, nombre }) => ({ id, nombre })) },
+            { rol_id: 'tecnico', headcount: cuadrilla.tecnicos.length, empleados: cuadrilla.tecnicos.map(({ id, nombre }) => ({ id, nombre })) },
+            { rol_id: 'auxiliar', headcount: cuadrilla.auxiliares.length, empleados: cuadrilla.auxiliares.map(({ id, nombre }) => ({ id, nombre })) }
           ]
         : [],
       maquinaria: !esSinActividad && incluirMaquinaria && selectedMaquinaId
@@ -323,7 +315,12 @@ export default function CampoView() {
         });
       } else {
         // Enviar a Standalone API
-        await api.post('/reports/sync', { reports: [reportPayload] });
+        const response = await api.post('/reports/sync', { reports: [reportPayload] });
+        const rejected = response.results?.find(result => result.status === 'error');
+        if (rejected) {
+          setSubmitFeedback({ type: 'error', text: rejected.message || rejected.error || 'No se pudo guardar el reporte.' });
+          return;
+        }
         setSubmitFeedback({
           type: 'online',
           text: `✅ Reporte y ${fotos.length} foto(s) sincronizados exitosamente con el servidor central.`
@@ -342,6 +339,10 @@ export default function CampoView() {
       setLitrosDiesel('');
     } catch (err) {
       console.error('Error al enviar reporte:', err);
+      if (err.status >= 400 && err.status < 500) {
+        setSubmitFeedback({ type: 'error', text: err.message });
+        return;
+      }
       await saveReportOffline(reportPayload);
       setSubmitFeedback({
         type: 'offline',
@@ -602,97 +603,22 @@ export default function CampoView() {
               />
             </div>
 
-            {/* Steppers de Cuadrilla */}
+            {/* Selección de empleados de la cuadrilla */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Personal en Campo
                 </label>
                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-600/40">
-                  Headcount Total: {totalHeadcount}
+                  Total de personas: {totalHeadcount}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Operadores */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between shadow-sm">
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">Operadores</p>
-                    <p className="text-[10px] text-slate-500">Maquinaria pesada</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustCuadrilla('operadores', -1)}
-                      className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center text-xs font-bold transition"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-sm font-black text-slate-900 dark:text-white w-6 text-center">{cuadrilla.operadores}</span>
-                    <button
-                      type="button"
-                      onClick={() => adjustCuadrilla('operadores', 1)}
-                      className="w-8 h-8 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Técnicos */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between shadow-sm">
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">Técnicos</p>
-                    <p className="text-[10px] text-slate-500">Riego / Suelos</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustCuadrilla('tecnicos', -1)}
-                      className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center text-xs font-bold transition"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-sm font-black text-slate-900 dark:text-white w-6 text-center">{cuadrilla.tecnicos}</span>
-                    <button
-                      type="button"
-                      onClick={() => adjustCuadrilla('tecnicos', 1)}
-                      className="w-8 h-8 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Auxiliares */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-[#e2ebd3] dark:border-[#253905] flex items-center justify-between shadow-sm">
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">Auxiliares</p>
-                    <p className="text-[10px] text-slate-500">Jornaleros</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustCuadrilla('auxiliares', -1)}
-                      className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center text-xs font-bold transition"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-sm font-black text-slate-900 dark:text-white w-6 text-center">{cuadrilla.auxiliares}</span>
-                    <button
-                      type="button"
-                      onClick={() => adjustCuadrilla('auxiliares', 1)}
-                      className="w-8 h-8 rounded-xl bg-[#2c4001] hover:bg-[#203001] text-white flex items-center justify-center text-xs font-bold transition shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <CrewPicker employees={catalog.empleados || []} selection={cuadrilla} onChange={setCuadrilla} loading={isLoadingCatalog} disabled={isSubmitting} />
+              <button type="button" disabled={isLoadingCatalog || isSubmitting} onClick={loadCatalog} className="text-xs font-semibold text-[#2c4001] dark:text-[#a1c62e] underline disabled:opacity-50">Actualizar catálogo de empleados</button>
             </div>
           </div>
         )}
-
         {/* SECCIÓN 4: HORÓMETROS Y DIÉSEL (Visible solo si hay actividad) */}
         {!esSinActividad && (
           <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#152202] border border-[#e2ebd3] dark:border-[#253905] shadow-sm dark:shadow-xl space-y-4">

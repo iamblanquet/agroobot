@@ -169,7 +169,7 @@ export default function AdminView() {
             <p className="text-sm font-black text-emerald-700 dark:text-emerald-400">
               {health?.status === 'OK' ? '✅ Standalone API Activo' : 'Conectando...'}
             </p>
-            <p className="text-[10px] text-slate-500 font-mono mt-0.5">SQLite Relacional (15 tablas)</p>
+            <p className="text-[10px] text-slate-500 font-mono mt-0.5">SQLite Relacional</p>
           </div>
         </div>
 
